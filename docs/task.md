@@ -22,13 +22,13 @@
 
 ## M2: Aspire Phase 0 疎通基盤
 
-- [ ] AppHost から Aspire Dashboard をローカル起動できるようにする
-- [ ] VS Code GitHub Copilot Chat の OTLP endpoint として使う URL の確認手順を文書化する
-- [ ] trace tree の確認手順を文書化する
-- [ ] agent invocation、LLM call、tool call の確認手順を文書化する
-- [ ] token usage、duration、error の確認手順を文書化する
-- [ ] content capture 有効時の prompt / response / tool arguments / tool results の確認手順を文書化する
-- [ ] AppHost 起動確認を実施し、結果を記録する
+- [x] AppHost から Aspire Dashboard をローカル起動できるようにする
+- [x] VS Code GitHub Copilot Chat の OTLP endpoint として使う URL の確認手順を文書化する
+- [x] trace tree の確認手順を文書化する
+- [x] agent invocation、LLM call、tool call の確認手順を文書化する
+- [x] token usage、duration、error の確認手順を文書化する
+- [x] content capture 有効時の prompt / response / tool arguments / tool results の確認手順を文書化する
+- [x] AppHost 起動確認を実施し、結果を記録する
 
 ## M3: 設定生成・検証 CLI
 
