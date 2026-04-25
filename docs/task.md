@@ -32,14 +32,14 @@
 
 ## M3: 設定生成・検証 CLI
 
-- [ ] VS Code settings JSON のサンプル出力コマンドを実装する
-- [ ] PowerShell 用 GitHub Copilot CLI 環境変数スクリプトのサンプル出力コマンドを実装する
-- [ ] `OTEL_RESOURCE_ATTRIBUTES` の必須キー欠落チェックを実装する
-- [ ] `client.kind` の推奨値チェックを実装する
-- [ ] `experiment.id` の推奨値チェックを実装する
-- [ ] CLI がユーザー環境の設定ファイルや shell profile を自動編集しないことを確認する
-- [ ] 設定生成と属性検証の単体テストを追加する
-- [ ] `dotnet test` が成功することを確認する
+- [x] VS Code settings JSON のサンプル出力コマンドを実装する
+- [x] PowerShell 用 GitHub Copilot CLI 環境変数スクリプトのサンプル出力コマンドを実装する
+- [x] `OTEL_RESOURCE_ATTRIBUTES` の必須キー欠落チェックを実装する
+- [x] `client.kind` の推奨値チェックを実装する
+- [x] `experiment.id` の推奨値チェックを実装する
+- [x] CLI がユーザー環境の設定ファイルや shell profile を自動編集しないことを確認する
+- [x] 設定生成と属性検証の単体テストを追加する
+- [x] `dotnet test` が成功することを確認する
 
 ## M4: 検証とレビュー
 

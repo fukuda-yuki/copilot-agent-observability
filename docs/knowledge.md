@@ -24,3 +24,9 @@
 - `http` launch profile は Aspire の未暗号化トランスポート制約によりそのままでは起動しないため、使用時に備えて `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` を設定した。主手順は `https` profile とする。
 - M2 検証として `dotnet build CopilotAgentObservability.slnx` が成功した。
 - M2 起動確認として `dotnet run --project src\CopilotAgentObservability.AppHost\CopilotAgentObservability.AppHost.csproj --launch-profile https` を実行し、`https://localhost:17100` が HTTP 200 を返すことを確認した。確認後、起動した AppHost プロセスは停止した。
+
+## 2026-04-25: M3 Config CLI 実装結果
+- Config CLI に `vscode-settings`、`copilot-cli-env`、`validate-resource-attributes` を追加した。
+- M3 の出力既定値は Phase 0 仕様に従い、OTLP endpoint は `https://localhost:21025`、Copilot CLI の `client.kind` は `copilot-cli`、`experiment.id` は `baseline` とした。
+- `validate-resource-attributes` は必須キー欠落と不正な `key=value` 形式を error、推奨値外の `client.kind` と `experiment.id` を warning として扱う。
+- M3 検証として `dotnet build CopilotAgentObservability.slnx` と `dotnet test CopilotAgentObservability.slnx` が成功した。
