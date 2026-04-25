@@ -1,120 +1,158 @@
-# Repository Guidelines
+# AGENTS.md
 
-**最終応答は日本語で書くこと。**
+## 基本方針
+
+- 最終応答は日本語で書くこと。
+- ユーザーへの迎合は不要。技術的・仕様的に不明確な点、矛盾、リスクは明確に指摘する。
+- AGENTS.md はエージェントの作業手順を定める文書であり、プロダクト仕様を定義する場所ではない。
+- 仕様・設計・実装判断は、原則として `docs/spec.md` に従う。
+- README や既存実装から、勝手に仕様を補完しない。
+- 作業は最小差分で行い、依頼範囲外の大規模な整理・リファクタリング・整形を行わない。
+
+## 指示の優先順位
+
+指示が競合する場合は、次の優先順位で判断する。
+
+1. ユーザーの最新の明示指示
+2. `docs/requirements.md`
+3. `docs/spec.md`
+4. `docs/task.md`
+5. `docs/plan.md`
+6. `README.md` および既存実装
+
+`docs/requirements.md` と `docs/spec.md` に矛盾がある場合は、黙って実装方針を選ばない。  
+意図が明確な場合は `docs/spec.md` を更新してから実装する。意図が不明確な場合はユーザーへ確認する。
+
+## 確認ポリシー
+
+次のいずれかに該当する場合は、作業を進める前にユーザーへ確認する。
+
+- 不可逆な変更を行う場合
+- プロダクト仕様・外部公開インターフェース・入出力仕様を変更する場合
+- 新しい依存関係を追加する場合
+- セキュリティ方針を変更する場合
+- `docs/requirements.md` または `docs/spec.md` と実装依頼が競合する場合
+- `docs/spec.md` に必要な仕様が不足しており、実装判断が必要な場合
+- milestone が不明な状態で commit または review note を作成する必要がある場合
+
+軽微・可逆・局所的な変更では、不要に停止しない。
+
 
 ## Source of Truth
-- このリポジトリのプロダクト仕様・実装制約・優先順位の絶対的な Source of Truth は `docs/spec.md`。
-- `docs/spec.md` と他の文書・実装メモ・このファイルが矛盾する場合は、必ず `docs/spec.md` を優先し、最終応答で矛盾点を明示する。
-- `README.md` はプロジェクト背景・全体像・初期構想の参考資料として扱う。仕様判断の根拠にしてよいのは、`docs/spec.md` に反映済みの内容だけ。
+
+詳細仕様・設計・実装方針は `docs/spec.md` に記載する。
+
+- `docs/requirements.md` は要件定義であり、`docs/spec.md` より上位の判断材料とする。
+- `docs/spec.md` は実装時の主要な仕様根拠とする。
+- `README.md` はプロジェクト背景・全体像・初期構想の参考資料として扱う。
+- `README.md` の内容を仕様判断の根拠にしてよいのは、`docs/spec.md` に反映済みの場合に限る。
 - `docs/plan.md` は実装計画、分割方針、着手順序を共有するために使う。
 - `docs/task.md` は実装チェックリストと完了状況を管理するために使う。
-- `docs/knowledge.md` はエージェント間で共有すべき前提、調査結果、判断理由、ユーザー確認済み事項を記録するために使う。
-- `docs/*.md` の内容が互いに矛盾する場合は、優先順位を `spec.md`、`plan.md`、`task.md`、`knowledge.md` の順に扱い、必要ならユーザーへ確認する。
+- `docs/knowledge.md` は、エージェント間で共有すべき前提、調査結果、判断理由、ユーザー確認済み事項を記録するために使う。
 
-## Clarification Rules
-- 疑問がある場合は立ち止まってユーザーへ確認する。推測で進めない。
-- ユーザーへの迎合は不要。技術的・仕様的に不明確な点、矛盾、リスクは明確に指摘する。
-- `docs/spec.md` に仕様が存在しない場合、README や既存実装から勝手に仕様を補完しない。軽微で可逆な作業を除き、ユーザーへ確認する。
-- ユーザー確認で得た、以後のエージェント間共有が必要な情報は、必ず `docs/knowledge.md` に記録する。
+ユーザー確認によって仕様が確定した場合は、仕様として `docs/spec.md` に反映する。  
+`docs/knowledge.md` だけに仕様を退避しない。
 
-## Scope Discipline
-- AGENTS.md はエージェントの作業手順を定める文書であり、プロダクト仕様を定義する場所ではない。
+## スコープ管理
+
+- AGENTS.md にプロダクト仕様を書き足さない。
 - アーキテクチャ、CLI、入出力、対象ファイル、非採用方針、受け入れ条件などの実装判断は `docs/spec.md` に従う。
 - README や `docs/plan.md` に具体的な案があっても、`docs/spec.md` に昇格されていない限り、実装仕様として扱わない。
 - `docs/spec.md` に必要な仕様が不足している場合は、実装へ進む前にユーザーへ確認する。
-- 確認によって仕様が確定した場合は `docs/spec.md` に反映し、補足的な背景や判断理由を `docs/knowledge.md` に記録する。
+- 既存仕様の範囲を超える改善案を思いついても、依頼範囲外であれば実装しない。必要であれば提案として最終応答に記載する。
 
-## Build, Test, and Development Commands
-Run commands from the repository root.
+## ビルド・テスト・開発コマンド
 
-- Use commands defined by `docs/spec.md`, project configuration files, or existing repository scripts.
-- If no command is defined, inspect the project files and ask the user before inventing a new required workflow.
-- Do not carry over commands from another project.
-- Exercise the externally supported interface defined in `docs/spec.md` whenever behavior must be reproducible.
+コマンドはリポジトリルートから実行する。
 
-## Testing Guidelines
-- Derive test scope from `docs/spec.md` and `docs/task.md`.
-- Use small, sanitized or synthetic fixtures. Do not commit confidential user data or generated runtime artifacts.
-- Cover the behavior changed by the task, plus adjacent edge cases and regression risks identified during review.
-- Isolate external tool, network, local machine, and live-service boundaries so ordinary automated tests remain deterministic.
-- When behavior cannot be verified automatically, document the required live confirmation steps.
+- `docs/spec.md`、プロジェクト設定ファイル、既存のリポジトリスクリプトで定義されたコマンドを使う。
+- コマンドが定義されていない場合は、プロジェクトファイルを確認する。
+- 必須ワークフローを新しく作り出さない。
+- 別プロジェクトのコマンドを持ち込まない。
+- 振る舞いの再現性が必要な場合は、`docs/spec.md` で定義された外部サポート対象インターフェースを通じて検証する。
 
-## Validation and Live Confirmation
-Prefer automated validation first, but do not claim end-to-end success when behavior depends on the local machine or an external interactive tool.
+## 依存関係と環境変更
 
-Ask the user for live confirmation when the change depends on:
+- `docs/spec.md` で要求されている場合、またはユーザーが明示した場合を除き、新しい実行時依存・開発依存を追加しない。
+- 依存関係の変更がタスクに含まれていない場合、lockfile を副作用として更新しない。
+- ネットワーク依存の検証だけを、唯一の正当性根拠にしない。
+- ローカルツールが不足している場合は、不足しているツールと本来実行する予定だったコマンドを報告する。
+- 意図した検証内容を変えるような代替ワークフローを勝手に作らない。
 
-- software, credentials, account state, or permissions on the user's machine
-- behavior of external tools or services that cannot be reproduced in automated tests
-- file locks, local filesystem timing, generated artifacts, or machine-specific paths
-- any live integration explicitly called out by `docs/spec.md`
+## テスト方針
 
-When live confirmation is required, give concrete reproduction steps and state the evidence needed, such as generated `result.md`, `manifest.json`, asset files, debug JSON, hook logs, CLI output, or reproduced error messages.
+- テスト範囲は `docs/spec.md` と `docs/task.md` から導出する。
+- 小さく、匿名化済みまたは合成された fixture を使う。
+- 機密データ、実ユーザーデータ、生成された実行時成果物を commit しない。
+- 変更した振る舞いに加えて、隣接するエッジケースと回帰リスクを確認する。
+- 外部ツール、ネットワーク、ローカルマシン、ライブサービスとの境界は分離し、通常の自動テストは決定的に実行できるようにする。
+- 自動検証できない振る舞いは、必要なライブ確認手順を文書化し、ユーザーへ依頼する。エージェントが優先すべきは品質であり、ユーザーの手間を減らすことではない。必要な品質を確保するために、ユーザーにライブ確認を依頼することを躊躇しない。
 
-## Review Workflow
-実装を完了させる前に、必ず複数のサブエージェントを並列で立ち上げてレビューさせる。
 
-Minimum required subagents:
+## レビューワークフロー
 
-- spec compliance and functional correctness reviewer
-- tests, edge cases, and regression risk reviewer
+実装完了を宣言する前に、変更規模に応じたレビューを行う。
 
-For broad or risky changes, add one or more reviewers for:
+実装変更、振る舞い変更、外部公開インターフェース変更、セキュリティに関わる変更、広範囲リファクタリングでは、サブエージェントが利用可能な場合、複数のサブエージェントを並列で起動してレビューさせる。
 
-- architecture and separation of responsibilities
-- reliability and cleanup, especially Excel COM process handling
-- security, especially `.xlsm`, file paths, generated artifacts, and credentials
+最低限必要なレビュー観点は次のとおり。
 
-MainAgent responsibilities:
+- 仕様準拠性と機能的正しさ
+- テスト、エッジケース、回帰リスク
+- 拡張性、保守性、可読性
 
-- レビュー開始前に milestone を確認する。milestone が不明な場合は、`docs/review/<milestone>.md` を作成する前にユーザーへ確認する。
-- MainAgent はレビュー中、取りまとめに徹する。
-- サブエージェントの指摘事項を重複排除し、各指摘の妥当性を `docs/spec.md`、関連テスト、変更内容に照らして検証する。
+ドキュメントのみ、誤字のみ、整形のみ、その他の軽微で可逆な変更では、記録された自己レビューで足りる。
+
+### メインエージェントの責務
+
+- レビュー開始前に milestone を確認する。
+- milestone が不明な場合は、`docs/review/<milestone>.md` を作成する前にユーザーへ確認する。
+- メインエージェントはレビュー中、取りまとめに徹する。
+- サブエージェントの指摘事項を重複排除する。
+- 各指摘の妥当性を、`docs/spec.md`、関連テスト、変更内容に照らして検証する。
 - 妥当でない指摘は、理由を明記して棄却する。
-- レビュー結果は、指摘の有無や採否に関わらず、修正前にまず `docs/review/<milestone>.md` に記録する。
-- review note には、レビュー範囲、変更ファイル、使用したサブエージェント、subagent の起動成否、raw findings summary、MainAgent の妥当性判断、対応方針、適用した修正、残リスク、保留事項を含める。
+- レビュー結果は、指摘の有無や採否に関わらず、修正前にまず `docs/review/<milestone>.md` にチェックリスト形式で記録する。
 - 指摘事項へ対応した場合は、対応後に同じ review note を更新する。
 - 修正は盲目的に適用しない。必ずコード、テスト、`docs/spec.md` に照らして必要性を説明できるものだけ対応する。
-- サブエージェントを起動できない、または必要数のレビュー結果を取得できない場合は、実装完了を宣言しない。ユーザーへ状況を報告し、代替レビューへ進む明示許可を得る。
 
-Completion requirements:
+review note には、次を含める。
 
-- 作業開始時に `docs/task.md` を確認し、現在の作業に該当する項目があるか確認する。該当項目がなく、タスク化が必要な場合は追加するかユーザーへ確認する。
-- 実装完了を宣言する前に、`docs/task.md` を現在の実装・検証状況に合わせて更新する。
-- レビュー指摘に対応した場合は、`docs/review/<milestone>.md` も更新する。
-- エージェント間で共有すべき新しい前提、判断、調査結果、確認済み事項が生じた場合は、必ず `docs/knowledge.md` に記録する。
-- 仕様として確定した事項は `docs/spec.md` に反映する。`docs/knowledge.md` だけに仕様を退避しない。
-- `docs/task.md`、`docs/knowledge.md`、`docs/spec.md`、review note を必要に応じて更新できない理由がある場合は、完了宣言せず、理由と必要な確認事項をユーザーへ提示する。
+- レビュー範囲
+- 変更ファイル
+- 使用したサブエージェント
+- サブエージェントの起動成否
+- raw findings summary
+- メインエージェントの妥当性判断
+- 対応方針
+- 適用した修正
+- 残リスク
+- 保留事項
 
-## Security and Configuration
-- Never commit secrets, credentials, local connection strings, confidential user files, generated logs, debug dumps with user data, or rendered/generated artifacts from private inputs.
-- Keep local outputs out of commits unless they are intentional sanitized fixtures.
-- Do not weaken `.gitignore` protections for runtime outputs or private data.
-- Treat executable or macro-capable input formats as potentially unsafe when they are in scope. Do not execute embedded code unless `docs/spec.md` explicitly requires it and the user confirms the risk.
-- Prefer read-only input access where possible.
+## 完了条件
 
-## Git Operations and Commit Rules
-- Agents may create local commits only when the requested task justifies it and validation/review is complete.
-- Do not push branches or tags.
-- Do not open, update, merge, or auto-merge pull requests.
-- Do not rewrite remote history.
-- If the milestone is unclear, ask before creating a commit.
+作業完了を宣言する前に、次を確認する。
 
-Commit messages must start with a milestone name and then use Conventional Commits:
+- 作業開始時に `docs/task.md` を確認し、現在の作業に該当する項目があるか確認した。
+- 該当項目がなく、タスク化が必要な場合は、追加するかユーザーへ確認した。
+- 実装完了前に、`docs/task.md` を現在の実装・検証状況に合わせて更新した。
+- レビュー指摘に対応した場合は、`docs/review/<milestone>.md` も更新した。
+- エージェント間で共有すべき新しい前提、判断、調査結果、確認済み事項が生じた場合は、`docs/knowledge.md` に記録した。
+- 仕様として確定した事項は `docs/spec.md` に反映した。
+- `docs/knowledge.md` だけに仕様を退避していない。
+- 必要な検証を実行し、結果を説明できる。
+- 自動検証できない箇所がある場合は、ライブ確認手順と必要な証跡を提示できる。
 
-- `<milestone>: <type>(<scope>): <subject>`
-- `<milestone>: <type>: <subject>` when scope is unnecessary
+`docs/task.md`、`docs/knowledge.md`、`docs/spec.md`、review note を必要に応じて更新できない理由がある場合は、完了宣言しない。  
+理由と必要な確認事項をユーザーへ提示する。
 
-Examples:
+## Git 操作と commit ルール
 
-- `phase1-skeleton: feat(cli): add convert command skeleton`
-- `phase1-extraction: test(excel): cover merged cell block detection`
-- `phase1-skill: docs(skill): add minimal Copilot launcher guidance`
+エージェントは、依頼された作業に対して必要であり、検証・レビューが完了している場合に限り、ローカル commit を作成してよい。
 
-Use clear subjects. Avoid vague messages such as `update`, `fix issues`, or `work in progress`.
+禁止事項:
 
-## Agent-Specific Instructions
-- Use installed Codex skills proactively when they match the task.
-- Keep `docs/spec.md` driven scope narrow unless the user explicitly changes the project direction.
-- If `docs/spec.md` and an implementation request conflict, call out the conflict and ask or proceed only if the user's latest instruction clearly overrides it.
-- Preserve Japanese product terminology where the phase documents already use it.
+- branch や tag を push しない。
+- pull request を作成、更新、merge、auto-merge しない。
+- remote history を書き換えない。
+
+commit message は、milestone 名から始め、その後ろを Conventional Commits に準拠させる。
