@@ -43,15 +43,15 @@
 
 ## M4: 検証とレビュー
 
-- [ ] `dotnet build` で .NET 10 ソリューション全体を検証する
-- [ ] `dotnet test` で Config CLI の設定生成・検証ロジックを検証する
-- [ ] Aspire Dashboard のローカル起動を確認する
+- [x] `dotnet build` で .NET 10 ソリューション全体を検証する
+- [x] `dotnet test` で Config CLI の設定生成・検証ロジックを検証する
+- [x] Aspire Dashboard のローカル起動を確認する
 - [ ] VS Code GitHub Copilot Chat から trace が取り込まれることを手動ライブ確認する
 - [ ] span tree、token usage、duration、error を手動ライブ確認する
 - [ ] prompt / response / tool arguments / tool results を手動ライブ確認する
 - [ ] `client.kind=vscode-copilot-chat` と `experiment.id=baseline` を手動ライブ確認する
-- [ ] 自動検証できない項目について、必要な証跡と未確認理由を記録する
-- [ ] 変更規模に応じてレビューを実施し、必要であれば `docs/review/<milestone>.md` に記録する
+- [x] 自動検証できない項目について、必要な証跡と未確認理由を記録する
+- [x] 変更規模に応じてレビューを実施し、必要であれば `docs/review/<milestone>.md` に記録する
 
 ## M5: Phase 1 準備
 

@@ -30,3 +30,10 @@
 - M3 の出力既定値は Phase 0 仕様に従い、OTLP endpoint は `https://localhost:21025`、Copilot CLI の `client.kind` は `copilot-cli`、`experiment.id` は `baseline` とした。
 - `validate-resource-attributes` は必須キー欠落と不正な `key=value` 形式を error、推奨値外の `client.kind` と `experiment.id` を warning として扱う。
 - M3 検証として `dotnet build CopilotAgentObservability.slnx` と `dotnet test CopilotAgentObservability.slnx` が成功した。
+
+## 2026-04-25: M4 検証結果
+- `dotnet build CopilotAgentObservability.slnx` は成功した。警告 0、エラー 0。
+- `dotnet test CopilotAgentObservability.slnx --no-build` は成功した。Config CLI tests は 18 件合格、失敗 0、スキップ 0。
+- `dotnet run --project src\CopilotAgentObservability.AppHost\CopilotAgentObservability.AppHost.csproj --launch-profile https` で AppHost を起動し、`https://localhost:17100` が HTTP 200 を返すことを確認した。確認後、起動した AppHost プロセスは停止した。
+- VS Code GitHub Copilot Chat からの trace 取り込み、span tree、token usage、duration、error、prompt / response / tool arguments / tool results、`client.kind=vscode-copilot-chat`、`experiment.id=baseline` は、このセッションから VS Code Copilot Chat を操作して実送信できないため未確認。
+- 手動ライブ確認では、確認日時、VS Code version、GitHub Copilot Chat extension version、設定値、実行した依頼内容、Aspire Dashboard 上の trace id または識別情報、確認できた項目、未確認項目と理由を記録する。
