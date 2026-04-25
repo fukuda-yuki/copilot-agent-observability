@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CopilotAgentObservability.AppHost/CopilotAgentObservability.AppHost.csproj" />
+    <Project Path="src/CopilotAgentObservability.ConfigCli/CopilotAgentObservability.ConfigCli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CopilotAgentObservability.ConfigCli.Tests/CopilotAgentObservability.ConfigCli.Tests.csproj" />
+  </Folder>
+</Solution>

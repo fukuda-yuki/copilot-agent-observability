@@ -12,13 +12,13 @@
 
 ## M1: .NET 10 ソリューション初期化
 
-- [ ] `global.json` を追加し、.NET SDK 10 系を前提に固定する
-- [ ] ソリューションファイルを作成する
-- [ ] Aspire AppHost プロジェクトを作成する
-- [ ] Config CLI プロジェクトを作成する
-- [ ] Config CLI のテストプロジェクトを作成する
-- [ ] 全プロジェクトの Target Framework を `net10.0` にする
-- [ ] `dotnet build` が成功することを確認する
+- [x] `global.json` を追加し、.NET SDK 10 系を前提に固定する
+- [x] ソリューションファイルを作成する
+- [x] Aspire AppHost プロジェクトを作成する
+- [x] Config CLI プロジェクトを作成する
+- [x] Config CLI のテストプロジェクトを作成する
+- [x] 全プロジェクトの Target Framework を `net10.0` にする
+- [x] `dotnet build` が成功することを確認する
 
 ## M2: Aspire Phase 0 疎通基盤
 
