@@ -40,21 +40,24 @@ AppHost は以下を満たす。
 AppHost は、OTLP の独自 receiver を実装してはならない。
 OTel の受信・表示は Aspire Dashboard の機能を利用する。
 
-Phase 0 の主手順では `https` launch profile を使用する。
+Phase 0 の主手順では `http` launch profile を使用する。
 
 ```powershell
-dotnet run --project src\CopilotAgentObservability.AppHost\CopilotAgentObservability.AppHost.csproj --launch-profile https
+dotnet run --project src\CopilotAgentObservability.AppHost\CopilotAgentObservability.AppHost.csproj --launch-profile http
 ```
 
 Phase 0 の AppHost は以下のローカル URL を使用する。
 
 | 用途 | URL |
 | --- | --- |
-| Aspire Dashboard frontend | `https://localhost:17100` |
-| Aspire Dashboard OTLP/gRPC endpoint | `https://localhost:21024` |
-| Aspire Dashboard OTLP/HTTP endpoint | `https://localhost:21025` |
+| Aspire Dashboard frontend | `http://localhost:15090` |
+| Aspire Dashboard OTLP/gRPC endpoint | `http://localhost:19163` |
+| Aspire Dashboard OTLP/HTTP endpoint | `http://localhost:19164` |
 
 VS Code GitHub Copilot Chat の `otlp-http` exporter には、Aspire Dashboard OTLP/HTTP endpoint を指定する。
+VS Code / GitHub Copilot Chat extension は Node/Electron 側の HTTP client で OTLP を送信するため、`https` profile のローカル開発証明書を信頼できず export に失敗する場合がある。
+Phase 0 のローカル疎通確認では、この TLS 要因を避けるため `http` profile を既定手順とする。
+`https` profile の URL は `http` profile とは別に固定されており、frontend は `https://localhost:17100`、OTLP/gRPC は `https://localhost:21024`、OTLP/HTTP は `https://localhost:21025` である。
 ローカル疎通確認では、開発用途に限り `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true` を設定し、OTLP API key header を要求しない。
 この無認証設定は Phase 0 のローカル検証専用であり、本番展開や共有環境の方針ではない。
 
@@ -65,6 +68,8 @@ Config CLI は、開発者が Phase 0 の検証に必要な設定を再現しや
 Config CLI は以下を提供する。
 
 - VS Code settings JSON のサンプル出力
+- VS Code GitHub Copilot Chat 用 PowerShell 環境変数スクリプトのサンプル出力
+- VS Code GitHub Copilot Chat の file exporter 診断用 settings JSON のサンプル出力
 - PowerShell 用 GitHub Copilot CLI 環境変数スクリプトのサンプル出力
 - `OTEL_RESOURCE_ATTRIBUTES` の必須キー欠落チェック
 - `client.kind` と `experiment.id` の推奨値チェック
@@ -94,17 +99,47 @@ Phase 0 では、以下の VS Code settings key を扱う。
 {
   "github.copilot.chat.otel.enabled": true,
   "github.copilot.chat.otel.exporterType": "otlp-http",
-  "github.copilot.chat.otel.otlpEndpoint": "https://localhost:21025",
+  "github.copilot.chat.otel.otlpEndpoint": "http://localhost:19164",
   "github.copilot.chat.otel.captureContent": true
 }
 ```
 
 `github.copilot.chat.otel.otlpEndpoint` の値は、実際に利用する Aspire Dashboard の OTLP endpoint に合わせて更新する。
-上記 URL は AppHost の `https` launch profile に合わせた Phase 0 の既定値である。
+上記 URL は AppHost の `http` launch profile に合わせた Phase 0 の既定値である。
 Langfuse の `http://localhost:3000/api/public/otel` は Phase 1 以降の候補であり、Phase 0 の Aspire Dashboard 送信先としては使用しない。
 
 `github.copilot.chat.otel.captureContent=true` を有効にすると、prompt、response、system prompt、tool schema、tool arguments、tool results が span attributes に含まれ得る。
 この設定は機密情報やソースコードを収集し得るため、Phase 0 の信頼できるローカル環境でのみ有効化する。
+
+VS Code GitHub Copilot Chat の OTel 設定では、VS Code settings だけでなく環境変数も扱う。
+環境変数が設定されている場合、settings に指定した endpoint や captureContent の値だけでは実際の exporter 設定を判断できないため、Phase 0 の手動ライブ確認では環境変数の有無も確認対象とする。
+
+VS Code GitHub Copilot Chat に Phase 0 の Resource Attributes を付与して起動する場合は、以下の PowerShell 環境変数を使用する。
+
+```powershell
+$env:COPILOT_OTEL_ENABLED="true"
+$env:COPILOT_OTEL_ENDPOINT="http://localhost:19164"
+$env:COPILOT_OTEL_CAPTURE_CONTENT="true"
+$env:OTEL_RESOURCE_ATTRIBUTES="user.id=example-user,user.email=user@example.com,team.id=platform,department=engineering,client.kind=vscode-copilot-chat,experiment.id=baseline"
+```
+
+Dashboard に trace が表示されない場合は、OTLP export 経路と Copilot Chat の OTel emit 自体を分離するため、file exporter 診断を使用する。
+
+```json
+{
+  "github.copilot.chat.otel.enabled": true,
+  "github.copilot.chat.otel.exporterType": "file",
+  "github.copilot.chat.otel.outfile": "tmp/copilot-chat-otel.jsonl",
+  "github.copilot.chat.otel.captureContent": true
+}
+```
+
+file exporter でも出力ファイルが作成または更新されない場合は、Dashboard/AppHost 以前に、VS Code 側で OTel emit が発生していない、または設定が有効化されていない状態として扱う。
+file exporter で出力されるが Dashboard に telemetry が出ない場合は、OTLP endpoint、protocol、TLS、headers、環境変数優先、exporter error を優先して調査する。
+`https` profile を使っている場合は、Node/Electron 側のローカル開発証明書信頼エラーを疑い、`http` profile で再確認する。
+OTLP Logs は Aspire Dashboard の Console Logs ではなく Structured Logs で確認する。
+Console Logs は AppHost 管理リソースの stdout/stderr を確認する画面である。
+file exporter 出力に `scopeSpans` がなく logs または metrics のみが含まれる場合、Traces 画面に表示されないことがある。
 
 ### 3.2 GitHub Copilot CLI 環境変数
 
@@ -112,7 +147,7 @@ Phase 0 では、以下の環境変数を扱う。
 
 ```powershell
 $env:COPILOT_OTEL_ENABLED="true"
-$env:OTEL_EXPORTER_OTLP_ENDPOINT="https://localhost:21025"
+$env:OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:19164"
 $env:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT="true"
 $env:OTEL_RESOURCE_ATTRIBUTES="user.id=example-user,user.email=user@example.com,team.id=platform,department=engineering,client.kind=copilot-cli,experiment.id=baseline"
 ```
@@ -176,8 +211,8 @@ copilot-cli
 
 - AppHost から Aspire Dashboard が起動する。
 - VS Code GitHub Copilot Chat の OTLP endpoint として利用する URL を確認できる。
-- `https://localhost:17100` で Aspire Dashboard frontend に到達できる。
-- `https://localhost:21025` を VS Code GitHub Copilot Chat の OTLP/HTTP endpoint として設定できる。
+- `http://localhost:15090` で Aspire Dashboard frontend に到達できる。
+- `http://localhost:19164` を VS Code GitHub Copilot Chat の OTLP/HTTP endpoint として設定できる。
 
 ### 5.3 手動ライブ確認
 
@@ -192,6 +227,7 @@ Copilot 実行に依存する挙動は、自動テストだけで保証しない
 - `client.kind=vscode-copilot-chat` と `experiment.id=baseline` を確認できること
 
 手動ライブ確認を実施した場合は、確認日時、実行環境、設定値、確認できた項目、未確認項目を記録する。
+設定値には、VS Code settings だけでなく、VS Code プロセスに渡された OTel 関連環境変数も含める。
 
 Aspire Dashboard では、Traces 画面で対象 trace を開き、以下を確認する。
 

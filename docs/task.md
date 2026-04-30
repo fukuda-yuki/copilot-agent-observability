@@ -24,6 +24,7 @@
 
 - [x] AppHost から Aspire Dashboard をローカル起動できるようにする
 - [x] VS Code GitHub Copilot Chat の OTLP endpoint として使う URL の確認手順を文書化する
+- [x] VS Code GitHub Copilot Chat からの送信では `http` launch profile を主手順にすることを文書化する
 - [x] trace tree の確認手順を文書化する
 - [x] agent invocation、LLM call、tool call の確認手順を文書化する
 - [x] token usage、duration、error の確認手順を文書化する
@@ -46,6 +47,7 @@
 - [x] `dotnet build` で .NET 10 ソリューション全体を検証する
 - [x] `dotnet test` で Config CLI の設定生成・検証ロジックを検証する
 - [x] Aspire Dashboard のローカル起動を確認する
+- [x] `http` launch profile と `http://localhost:19164` による VS Code GitHub Copilot Chat からの Dashboard 表示をユーザー環境で確認する
 - [ ] VS Code GitHub Copilot Chat から trace が取り込まれることを手動ライブ確認する
 - [ ] span tree、token usage、duration、error を手動ライブ確認する
 - [ ] prompt / response / tool arguments / tool results を手動ライブ確認する
@@ -67,3 +69,4 @@
 ## Follow-up Documentation
 
 - [ ] README の「改善候補を抽出する」「改善前後を定量評価する」という表現が `docs/requirements.md` の非目的とずれているため、別タスクで修正する
+- [ ] Config CLI の既定 endpoint を Phase 0 の `http://localhost:19164` に合わせるか確認し、必要なら実装とテストを更新する

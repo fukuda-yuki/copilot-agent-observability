@@ -18,16 +18,16 @@
 - M1 検証として `dotnet build CopilotAgentObservability.slnx` と `dotnet test CopilotAgentObservability.slnx --no-build` が成功した。
 
 ## 2026-04-25: M2 Aspire Phase 0 疎通基盤
-- Phase 0 の AppHost 主手順は `https` launch profile とし、Aspire Dashboard frontend は `https://localhost:17100`、OTLP/HTTP endpoint は `https://localhost:21025` とした。
-- VS Code GitHub Copilot Chat の `otlp-http` 送信先は `github.copilot.chat.otel.otlpEndpoint=https://localhost:21025` とする。
+- Phase 0 の AppHost 主手順は当初 `https` launch profile とし、Aspire Dashboard frontend は `https://localhost:17100`、OTLP/HTTP endpoint は `https://localhost:21025` とした。
+- VS Code GitHub Copilot Chat の `otlp-http` 送信先は当初 `github.copilot.chat.otel.otlpEndpoint=https://localhost:21025` とした。
 - ローカル疎通確認では `ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true` を採用し、OTLP API key header なしで送信できる構成にした。この設定は Phase 0 のローカル開発専用であり、共有環境や本番方針ではない。
-- `http` launch profile は Aspire の未暗号化トランスポート制約によりそのままでは起動しないため、使用時に備えて `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` を設定した。主手順は `https` profile とする。
+- `http` launch profile は Aspire の未暗号化トランスポート制約によりそのままでは起動しないため、使用時に備えて `ASPIRE_ALLOW_UNSECURED_TRANSPORT=true` を設定した。後続検証で VS Code GitHub Copilot Chat からの送信には `http` profile を主手順に変更した。
 - M2 検証として `dotnet build CopilotAgentObservability.slnx` が成功した。
 - M2 起動確認として `dotnet run --project src\CopilotAgentObservability.AppHost\CopilotAgentObservability.AppHost.csproj --launch-profile https` を実行し、`https://localhost:17100` が HTTP 200 を返すことを確認した。確認後、起動した AppHost プロセスは停止した。
 
 ## 2026-04-25: M3 Config CLI 実装結果
 - Config CLI に `vscode-settings`、`copilot-cli-env`、`validate-resource-attributes` を追加した。
-- M3 の出力既定値は Phase 0 仕様に従い、OTLP endpoint は `https://localhost:21025`、Copilot CLI の `client.kind` は `copilot-cli`、`experiment.id` は `baseline` とした。
+- M3 の出力既定値は当時の Phase 0 仕様に従い、OTLP endpoint は `https://localhost:21025`、Copilot CLI の `client.kind` は `copilot-cli`、`experiment.id` は `baseline` とした。
 - `validate-resource-attributes` は必須キー欠落と不正な `key=value` 形式を error、推奨値外の `client.kind` と `experiment.id` を warning として扱う。
 - M3 検証として `dotnet build CopilotAgentObservability.slnx` と `dotnet test CopilotAgentObservability.slnx` が成功した。
 
@@ -37,3 +37,12 @@
 - `dotnet run --project src\CopilotAgentObservability.AppHost\CopilotAgentObservability.AppHost.csproj --launch-profile https` で AppHost を起動し、`https://localhost:17100` が HTTP 200 を返すことを確認した。確認後、起動した AppHost プロセスは停止した。
 - VS Code GitHub Copilot Chat からの trace 取り込み、span tree、token usage、duration、error、prompt / response / tool arguments / tool results、`client.kind=vscode-copilot-chat`、`experiment.id=baseline` は、このセッションから VS Code Copilot Chat を操作して実送信できないため未確認。
 - 手動ライブ確認では、確認日時、VS Code version、GitHub Copilot Chat extension version、設定値、実行した依頼内容、Aspire Dashboard 上の trace id または識別情報、確認できた項目、未確認項目と理由を記録する。
+
+## 2026-04-26: Phase 0 HTTPS endpoint 切り分け
+- VS Code / VS Code Insiders の GitHub Copilot Chat OTel 設定で `endpoint=https://localhost:21025` が有効になっていることはログで確認できたが、Aspire Dashboard に telemetry が表示されなかった。
+- PowerShell から `https://localhost:21025/v1/logs` と `/v1/traces` へ送信した人工 OTLP telemetry は HTTP 200 となり、Aspire Dashboard の Structured Logs / Traces に表示されたため、Dashboard の OTLP 受信自体は動作していた。
+- Node/Electron 相当の `fetch` では `https://localhost:21025/v1/logs` が `DEPTH_ZERO_SELF_SIGNED_CERT` で失敗した。VS Code GitHub Copilot Chat extension の OTLP exporter は Node/Electron 側の HTTP client を使うため、`https` profile のローカル開発証明書を信頼できず export に失敗する可能性が高い。
+- ユーザーの手動確認により、AppHost を `http` launch profile で起動し、VS Code settings の `github.copilot.chat.otel.otlpEndpoint` を `http://localhost:19164` に変更すると Dashboard に表示されることを確認した。
+- Phase 0 の主手順は `http` launch profile に変更する。frontend は `http://localhost:15090`、OTLP/gRPC は `http://localhost:19163`、OTLP/HTTP は `http://localhost:19164` を使う。
+- `consolelogs` は AppHost 管理リソースの stdout/stderr 用であり、OTLP Logs の確認先ではない。OTLP Logs は `structuredlogs` で確認する。
+- `tmp\otel-chat-logs.jsonl` の file exporter 出力では `scopeSpans=0`、`scopeMetrics=16`、`spanContext` を持つ log record が確認された。ログに `spanContext` が付いていても Traces 画面に表示される span とは限らないため、signal 種別に応じて Traces / Structured Logs / Metrics を確認する。

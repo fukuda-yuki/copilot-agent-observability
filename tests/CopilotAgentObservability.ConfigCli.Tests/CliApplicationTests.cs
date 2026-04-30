@@ -31,6 +31,46 @@ public class CliApplicationTests
     }
 
     [Fact]
+    public void Run_VsCodeEnv_WritesScriptToOutput()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["vscode-env"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("$env:COPILOT_OTEL_ENDPOINT", output.ToString());
+        Assert.Contains("client.kind=vscode-copilot-chat", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_VsCodeFileSettings_WritesSettingsToOutput()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["vscode-file-settings", "tmp/copilot-chat-otel.jsonl"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("\"github.copilot.chat.otel.exporterType\": \"file\"", output.ToString());
+        Assert.Contains("\"github.copilot.chat.otel.outfile\": \"tmp/copilot-chat-otel.jsonl\"", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_VsCodeFileSettings_ReturnsNonZeroWithoutOutfile()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["vscode-file-settings"], output, error);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("requires exactly one output file path", error.ToString());
+    }
+
+    [Fact]
     public void Run_ValidateResourceAttributes_ReturnsNonZeroForMissingAttributes()
     {
         using var output = new StringWriter();

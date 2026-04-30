@@ -27,6 +27,20 @@ internal static class CliApplication
                 output.WriteLine(ConfigSamples.CreateVsCodeSettingsJson());
                 return 0;
 
+            case "vscode-env":
+                output.WriteLine(ConfigSamples.CreateVsCodePowerShellScript());
+                return 0;
+
+            case "vscode-file-settings":
+                if (args.Length != 2)
+                {
+                    error.WriteLine("error: vscode-file-settings requires exactly one output file path.");
+                    return 1;
+                }
+
+                output.WriteLine(ConfigSamples.CreateVsCodeFileSettingsJson(args[1]));
+                return 0;
+
             case "copilot-cli-env":
                 output.WriteLine(ConfigSamples.CreateCopilotCliPowerShellScript());
                 return 0;
@@ -67,6 +81,8 @@ internal static class CliApplication
     private const string HelpText = """
         Usage:
           config-cli vscode-settings
+          config-cli vscode-env
+          config-cli vscode-file-settings <outfile>
           config-cli copilot-cli-env
           config-cli validate-resource-attributes <OTEL_RESOURCE_ATTRIBUTES>
         """;
@@ -92,16 +108,34 @@ internal static class ConfigSamples
         return JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
     }
 
+    public static string CreateVsCodeFileSettingsJson(string outfile)
+    {
+        var settings = new Dictionary<string, object>
+        {
+            ["github.copilot.chat.otel.enabled"] = true,
+            ["github.copilot.chat.otel.exporterType"] = "file",
+            ["github.copilot.chat.otel.outfile"] = outfile,
+            ["github.copilot.chat.otel.captureContent"] = true,
+        };
+
+        return JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    public static string CreateVsCodePowerShellScript()
+    {
+        var resourceAttributes = CreateResourceAttributes(VsCodeClientKind);
+
+        var builder = new StringBuilder();
+        builder.AppendLine("$env:COPILOT_OTEL_ENABLED=\"true\"");
+        builder.AppendLine($"$env:COPILOT_OTEL_ENDPOINT=\"{DefaultOtlpEndpoint}\"");
+        builder.AppendLine("$env:COPILOT_OTEL_CAPTURE_CONTENT=\"true\"");
+        builder.Append($"$env:OTEL_RESOURCE_ATTRIBUTES=\"{resourceAttributes}\"");
+        return builder.ToString();
+    }
+
     public static string CreateCopilotCliPowerShellScript()
     {
-        var resourceAttributes = string.Join(
-            ',',
-            "user.id=example-user",
-            "user.email=user@example.com",
-            "team.id=platform",
-            "department=engineering",
-            $"client.kind={CopilotCliClientKind}",
-            $"experiment.id={DefaultExperimentId}");
+        var resourceAttributes = CreateResourceAttributes(CopilotCliClientKind);
 
         var builder = new StringBuilder();
         builder.AppendLine("$env:COPILOT_OTEL_ENABLED=\"true\"");
@@ -109,6 +143,18 @@ internal static class ConfigSamples
         builder.AppendLine("$env:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=\"true\"");
         builder.Append($"$env:OTEL_RESOURCE_ATTRIBUTES=\"{resourceAttributes}\"");
         return builder.ToString();
+    }
+
+    private static string CreateResourceAttributes(string clientKind)
+    {
+        return string.Join(
+            ',',
+            "user.id=example-user",
+            "user.email=user@example.com",
+            "team.id=platform",
+            "department=engineering",
+            $"client.kind={clientKind}",
+            $"experiment.id={DefaultExperimentId}");
     }
 }
 
