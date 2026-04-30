@@ -57,14 +57,14 @@
 
 ## M5: Phase 1 準備
 
-- [ ] Langfuse self-host 構成の候補を整理する
-- [ ] Docker Desktop / WSL2 / 社内サーバーのどれを PoC 実行基盤にするか整理する
-- [ ] Langfuse の OTLP endpoint と認証方式を整理する
-- [ ] `OTEL_EXPORTER_OTLP_HEADERS` の扱いを整理する
-- [ ] OTel Collector を Phase 1 で使うか整理する
-- [ ] retention、アクセス権、削除方法の未決事項を整理する
-- [ ] masking / redaction の必要範囲を整理する
-- [ ] Phase 1 実装前に `docs/spec.md` を更新する
+- [x] Langfuse self-host 構成の候補を整理する
+- [x] Docker Desktop / WSL2 / 社内サーバーのどれを PoC 実行基盤にするか整理する
+- [x] Langfuse の OTLP endpoint と認証方式を整理する
+- [x] `OTEL_EXPORTER_OTLP_HEADERS` の扱いを整理する
+- [x] OTel Collector を Phase 1 で使うか整理する
+- [x] retention、アクセス権、削除方法の未決事項を整理する
+- [x] masking / redaction の必要範囲を整理する
+- [x] Phase 1 実装前に `docs/spec.md` を更新する
 
 ## Follow-up Documentation
 

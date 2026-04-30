@@ -46,3 +46,10 @@
 - Phase 0 の主手順は `http` launch profile に変更する。frontend は `http://localhost:15090`、OTLP/gRPC は `http://localhost:19163`、OTLP/HTTP は `http://localhost:19164` を使う。
 - `consolelogs` は AppHost 管理リソースの stdout/stderr 用であり、OTLP Logs の確認先ではない。OTLP Logs は `structuredlogs` で確認する。
 - `tmp\otel-chat-logs.jsonl` の file exporter 出力では `scopeSpans=0`、`scopeMetrics=16`、`spanContext` を持つ log record が確認された。ログに `spanContext` が付いていても Traces 画面に表示される span とは限らないため、signal 種別に応じて Traces / Structured Logs / Metrics を確認する。
+
+## 2026-04-30: M5 Phase 1 準備
+- ユーザー確認により、Phase 1 の既定 PoC 実行基盤は Docker Desktop 上の Langfuse self-host Docker Compose とした。
+- Phase 1 の送信経路は VS Code GitHub Copilot Chat / GitHub Copilot CLI から Langfuse OTLP HTTP endpoint への直接送信とし、OTel Collector は必須にしない。
+- Langfuse UI は `http://localhost:3000`、OTLP endpoint は `http://localhost:3000/api/public/otel`、trace-specific endpoint は `http://localhost:3000/api/public/otel/v1/traces` を既定候補とした。
+- Langfuse 認証は public key と secret key を Basic Auth 化し、`OTEL_EXPORTER_OTLP_HEADERS` または `OTEL_EXPORTER_OTLP_TRACES_HEADERS` で渡す方針とした。
+- content capture は Phase 1 でも有効化するが、ローカル限定 PoC とし、合成データまたは検証用データを基本にする。保持期間は 30 日上限を目安とする。
