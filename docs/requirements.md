@@ -215,10 +215,12 @@ GitHub Copilot CLI では、content capture に対応する環境変数を有効
 最初はローカル一台で疎通確認する。
 
 ```text
+
 VS Code GitHub Copilot Chat
         ↓ OTLP
 Aspire Dashboard
-````
+
+```
 
 目的は以下である。
 
@@ -853,53 +855,3 @@ Langfuse 本体の公開リポジトリ。LLM observability、metrics、evals、
 ### 16.8 microsoft/vscode Issue: Agent Observability based on OpenTelemetry
 
 VS Code / Copilot Chat の Agent Observability に関する関連 issue。trace-based trajectory visualization、debugging、monitoring、post-run analysis、multi-session tracking などの論点を確認するための参考資料。
-
-
-以下、そのまま `requirements.md` として渡せる粒度で出力します。
-公開事例としては、**VS Code Copilot Chat / Copilot CLI → OTel → Langfuse** はかなり近い技術記事が既にあります。特に Copilot CLI の記事は「Skills やカスタマイズ効果を OTel で定量評価する」という今回の目的にかなり近いです。([Zenn][1])
-
----
-
-# 参考: 近い公開リポジトリ・技術記事
-
-## 1. VS Code 公式: Monitor agent usage with OpenTelemetry
-
-VS Code Copilot Chat の OTel 設定、収集される signals、content capture、Aspire Dashboard / Jaeger / Langfuse 連携例がまとまっている。今回の VS Code 側 PoC の一次情報として最重要。([Visual Studio Code][2])
-
-## 2. microsoft/vscode-copilot-chat の monitoring docs
-
-VS Code Copilot Chat の GitHub 側ドキュメント。Langfuse 連携設定、remote collector with authentication、file output、console output などの例がある。([GitHub][6])
-
-## 3. GitHub Docs: Copilot CLI command reference
-
-Copilot CLI の OTel 公式情報。Copilot CLI が traces / metrics を出力し、GenAI Semantic Conventions に従うこと、OTel が有効化される条件が書かれている。([GitHub Docs][3])
-
-## 4. Zenn: GitHub Copilot Chat エージェントの振る舞いを OTel で分析する
-
-日本語の実践記事。OTel の signals、trace / metrics / logs-events の役割、Copilot Chat の観測の流れを把握するのに有用。([Zenn][7])
-
-## 5. Zenn: GitHub Copilot CLI も OTel で観測する
-
-今回の要件に最も近い記事。Copilot CLI の trace を Langfuse に流し、`invoke_agent`、`chat`、`execute_tool`、token usage、tool call metrics を観測している。さらに、Skills やカスタマイズ効果を token、turn count、tool call pattern、duration で定量評価できると述べており、今回の Token Optimization / Agent改善構想にかなり近い。([Zenn][1])
-
-## 6. Langfuse OpenTelemetry integration
-
-Langfuse の OTel / GenAI Semantic Conventions 対応、attribute mapping の公式情報。Langfuse 側の受け口と属性設計を詰める際に参照する。([Langfuse][8])
-
-## 7. Langfuse GitHub repository
-
-Langfuse 本体の公開リポジトリ。LLM observability、metrics、evals、prompt management、datasets を扱う open source LLM engineering platform として実装されている。([GitHub][4])
-
-## 8. microsoft/vscode Issue: Agent Observability based on OpenTelemetry
-
-VS Code / Copilot Chat の Agent Observability に関するメタissue。trace-based trajectory visualization、debugging、monitoring、post-run analysis、multi-session tracking など、今回の方向性に近い論点が含まれている。Claude Code / LangSmith / Keywords AI などの関連事例にも触れている。([GitHub][9])
-
-[1]: https://zenn.dev/microsoft/articles/f439e06d07123e "GitHub Copilot CLI も OTel で観測する"
-[2]: https://code.visualstudio.com/docs/copilot/guides/monitoring-agents "Monitor agent usage with OpenTelemetry"
-[3]: https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference "GitHub Copilot CLI command reference - GitHub Docs"
-[4]: https://github.com/langfuse/langfuse "GitHub - langfuse/langfuse:  Open source LLM engineering platform: LLM Observability, metrics, evals, prompt management, playground, datasets. Integrates with OpenTelemetry, Langchain, OpenAI SDK, LiteLLM, and more. YC W23 · GitHub"
-[5]: https://docs.github.com/ja/enterprise-cloud%40latest/copilot/reference/copilot-cli-reference/cli-command-reference?utm_source=chatgpt.com "GitHub Copilot CLI コマンド リファレンス"
-[6]: https://github.com/microsoft/vscode-copilot-chat/blob/main/docs/monitoring/agent_monitoring.md "vscode-copilot-chat/docs/monitoring/agent_monitoring.md at main · microsoft/vscode-copilot-chat · GitHub"
-[7]: https://zenn.dev/microsoft/articles/6b22d233a9f0a2 "GitHub Copilot Chat エージェントの振る舞いを OTel で分析する"
-[8]: https://langfuse.com/integrations/native/opentelemetry "OpenTelemetry (OTEL) for LLM Observability - Langfuse"
-[9]: https://github.com/microsoft/vscode/issues/293225 "Meta: Agent Observability based on OpenTelemetry · Issue #293225 · microsoft/vscode · GitHub"

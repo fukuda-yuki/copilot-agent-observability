@@ -4,6 +4,14 @@
 プロダクト仕様・実装方針・優先順位の正は `docs/spec.md` とし、この文書は source of truth ではない。
 `README.md` はプロジェクト背景・全体像・初期構想の参考資料として扱う。
 
+## 現在の前提
+
+- 現在の主作業は Phase 1: ローカル Langfuse PoC である。
+- Phase 0: ローカル Aspire Dashboard 疎通確認は完了済み背景として扱う。
+- Phase 1 の既定構成は Docker Desktop 上の Langfuse self-host Docker Compose とする。
+- Phase 1 では VS Code GitHub Copilot Chat / GitHub Copilot CLI から Langfuse OTLP HTTP endpoint へ直接送信し、OTel Collector は必須にしない。
+- Phase 1 では content capture を有効化するが、投入データは合成データまたは検証用データを基本にする。
+
 ## 2026-04-25: 初期実装方針の確認
 
 - 初期実装の主言語は C# / .NET 10 とする。

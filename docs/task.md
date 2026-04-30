@@ -1,72 +1,59 @@
 # Task Breakdown
 
-この文書は `docs/spec.md` を実装タスクに分解したチェックリストである。
+この文書は `docs/spec.md` を実装・検証タスクに分解したチェックリストである。
+現在の主作業は Phase 1: ローカル Langfuse PoC である。
 
-## M0: 仕様・タスク整備
+## M0-M4: Phase 0 完了済み
 
-- [x] `README.md` を更新し、目的・対象範囲・ドキュメント参照先・現状フェーズを明記
-- [x] `docs/spec.md` に C# / .NET 10 初期実装方針を追加
-- [x] `docs/spec.md` に Phase 0: ローカル Aspire Dashboard 疎通確認の詳細仕様を追加
-- [x] `docs/task.md` をマイルストーン形式に再構成
-- [x] README と `docs/requirements.md` のズレは `docs/requirements.md` を優先し、README 修正を後続タスクとして明記
+- [x] .NET 10 ソリューション初期化
+- [x] Aspire AppHost によるローカル Dashboard 起動確認
+- [x] Config CLI による設定サンプル生成・Resource Attributes 検証
+- [x] Phase 0 の `http` launch profile 方針を文書化
+- [x] VS Code GitHub Copilot Chat から Aspire Dashboard への OTLP HTTP 表示をユーザー環境で確認
+- [x] Phase 0 の未確認ライブ項目は既知制約として閉じ、Phase 1 の Langfuse 確認項目へ置き換える
 
-## M1: .NET 10 ソリューション初期化
+## M5: Phase 1 ドキュメント再編
 
-- [x] `global.json` を追加し、.NET SDK 10 系を前提に固定する
-- [x] ソリューションファイルを作成する
-- [x] Aspire AppHost プロジェクトを作成する
-- [x] Config CLI プロジェクトを作成する
-- [x] Config CLI のテストプロジェクトを作成する
-- [x] 全プロジェクトの Target Framework を `net10.0` にする
-- [x] `dotnet build` が成功することを確認する
+- [x] `docs/spec.md` を Phase 1: ローカル Langfuse PoC 中心に再構成する
+- [x] `docs/task.md` を Phase 1 用チェックリストとして再作成する
+- [x] `README.md` の現状フェーズと目的表現を Phase 1 に合わせる
+- [x] `AGENTS.md` から存在しない計画文書への参照を削除する
+- [x] `docs/requirements.md` の重複貼り付け残りを削除する
+- [x] 完了済み review note を `docs/archive/review/` に移動する
 
-## M2: Aspire Phase 0 疎通基盤
+## M6: Langfuse ローカル起動
 
-- [x] AppHost から Aspire Dashboard をローカル起動できるようにする
-- [x] VS Code GitHub Copilot Chat の OTLP endpoint として使う URL の確認手順を文書化する
-- [x] VS Code GitHub Copilot Chat からの送信では `http` launch profile を主手順にすることを文書化する
-- [x] trace tree の確認手順を文書化する
-- [x] agent invocation、LLM call、tool call の確認手順を文書化する
-- [x] token usage、duration、error の確認手順を文書化する
-- [x] content capture 有効時の prompt / response / tool arguments / tool results の確認手順を文書化する
-- [x] AppHost 起動確認を実施し、結果を記録する
+- [ ] Docker Desktop が起動していることを確認する
+- [ ] Langfuse 公式 repository を取得する
+- [ ] Docker Compose の secret をローカルで設定する
+- [ ] `docker compose up` で Langfuse self-host を起動する
+- [ ] `http://localhost:3000` で Langfuse UI に到達できることを確認する
+- [ ] 初期ユーザー、organization、project を作成する
+- [ ] project の public key / secret key を作成する
+- [ ] Langfuse 停止手順と Docker volume 削除手順を確認する
 
-## M3: 設定生成・検証 CLI
+## M7: Phase 1 クライアント設定
 
-- [x] VS Code settings JSON のサンプル出力コマンドを実装する
-- [x] PowerShell 用 GitHub Copilot CLI 環境変数スクリプトのサンプル出力コマンドを実装する
-- [x] `OTEL_RESOURCE_ATTRIBUTES` の必須キー欠落チェックを実装する
-- [x] `client.kind` の推奨値チェックを実装する
-- [x] `experiment.id` の推奨値チェックを実装する
-- [x] CLI がユーザー環境の設定ファイルや shell profile を自動編集しないことを確認する
-- [x] 設定生成と属性検証の単体テストを追加する
-- [x] `dotnet test` が成功することを確認する
+- [ ] public key と secret key から Basic Auth header を生成する
+- [ ] `OTEL_EXPORTER_OTLP_HEADERS` に `Authorization=Basic <base64>` と `x-langfuse-ingestion-version=4` を設定する
+- [ ] signal-specific 設定が必要な場合に備え、`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` と `OTEL_EXPORTER_OTLP_TRACES_HEADERS` の値を確認する
+- [ ] VS Code GitHub Copilot Chat の OTel settings を Langfuse endpoint に合わせる
+- [ ] VS Code プロセスに渡す OTel 関連環境変数を確認する
+- [ ] GitHub Copilot CLI の OTel 環境変数を Langfuse endpoint に合わせる
+- [ ] `OTEL_RESOURCE_ATTRIBUTES` に必須属性を設定する
 
-## M4: 検証とレビュー
+## M8: Phase 1 手動ライブ確認
 
-- [x] `dotnet build` で .NET 10 ソリューション全体を検証する
-- [x] `dotnet test` で Config CLI の設定生成・検証ロジックを検証する
-- [x] Aspire Dashboard のローカル起動を確認する
-- [x] `http` launch profile と `http://localhost:19164` による VS Code GitHub Copilot Chat からの Dashboard 表示をユーザー環境で確認する
-- [ ] VS Code GitHub Copilot Chat から trace が取り込まれることを手動ライブ確認する
-- [ ] span tree、token usage、duration、error を手動ライブ確認する
-- [ ] prompt / response / tool arguments / tool results を手動ライブ確認する
-- [ ] `client.kind=vscode-copilot-chat` と `experiment.id=baseline` を手動ライブ確認する
-- [x] 自動検証できない項目について、必要な証跡と未確認理由を記録する
-- [x] 変更規模に応じてレビューを実施し、必要であれば `docs/review/<milestone>.md` に記録する
+- [ ] VS Code GitHub Copilot Chat の trace が Langfuse に取り込まれることを確認する
+- [ ] GitHub Copilot CLI の trace または metrics が Langfuse に取り込まれることを確認する
+- [ ] prompt / response / tool arguments / tool results が確認できることを確認する
+- [ ] token usage、duration、error が確認できることを確認する
+- [ ] `client.kind=vscode-copilot-chat` と `client.kind=copilot-cli` を識別できることを確認する
+- [ ] `experiment.id=baseline` で trace を識別できることを確認する
+- [ ] 確認日時、実行環境、Langfuse 起動方式、設定値、trace id または識別情報、確認できた項目、未確認項目を記録する
 
-## M5: Phase 1 準備
+## Follow-up
 
-- [x] Langfuse self-host 構成の候補を整理する
-- [x] Docker Desktop / WSL2 / 社内サーバーのどれを PoC 実行基盤にするか整理する
-- [x] Langfuse の OTLP endpoint と認証方式を整理する
-- [x] `OTEL_EXPORTER_OTLP_HEADERS` の扱いを整理する
-- [x] OTel Collector を Phase 1 で使うか整理する
-- [x] retention、アクセス権、削除方法の未決事項を整理する
-- [x] masking / redaction の必要範囲を整理する
-- [x] Phase 1 実装前に `docs/spec.md` を更新する
-
-## Follow-up Documentation
-
-- [ ] README の「改善候補を抽出する」「改善前後を定量評価する」という表現が `docs/requirements.md` の非目的とずれているため、別タスクで修正する
-- [ ] Config CLI の既定 endpoint を Phase 0 の `http://localhost:19164` に合わせるか確認し、必要なら実装とテストを更新する
+- [ ] Config CLI の既定 endpoint が古い Phase 0 HTTPS 系の値のままなので、別タスクで Phase 0 HTTP endpoint または Phase 1 Langfuse endpoint へ切り替えるか判断する
+- [ ] Phase 1 で直接送信が安定しない場合、OTel Collector 経由送信を次フェーズとして仕様化する
+- [ ] 実データ、共有環境、社内サーバー検証が必要になった場合、retention、アクセス権、masking / redaction、利用者周知を先に仕様化する
