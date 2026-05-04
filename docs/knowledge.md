@@ -108,3 +108,19 @@ VS Code Agent Debug / Chat Debug View は、個別セッションの手動デバ
 - 2026-05-04 時点のローカル環境では、`global.json` が要求する .NET SDK `10.0.203` に対してインストール済み SDK は `10.0.300-preview.0.26177.108` のみである。`dotnet --version`、`dotnet test CopilotAgentObservability.slnx`、`DOTNET_ROLL_FORWARD_TO_PRERELEASE=1` 付きの `dotnet --version` はいずれも SDK 解決で失敗し、`10.0.300-preview.0.26177.108` は現在の `global.json` の互換 SDK として選択されなかった。
 - `global.json` に `rollForward: latestFeature` と `allowPrerelease: true` を明示し、要求 SDK `10.0.203` がない環境でも同じ major/minor の新しい feature band preview SDK を選択できるようにした。
 - 更新後、`dotnet --version` は `10.0.300-preview.0.26177.108` を返した。`dotnet build CopilotAgentObservability.slnx` は成功し、警告 0、エラー 0。`dotnet test CopilotAgentObservability.slnx` は成功し、29 件合格、失敗 0、スキップ 0。
+
+## 2026-05-05: M8 Phase 1 手動ライブ確認結果
+- Langfuse self-host は Docker Desktop 上で起動中で、`http://localhost:3000` が HTTP 200 を返した。
+- `http://localhost:3000/api/public/otel` は GET では 404、`/api/public/otel/v1/traces` は GET では 405 だった。OTLP trace endpoint はブラウザ GET ではなく POST 用であるため、GET 結果だけを失敗判定にしない。
+- 初回 VS Code 送信では Langfuse web log に `Error verifying auth header: Invalid credentials` が出た。API key を作り直し、VS Code を OTel 環境変数付き PowerShell から再起動すると trace が取り込まれた。
+- VS Code trace `5d81e50cca0eb67ac68248a2b27e4f7d` で `client.kind=vscode-copilot-chat`、`experiment.id=baseline`、prompt、response、tool span、duration、token usage を確認した。
+- VS Code trace の代表値は root / agent duration `1m 3s`、agent token usage `144,297 -> 7,016 (sum 151,313)`、generation duration `11.22s`、generation token usage `26,353 -> 827 (sum 27,688)`。
+- GitHub Copilot CLI は `gh copilot explain ...` 形式ではなく、現在の preview では `gh copilot -p "..."` 形式で非対話 prompt を渡す必要があった。
+- CLI 側 trace / observation として `client.kind=copilot-cli`、`experiment.id=baseline`、service `github-copilot` / version `1.0.40`、latency `0.28s`、token usage `4,371 -> 3 (sum 4,374)` を Langfuse 上で確認した。
+- 別の CLI agent trace として `invoke_agent`、latency `3.52s`、token usage `33,818 -> 120 (sum 33,980)` も確認した。
+- CLI 側 content capture には合成プロンプト以外のローカル context 断片も含まれた。今後の実データ検証では、投入データ、作業ディレクトリ、content capture の扱いをさらに制限する必要がある。
+- 追加確認として、`C:\Users\mwam0\Documents\Codex\otel-synthetic-cli-check` に合成 fixture の `README.md` だけを置き、GitHub Copilot CLI を再実行した。
+- 追加確認 trace `c9d55a6b5571c7d8e8fa18e861c93db8` では、`client.kind=copilot-cli`、`experiment.id=baseline`、service `github-copilot` / version `1.0.40`、prompt / response、tool span、duration、token usage を確認した。
+- 同 trace の observation は `invoke_agent`、`chat gpt-5.3-codex`、`report_intent`、`view`、`chat gpt-5.3-codex` で、`view` は `C:\Users\mwam0\Documents\Codex\otel-synthetic-cli-check\README.md` のみを読んだ。
+- ClickHouse 上の検索で、同 trace 内の旧リポジトリ名、`docs/memo.json`、`current_file_content`、`recently_viewed_code_snippets` は 0 件、synthetic path は 3 件、`Synthetic Fixture` は 2 件だった。
+- 代表値として `invoke_agent` の latency は `8799ms`、token usage は `16,921 -> 233 (total 34,034)`、最終 generation の latency は `1997ms`、token usage は `192 -> 57 (total 17,046)` だった。
