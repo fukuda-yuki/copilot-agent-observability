@@ -38,13 +38,19 @@
 
 ## M7: Phase 1 クライアント設定
 
+- [x] VS Code Agent Debug / Chat Debug View は手動デバッグ用途であり、Phase 1 の成果物にしないことを確認する
 - [x] public key と secret key から Basic Auth header を生成する
 - [x] `OTEL_EXPORTER_OTLP_HEADERS` に `Authorization=Basic <base64>` と `x-langfuse-ingestion-version=4` を設定する
 - [x] signal-specific 設定が必要な場合に備え、`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` と `OTEL_EXPORTER_OTLP_TRACES_HEADERS` の値を確認する
 - [x] VS Code GitHub Copilot Chat の OTel settings を Langfuse endpoint に合わせる
+- [ ] VS Code から Langfuse へ直接 OTLP HTTP 送信する設定を確認する
 - [ ] VS Code プロセスに渡す OTel 関連環境変数を確認する
 - [x] GitHub Copilot CLI の OTel 環境変数を Langfuse endpoint に合わせる
+- [ ] Copilot CLI から Langfuse へ直接 OTLP HTTP 送信する設定を確認する
 - [x] `OTEL_RESOURCE_ATTRIBUTES` に必須属性を設定する
+- [ ] `OTEL_RESOURCE_ATTRIBUTES` に `user.id`, `user.email`, `team.id`, `department`, `client.kind`, `experiment.id` を設定する
+- [ ] `client.kind=vscode-copilot-chat` と `client.kind=copilot-cli` を使い分ける
+- [ ] content capture を有効化し、合成データのみで検証する
 
 2026-05-04 時点で、Config CLI に Phase 1 向けの `langfuse-*` 生成コマンドを追加した。VS Code プロセスへの実反映とライブ確認は M8 で未完了である。
 `global.json` に `rollForward: latestFeature` と `allowPrerelease: true` を明示し、インストール済み SDK `10.0.300-preview.0.26177.108` で `dotnet build CopilotAgentObservability.slnx` と `dotnet test CopilotAgentObservability.slnx` が成功することを確認した。
@@ -57,6 +63,7 @@
 - [ ] token usage、duration、error が確認できることを確認する
 - [ ] `client.kind=vscode-copilot-chat` と `client.kind=copilot-cli` を識別できることを確認する
 - [ ] `experiment.id=baseline` で trace を識別できることを確認する
+- [ ] VS Code Agent Debug View ではなく Langfuse 上の trace として確認できた証跡を記録する
 - [ ] 確認日時、実行環境、Langfuse 起動方式、設定値、trace id または識別情報、確認できた項目、未確認項目を記録する
 
 ## Follow-up

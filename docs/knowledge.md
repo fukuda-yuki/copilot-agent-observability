@@ -12,6 +12,29 @@
 - Phase 1 では VS Code GitHub Copilot Chat / GitHub Copilot CLI から Langfuse OTLP HTTP endpoint へ直接送信し、OTel Collector は必須にしない。
 - Phase 1 では content capture を有効化するが、投入データは合成データまたは検証用データを基本にする。
 
+## 2026-05-04: VS Code Agent Debug 機能との役割分担と、独自デバッグ実装の非採用
+
+### 決定
+
+VS Code Agent Debug / Chat Debug View は、個別セッションの手動デバッグ用途として利用する。
+本リポジトリでは、同等のデバッグ UI や VS Code 内部ログ解析機能を実装しない。
+
+本リポジトリは、VS Code GitHub Copilot Chat / GitHub Copilot CLI の公式 OpenTelemetry 出力を Langfuse 等の observability backend に取り込み、trace / prompt / response / tool call / token usage を確認できることを検証する PoC に集中する。
+
+### 理由
+
+- VS Code 側に既に Agent Debug / Chat Debug 系の手動デバッグ機能がある。
+- Copilot Chat / Copilot CLI は公式 OTel 出力に対応している。
+- 独自デバッグ UI や内部ログ解析は、保守コストと仕様変更リスクが大きい。
+- 本プロジェクトの目的は改善そのものではなく、改善検討に必要な観測データを得ることである。
+- Phase 1 の成功条件は OTel 収集成功であり、改善効果判定ではない。
+
+### 影響
+
+- Phase 1 では Langfuse への直接 OTLP HTTP 送信確認を優先する。
+- workspaceStorage 監視、常駐 Collector、PostgreSQL 保存、独自 UI は実装しない。
+- 将来の組織展開時のみ、OTel Collector、masking / redaction、認証、保持期間、アクセス権を再検討する。
+
 ## 2026-04-25: 初期実装方針の確認
 
 - 初期実装の主言語は C# / .NET 10 とする。
