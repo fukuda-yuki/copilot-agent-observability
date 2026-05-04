@@ -38,13 +38,16 @@
 
 ## M7: Phase 1 クライアント設定
 
-- [ ] public key と secret key から Basic Auth header を生成する
-- [ ] `OTEL_EXPORTER_OTLP_HEADERS` に `Authorization=Basic <base64>` と `x-langfuse-ingestion-version=4` を設定する
-- [ ] signal-specific 設定が必要な場合に備え、`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` と `OTEL_EXPORTER_OTLP_TRACES_HEADERS` の値を確認する
-- [ ] VS Code GitHub Copilot Chat の OTel settings を Langfuse endpoint に合わせる
+- [x] public key と secret key から Basic Auth header を生成する
+- [x] `OTEL_EXPORTER_OTLP_HEADERS` に `Authorization=Basic <base64>` と `x-langfuse-ingestion-version=4` を設定する
+- [x] signal-specific 設定が必要な場合に備え、`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` と `OTEL_EXPORTER_OTLP_TRACES_HEADERS` の値を確認する
+- [x] VS Code GitHub Copilot Chat の OTel settings を Langfuse endpoint に合わせる
 - [ ] VS Code プロセスに渡す OTel 関連環境変数を確認する
-- [ ] GitHub Copilot CLI の OTel 環境変数を Langfuse endpoint に合わせる
-- [ ] `OTEL_RESOURCE_ATTRIBUTES` に必須属性を設定する
+- [x] GitHub Copilot CLI の OTel 環境変数を Langfuse endpoint に合わせる
+- [x] `OTEL_RESOURCE_ATTRIBUTES` に必須属性を設定する
+
+2026-05-04 時点で、Config CLI に Phase 1 向けの `langfuse-*` 生成コマンドを追加した。VS Code プロセスへの実反映とライブ確認は M8 で未完了である。
+`global.json` に `rollForward: latestFeature` と `allowPrerelease: true` を明示し、インストール済み SDK `10.0.300-preview.0.26177.108` で `dotnet build CopilotAgentObservability.slnx` と `dotnet test CopilotAgentObservability.slnx` が成功することを確認した。
 
 ## M8: Phase 1 手動ライブ確認
 

@@ -18,6 +18,19 @@ public class CliApplicationTests
     }
 
     [Fact]
+    public void Run_LangfuseVsCodeSettings_WritesSettingsToOutput()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["langfuse-vscode-settings"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("http://localhost:3000/api/public/otel", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
     public void Run_CopilotCliEnv_WritesScriptToOutput()
     {
         using var output = new StringWriter();
@@ -27,6 +40,20 @@ public class CliApplicationTests
 
         Assert.Equal(0, exitCode);
         Assert.Contains("$env:OTEL_RESOURCE_ATTRIBUTES", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_LangfuseCopilotCliEnv_WritesScriptToOutput()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["langfuse-copilot-cli-env"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("$env:OTEL_EXPORTER_OTLP_ENDPOINT=\"http://localhost:3000/api/public/otel\"", output.ToString());
+        Assert.Contains("$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\"http://localhost:3000/api/public/otel/v1/traces\"", output.ToString());
         Assert.Equal(string.Empty, error.ToString());
     }
 
@@ -41,6 +68,20 @@ public class CliApplicationTests
         Assert.Equal(0, exitCode);
         Assert.Contains("$env:COPILOT_OTEL_ENDPOINT", output.ToString());
         Assert.Contains("client.kind=vscode-copilot-chat", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_LangfuseVsCodeEnv_WritesScriptToOutput()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["langfuse-vscode-env"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("$env:COPILOT_OTEL_ENDPOINT=\"http://localhost:3000/api/public/otel\"", output.ToString());
+        Assert.Contains("$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\"http://localhost:3000/api/public/otel/v1/traces\"", output.ToString());
         Assert.Equal(string.Empty, error.ToString());
     }
 

@@ -27,8 +27,16 @@ internal static class CliApplication
                 output.WriteLine(ConfigSamples.CreateVsCodeSettingsJson());
                 return 0;
 
+            case "langfuse-vscode-settings":
+                output.WriteLine(ConfigSamples.CreateLangfuseVsCodeSettingsJson());
+                return 0;
+
             case "vscode-env":
                 output.WriteLine(ConfigSamples.CreateVsCodePowerShellScript());
+                return 0;
+
+            case "langfuse-vscode-env":
+                output.WriteLine(ConfigSamples.CreateLangfuseVsCodePowerShellScript());
                 return 0;
 
             case "vscode-file-settings":
@@ -43,6 +51,10 @@ internal static class CliApplication
 
             case "copilot-cli-env":
                 output.WriteLine(ConfigSamples.CreateCopilotCliPowerShellScript());
+                return 0;
+
+            case "langfuse-copilot-cli-env":
+                output.WriteLine(ConfigSamples.CreateLangfuseCopilotCliPowerShellScript());
                 return 0;
 
             case "validate-resource-attributes":
@@ -81,9 +93,12 @@ internal static class CliApplication
     private const string HelpText = """
         Usage:
           config-cli vscode-settings
+          config-cli langfuse-vscode-settings
           config-cli vscode-env
+          config-cli langfuse-vscode-env
           config-cli vscode-file-settings <outfile>
           config-cli copilot-cli-env
+          config-cli langfuse-copilot-cli-env
           config-cli validate-resource-attributes <OTEL_RESOURCE_ATTRIBUTES>
         """;
 }
@@ -91,9 +106,14 @@ internal static class CliApplication
 internal static class ConfigSamples
 {
     public const string DefaultOtlpEndpoint = "https://localhost:21025";
+    public const string LangfuseOtlpEndpoint = "http://localhost:3000/api/public/otel";
+    public const string LangfuseOtlpTracesEndpoint = "http://localhost:3000/api/public/otel/v1/traces";
     public const string VsCodeClientKind = "vscode-copilot-chat";
     public const string CopilotCliClientKind = "copilot-cli";
     public const string DefaultExperimentId = "baseline";
+    private const string LangfuseIngestionVersionHeader = "x-langfuse-ingestion-version=4";
+    private const string LangfusePublicKeyPlaceholder = "<public-key>";
+    private const string LangfuseSecretKeyPlaceholder = "<secret-key>";
 
     public static string CreateVsCodeSettingsJson()
     {
@@ -102,6 +122,19 @@ internal static class ConfigSamples
             ["github.copilot.chat.otel.enabled"] = true,
             ["github.copilot.chat.otel.exporterType"] = "otlp-http",
             ["github.copilot.chat.otel.otlpEndpoint"] = DefaultOtlpEndpoint,
+            ["github.copilot.chat.otel.captureContent"] = true,
+        };
+
+        return JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    public static string CreateLangfuseVsCodeSettingsJson()
+    {
+        var settings = new Dictionary<string, object>
+        {
+            ["github.copilot.chat.otel.enabled"] = true,
+            ["github.copilot.chat.otel.exporterType"] = "otlp-http",
+            ["github.copilot.chat.otel.otlpEndpoint"] = LangfuseOtlpEndpoint,
             ["github.copilot.chat.otel.captureContent"] = true,
         };
 
@@ -133,6 +166,22 @@ internal static class ConfigSamples
         return builder.ToString();
     }
 
+    public static string CreateLangfuseVsCodePowerShellScript()
+    {
+        var resourceAttributes = CreateResourceAttributes(VsCodeClientKind);
+
+        var builder = new StringBuilder();
+        AppendLangfuseAuthPrelude(builder);
+        builder.AppendLine("$env:COPILOT_OTEL_ENABLED=\"true\"");
+        builder.AppendLine($"$env:COPILOT_OTEL_ENDPOINT=\"{LangfuseOtlpEndpoint}\"");
+        builder.AppendLine("$env:COPILOT_OTEL_CAPTURE_CONTENT=\"true\"");
+        builder.AppendLine($"$env:OTEL_EXPORTER_OTLP_HEADERS=\"Authorization=Basic $auth,{LangfuseIngestionVersionHeader}\"");
+        builder.AppendLine($"$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\"{LangfuseOtlpTracesEndpoint}\"");
+        builder.AppendLine($"$env:OTEL_EXPORTER_OTLP_TRACES_HEADERS=\"Authorization=Basic $auth,{LangfuseIngestionVersionHeader}\"");
+        builder.Append($"$env:OTEL_RESOURCE_ATTRIBUTES=\"{resourceAttributes}\"");
+        return builder.ToString();
+    }
+
     public static string CreateCopilotCliPowerShellScript()
     {
         var resourceAttributes = CreateResourceAttributes(CopilotCliClientKind);
@@ -143,6 +192,29 @@ internal static class ConfigSamples
         builder.AppendLine("$env:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=\"true\"");
         builder.Append($"$env:OTEL_RESOURCE_ATTRIBUTES=\"{resourceAttributes}\"");
         return builder.ToString();
+    }
+
+    public static string CreateLangfuseCopilotCliPowerShellScript()
+    {
+        var resourceAttributes = CreateResourceAttributes(CopilotCliClientKind);
+
+        var builder = new StringBuilder();
+        AppendLangfuseAuthPrelude(builder);
+        builder.AppendLine("$env:COPILOT_OTEL_ENABLED=\"true\"");
+        builder.AppendLine($"$env:OTEL_EXPORTER_OTLP_ENDPOINT=\"{LangfuseOtlpEndpoint}\"");
+        builder.AppendLine($"$env:OTEL_EXPORTER_OTLP_HEADERS=\"Authorization=Basic $auth,{LangfuseIngestionVersionHeader}\"");
+        builder.AppendLine($"$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\"{LangfuseOtlpTracesEndpoint}\"");
+        builder.AppendLine($"$env:OTEL_EXPORTER_OTLP_TRACES_HEADERS=\"Authorization=Basic $auth,{LangfuseIngestionVersionHeader}\"");
+        builder.AppendLine("$env:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=\"true\"");
+        builder.Append($"$env:OTEL_RESOURCE_ATTRIBUTES=\"{resourceAttributes}\"");
+        return builder.ToString();
+    }
+
+    private static void AppendLangfuseAuthPrelude(StringBuilder builder)
+    {
+        builder.AppendLine($"$publicKey = \"{LangfusePublicKeyPlaceholder}\"");
+        builder.AppendLine($"$secretKey = \"{LangfuseSecretKeyPlaceholder}\"");
+        builder.AppendLine("$auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(\"${publicKey}:${secretKey}\"))");
     }
 
     private static string CreateResourceAttributes(string clientKind)

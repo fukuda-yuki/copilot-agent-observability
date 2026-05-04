@@ -76,3 +76,12 @@
 - `Seed Org` と `Seed Project` が headless initialization で作成され、`Project API Keys` 画面で API key の provision 済み表示を確認した。
 - 取得した Langfuse repository は `81e1ba312088e9bf10245fd2999dea82862c7fbf` を checkout した detached HEAD 状態で使っている。
 - この PowerShell 環境では `git` が PATH に入っていなかったため、`C:\Program Files\Git\cmd\git.exe` を直接呼び出した。
+
+## 2026-05-04: M7 Phase 1 クライアント設定着手
+- Config CLI に `langfuse-vscode-settings`、`langfuse-vscode-env`、`langfuse-copilot-cli-env` を追加した。
+- Phase 1 用の env スクリプトでは、PowerShell 内で public key / secret key から Basic Auth を組み立てる形にした。
+- 既存の Phase 0 コマンドは維持し、Langfuse 向けの出力は別コマンドに分離した。
+- PowerShell の double-quoted string では `$publicKey:$secretKey` が ParserError になるため、Basic Auth 生成サンプルでは `${publicKey}:${secretKey}` の形で変数名を区切る。
+- 2026-05-04 時点のローカル環境では、`global.json` が要求する .NET SDK `10.0.203` に対してインストール済み SDK は `10.0.300-preview.0.26177.108` のみである。`dotnet --version`、`dotnet test CopilotAgentObservability.slnx`、`DOTNET_ROLL_FORWARD_TO_PRERELEASE=1` 付きの `dotnet --version` はいずれも SDK 解決で失敗し、`10.0.300-preview.0.26177.108` は現在の `global.json` の互換 SDK として選択されなかった。
+- `global.json` に `rollForward: latestFeature` と `allowPrerelease: true` を明示し、要求 SDK `10.0.203` がない環境でも同じ major/minor の新しい feature band preview SDK を選択できるようにした。
+- 更新後、`dotnet --version` は `10.0.300-preview.0.26177.108` を返した。`dotnet build CopilotAgentObservability.slnx` は成功し、警告 0、エラー 0。`dotnet test CopilotAgentObservability.slnx` は成功し、29 件合格、失敗 0、スキップ 0。
