@@ -61,3 +61,11 @@
 - Langfuse UI は `http://localhost:3000`、OTLP endpoint は `http://localhost:3000/api/public/otel`、trace-specific endpoint は `http://localhost:3000/api/public/otel/v1/traces` を既定候補とした。
 - Langfuse 認証は public key と secret key を Basic Auth 化し、`OTEL_EXPORTER_OTLP_HEADERS` または `OTEL_EXPORTER_OTLP_TRACES_HEADERS` で渡す方針とした。
 - content capture は Phase 1 でも有効化するが、ローカル限定 PoC とし、合成データまたは検証用データを基本にする。保持期間は 30 日上限を目安とする。
+
+## 2026-04-30: M6 Langfuse ローカル起動準備
+- `Get-Command docker`、`where.exe docker`、Docker Desktop 既定インストールパス、Docker 関連プロセス、`winget list --name Docker` を確認したが、この PowerShell 環境では Docker CLI / Docker Desktop を検出できなかった。
+- `Get-NetTCPConnection -LocalPort 3000` では既存の 3000 番利用は検出されなかった。
+- Langfuse 公式 repository を `tmp/langfuse` に shallow clone した。取得 commit は `81e1ba312088e9bf10245fd2999dea82862c7fbf`。
+- Docker Compose の `# CHANGEME` に対応する local secret と、headless initialization 用の初期 user / organization / project / API key 値を `tmp/langfuse/.env` に生成した。`.env` は Langfuse repository 側で ignored であり、API key、管理者パスワード、secret 値は記録しない。
+- `docker version`、`docker compose version`、`docker compose up` は `docker` コマンド不在により実行不可だった。
+- Langfuse 公式 Docker Compose 手順では、通常停止は `docker compose down`、volume 削除込みの停止は `docker compose down -v` とされている。

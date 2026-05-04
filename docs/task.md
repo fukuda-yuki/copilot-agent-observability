@@ -24,13 +24,16 @@
 ## M6: Langfuse ローカル起動
 
 - [ ] Docker Desktop が起動していることを確認する
-- [ ] Langfuse 公式 repository を取得する
-- [ ] Docker Compose の secret をローカルで設定する
+- [x] Langfuse 公式 repository を取得する
+- [x] Docker Compose の secret をローカルで設定する
 - [ ] `docker compose up` で Langfuse self-host を起動する
 - [ ] `http://localhost:3000` で Langfuse UI に到達できることを確認する
 - [ ] 初期ユーザー、organization、project を作成する
 - [ ] project の public key / secret key を作成する
-- [ ] Langfuse 停止手順と Docker volume 削除手順を確認する
+- [x] Langfuse 停止手順と Docker volume 削除手順を確認する
+
+2026-04-30 時点では、この PowerShell 環境から `docker` が見つからないため、Langfuse self-host の起動、UI 到達、初期 user / organization / project / API key の実作成は未完了である。
+Langfuse 公式 repository は `tmp/langfuse` に取得済みで、local secret と headless initialization 用の値は ignored な `tmp/langfuse/.env` に生成済みである。
 
 ## M7: Phase 1 クライアント設定
 
