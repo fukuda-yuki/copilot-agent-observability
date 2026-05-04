@@ -69,3 +69,10 @@
 - Docker Compose の `# CHANGEME` に対応する local secret と、headless initialization 用の初期 user / organization / project / API key 値を `tmp/langfuse/.env` に生成した。`.env` は Langfuse repository 側で ignored であり、API key、管理者パスワード、secret 値は記録しない。
 - `docker version`、`docker compose version`、`docker compose up` は `docker` コマンド不在により実行不可だった。
 - Langfuse 公式 Docker Compose 手順では、通常停止は `docker compose down`、volume 削除込みの停止は `docker compose down -v` とされている。
+
+## 2026-05-04: M6 Langfuse ローカル起動完了
+- `tmp/langfuse/.env` を作成し、`docker compose up -d --wait --wait-timeout 600` で Langfuse self-host を起動した。
+- `http://localhost:3000` に到達でき、`demo@langfuse.com` / `password` でサインインできた。
+- `Seed Org` と `Seed Project` が headless initialization で作成され、`Project API Keys` 画面で API key の provision 済み表示を確認した。
+- 取得した Langfuse repository は `81e1ba312088e9bf10245fd2999dea82862c7fbf` を checkout した detached HEAD 状態で使っている。
+- この PowerShell 環境では `git` が PATH に入っていなかったため、`C:\Program Files\Git\cmd\git.exe` を直接呼び出した。
