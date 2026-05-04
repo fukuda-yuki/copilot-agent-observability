@@ -31,6 +31,19 @@ public class CliApplicationTests
     }
 
     [Fact]
+    public void Run_CollectorVsCodeSettings_WritesSettingsToOutput()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["collector-vscode-settings"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("http://localhost:4318", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
     public void Run_CopilotCliEnv_WritesScriptToOutput()
     {
         using var output = new StringWriter();
@@ -54,6 +67,21 @@ public class CliApplicationTests
         Assert.Equal(0, exitCode);
         Assert.Contains("$env:OTEL_EXPORTER_OTLP_ENDPOINT=\"http://localhost:3000/api/public/otel\"", output.ToString());
         Assert.Contains("$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\"http://localhost:3000/api/public/otel/v1/traces\"", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_CollectorCopilotCliEnv_WritesScriptToOutput()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["collector-copilot-cli-env"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("$env:OTEL_EXPORTER_OTLP_ENDPOINT=\"http://localhost:4318\"", output.ToString());
+        Assert.DoesNotContain("Authorization=Basic", output.ToString());
+        Assert.Contains("Remove-Item Env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", output.ToString());
         Assert.Equal(string.Empty, error.ToString());
     }
 
@@ -82,6 +110,21 @@ public class CliApplicationTests
         Assert.Equal(0, exitCode);
         Assert.Contains("$env:COPILOT_OTEL_ENDPOINT=\"http://localhost:3000/api/public/otel\"", output.ToString());
         Assert.Contains("$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\"http://localhost:3000/api/public/otel/v1/traces\"", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_CollectorVsCodeEnv_WritesScriptToOutput()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["collector-vscode-env"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("$env:COPILOT_OTEL_ENDPOINT=\"http://localhost:4318\"", output.ToString());
+        Assert.DoesNotContain("Authorization=Basic", output.ToString());
+        Assert.Contains("Remove-Item Env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", output.ToString());
         Assert.Equal(string.Empty, error.ToString());
     }
 

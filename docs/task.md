@@ -82,8 +82,42 @@ trace `c9d55a6b5571c7d8e8fa18e861c93db8` では、`client.kind=copilot-cli`、`e
 ClickHouse 上の検索で、同 trace 内の旧リポジトリ名、`docs/memo.json`、`current_file_content`、`recently_viewed_code_snippets` は 0 件、synthetic path は 3 件、`Synthetic Fixture` は 2 件だった。
 代表値として `invoke_agent` の latency は `8799ms`、token usage は `16,921 -> 233 (total 34,034)`、最終 generation の latency は `1997ms`、token usage は `192 -> 57 (total 17,046)` だった。
 
+## M9: OTel Collector 経由送信の仕様化と最小実装
+
+- [x] `docs/spec.md` に Collector 経由送信を Phase 1 baseline の次候補として定義する
+- [x] Collector の OTLP HTTP/gRPC receiver port を `4318` / `4317` として定義する
+- [x] Collector の host port binding を `127.0.0.1` に限定する
+- [x] Collector から Langfuse への既定 exporter endpoint を `http://host.docker.internal:3000/api/public/otel` として定義する
+- [x] Langfuse 認証を `LANGFUSE_AUTH=Base64(public-key:secret-key)` で渡し、secret を repository に保存しない方針を定義する
+- [x] `docker compose config` の確認では dummy `LANGFUSE_AUTH` を使うことを定義する
+- [x] M9 の非スコープとして masking / redaction、TLS、SSO、共有環境運用、Resource Attributes の Collector 側自動付与、sampling を明記する
+- [x] M9 Collector example は trace pipeline のみを有効にし、metrics pipeline は扱わない
+- [x] `infra/otel-collector/otel-collector.example.yaml` を追加する
+- [x] `infra/otel-collector/docker-compose.example.yml` を追加する
+- [x] Config CLI に `collector-vscode-settings` を追加する
+- [x] Config CLI に `collector-vscode-env` を追加する
+- [x] Config CLI に `collector-copilot-cli-env` を追加する
+- [x] Config CLI の新コマンド出力を単体テストで確認する
+- [x] Docker が利用可能な環境で `docker compose -f infra/otel-collector/docker-compose.example.yml config` を確認する
+- [x] Langfuse 起動後に Collector 経由で VS Code GitHub Copilot Chat の trace が取り込まれることを確認する
+- [x] Langfuse 起動後に Collector 経由で GitHub Copilot CLI の trace が取り込まれることを確認する
+- [x] Collector 経由 trace で prompt / response、tool span、token usage、`client.kind`、`experiment.id` を確認する
+
+M9 は Collector 経由送信の PoC 準備であり、組織展開そのものではない。
+Langfuse 直接送信コマンドは baseline として維持する。
+2026-05-05 に、`LANGFUSE_AUTH=dummy` を設定したうえで `docker compose -f infra\otel-collector\docker-compose.example.yml config` が成功することを確認した。
+同日に `dotnet build CopilotAgentObservability.slnx` と `dotnet test CopilotAgentObservability.slnx` が成功し、Config CLI tests は 35 件合格した。
+レビュー指摘により、Collector の host port binding は `127.0.0.1` に限定し、Collector example は trace pipeline のみに変更した。
+また、Collector 系 Config CLI 出力では Langfuse 直接送信用の `OTEL_EXPORTER_OTLP_HEADERS`、`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`、`OTEL_EXPORTER_OTLP_TRACES_HEADERS` を解除する。
+手動ライブ確認を実施した場合は、確認日時、Langfuse trace id または識別情報、Collector 起動方式、確認できた項目、未確認項目を記録する。
+
+2026-05-05 JST に、Docker Desktop 上で Langfuse self-host と Collector example を起動し、Collector 経由送信を手動ライブ確認した。
+Collector は `127.0.0.1:4317` / `127.0.0.1:4318` で listen し、`http://localhost:4318/v1/traces` は GET で `405 Method Not Allowed` を返した。
+VS Code GitHub Copilot Chat は trace `8ca6f6422ccbd9d4ca34e2d443c7cf4a` として取り込まれ、`client.kind=vscode-copilot-chat`、`experiment.id=baseline`、prompt / response、`read_file` tool span、token usage を確認した。
+GitHub Copilot CLI は trace `844864ac23f39dacb525ec252ddeab76` として取り込まれ、`client.kind=copilot-cli`、`experiment.id=baseline`、prompt / response、`view` tool span、token usage を確認した。
+両 trace とも `C:\Users\mwam0\Documents\Codex\otel-synthetic-cli-check\README.md` を対象にし、旧リポジトリ名、`docs/memo.json`、`current_file_content`、`recently_viewed_code_snippets` は検出されなかった。
+
 ## Follow-up
 
 - [ ] Config CLI の既定 endpoint が古い Phase 0 HTTPS 系の値のままなので、別タスクで Phase 0 HTTP endpoint または Phase 1 Langfuse endpoint へ切り替えるか判断する
-- [ ] Phase 1 で直接送信が安定しない場合、OTel Collector 経由送信を次フェーズとして仕様化する
 - [ ] 実データ、共有環境、社内サーバー検証が必要になった場合、retention、アクセス権、masking / redaction、利用者周知を先に仕様化する

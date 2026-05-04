@@ -30,6 +30,18 @@ public class ConfigSamplesTests
     }
 
     [Fact]
+    public void CreateCollectorVsCodeSettingsJson_IncludesCollectorSettings()
+    {
+        using var document = JsonDocument.Parse(ConfigSamples.CreateCollectorVsCodeSettingsJson());
+        var root = document.RootElement;
+
+        Assert.True(root.GetProperty("github.copilot.chat.otel.enabled").GetBoolean());
+        Assert.Equal("otlp-http", root.GetProperty("github.copilot.chat.otel.exporterType").GetString());
+        Assert.Equal("http://localhost:4318", root.GetProperty("github.copilot.chat.otel.otlpEndpoint").GetString());
+        Assert.True(root.GetProperty("github.copilot.chat.otel.captureContent").GetBoolean());
+    }
+
+    [Fact]
     public void CreateVsCodePowerShellScript_IncludesPhase0EnvironmentVariables()
     {
         var script = ConfigSamples.CreateVsCodePowerShellScript();
@@ -58,6 +70,22 @@ public class ConfigSamplesTests
         Assert.Contains("$env:OTEL_EXPORTER_OTLP_HEADERS=\"Authorization=Basic $auth,x-langfuse-ingestion-version=4\"", script);
         Assert.Contains("$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\"http://localhost:3000/api/public/otel/v1/traces\"", script);
         Assert.Contains("$env:OTEL_EXPORTER_OTLP_TRACES_HEADERS=\"Authorization=Basic $auth,x-langfuse-ingestion-version=4\"", script);
+        Assert.Contains("client.kind=vscode-copilot-chat", script);
+        Assert.Contains("experiment.id=baseline", script);
+    }
+
+    [Fact]
+    public void CreateCollectorVsCodePowerShellScript_IncludesCollectorEnvironmentVariables()
+    {
+        var script = ConfigSamples.CreateCollectorVsCodePowerShellScript();
+
+        Assert.Contains("$env:COPILOT_OTEL_ENABLED=\"true\"", script);
+        Assert.Contains("$env:COPILOT_OTEL_ENDPOINT=\"http://localhost:4318\"", script);
+        Assert.Contains("$env:COPILOT_OTEL_CAPTURE_CONTENT=\"true\"", script);
+        Assert.DoesNotContain("Authorization=Basic", script);
+        Assert.Contains("Remove-Item Env:OTEL_EXPORTER_OTLP_HEADERS -ErrorAction SilentlyContinue", script);
+        Assert.Contains("Remove-Item Env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT -ErrorAction SilentlyContinue", script);
+        Assert.Contains("Remove-Item Env:OTEL_EXPORTER_OTLP_TRACES_HEADERS -ErrorAction SilentlyContinue", script);
         Assert.Contains("client.kind=vscode-copilot-chat", script);
         Assert.Contains("experiment.id=baseline", script);
     }
@@ -104,6 +132,22 @@ public class ConfigSamplesTests
         Assert.Contains("$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\"http://localhost:3000/api/public/otel/v1/traces\"", script);
         Assert.Contains("$env:OTEL_EXPORTER_OTLP_TRACES_HEADERS=\"Authorization=Basic $auth,x-langfuse-ingestion-version=4\"", script);
         Assert.Contains("$env:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=\"true\"", script);
+        Assert.Contains("client.kind=copilot-cli", script);
+        Assert.Contains("experiment.id=baseline", script);
+    }
+
+    [Fact]
+    public void CreateCollectorCopilotCliPowerShellScript_IncludesCollectorEnvironmentVariables()
+    {
+        var script = ConfigSamples.CreateCollectorCopilotCliPowerShellScript();
+
+        Assert.Contains("$env:COPILOT_OTEL_ENABLED=\"true\"", script);
+        Assert.Contains("$env:OTEL_EXPORTER_OTLP_ENDPOINT=\"http://localhost:4318\"", script);
+        Assert.Contains("$env:OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=\"true\"", script);
+        Assert.DoesNotContain("Authorization=Basic", script);
+        Assert.Contains("Remove-Item Env:OTEL_EXPORTER_OTLP_HEADERS -ErrorAction SilentlyContinue", script);
+        Assert.Contains("Remove-Item Env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT -ErrorAction SilentlyContinue", script);
+        Assert.Contains("Remove-Item Env:OTEL_EXPORTER_OTLP_TRACES_HEADERS -ErrorAction SilentlyContinue", script);
         Assert.Contains("client.kind=copilot-cli", script);
         Assert.Contains("experiment.id=baseline", script);
     }
