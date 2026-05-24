@@ -1,156 +1,182 @@
 # AGENTS.md
 
-## 基本方針
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-- 最終応答は日本語で書くこと。
-- ユーザーへの迎合は不要。技術的・仕様的に不明確な点、矛盾、リスクは明確に指摘する。
-- AGENTS.md はエージェントの作業手順を定める文書であり、プロダクト仕様を定義する場所ではない。
-- 仕様・設計・実装判断は、原則として `docs/spec.md` に従う。
-- README や既存実装から、勝手に仕様を補完しない。
-- 作業は最小差分で行い、依頼範囲外の大規模な整理・リファクタリング・整形を行わない。
+## Language Rules
 
-## 指示の優先順位
-
-指示が競合する場合は、次の優先順位で判断する。
-
-1. ユーザーの最新の明示指示
-2. `docs/requirements.md`
-3. `docs/spec.md`
-4. `docs/task.md`
-5. `README.md` および既存実装
-
-`docs/requirements.md` と `docs/spec.md` に矛盾がある場合は、黙って実装方針を選ばない。
-意図が明確な場合は `docs/spec.md` を更新してから実装する。意図が不明確な場合はユーザーへ確認する。
-
-Phase 1: ローカル Langfuse PoC の作業では、`docs/requirements.md`、`docs/spec.md`、`docs/task.md` を優先して確認する。
-
-## 確認ポリシー
-
-次のいずれかに該当する場合は、作業を進める前にユーザーへ確認する。
-
-- 不可逆な変更を行う場合
-- プロダクト仕様・外部公開インターフェース・入出力仕様を変更する場合
-- 新しい依存関係を追加する場合
-- セキュリティ方針を変更する場合
-- `docs/requirements.md` または `docs/spec.md` と実装依頼が競合する場合
-- `docs/spec.md` に必要な仕様が不足しており、実装判断が必要な場合
-- milestone が不明な状態で commit または review note を作成する必要がある場合
-
-軽微・可逆・局所的な変更では、不要に停止しない。
+- Write agent-facing materials and cross-agent shared materials in English.
+- Write user-facing responses in Japanese.
+- Keep product deliverables in the language and tone already used by the target document unless the user asks otherwise.
 
 ## Source of Truth
 
-詳細仕様・設計・実装方針は `docs/spec.md` に記載する。
+`AGENTS.md` defines agent workflow. It is not the place to define product behavior.
 
-- `docs/requirements.md` は要件定義であり、`docs/spec.md` より上位の判断材料とする。
-- `docs/spec.md` は実装時の主要な仕様根拠とする。
-- `docs/task.md` は実装チェックリストと完了状況を管理するために使う。
-- `docs/knowledge.md` は、エージェント間で共有すべき前提、調査結果、判断理由、ユーザー確認済み事項を記録するために使う。
-- `README.md` はプロジェクト背景・全体像の参考資料として扱う。
-- `README.md` の内容を仕様判断の根拠にしてよいのは、`docs/spec.md` に反映済みの場合に限る。
+When instructions conflict, use this order:
 
-ユーザー確認によって仕様が確定した場合は、仕様として `docs/spec.md` に反映する。
-`docs/knowledge.md` だけに仕様を退避しない。
+1. The user's latest explicit instruction.
+2. `docs/requirements.md`.
+3. `docs/spec.md`.
+4. The active milestone task in `docs/milestones/<milestone-slug>/task.md`.
+5. `docs/task.md`.
+6. `README.md` and existing implementation.
 
-## スコープ管理
+If `docs/requirements.md` and `docs/spec.md` conflict, do not choose silently. If intent is clear, update `docs/spec.md` before implementation; otherwise ask the user.
 
-- AGENTS.md にプロダクト仕様を書き足さない。
-- アーキテクチャ、CLI、入出力、対象ファイル、非採用方針、受け入れ条件などの実装判断は `docs/spec.md` に従う。
-- README に具体的な案があっても、`docs/spec.md` に昇格されていない限り、実装仕様として扱わない。
-- `docs/spec.md` に必要な仕様が不足している場合は、実装へ進む前にユーザーへ確認する。
-- 既存仕様の範囲を超える改善案を思いついても、依頼範囲外であれば実装しない。必要であれば提案として最終応答に記載する。
+Do not infer product requirements from `README.md` or existing implementation unless they are reflected in `docs/spec.md`.
 
-## ビルド・テスト・開発コマンド
+## Working Order
 
-コマンドはリポジトリルートから実行する。
+Before changing code, repository guidance, or project documents, inspect context in this order:
 
-- `docs/spec.md`、プロジェクト設定ファイル、既存のリポジトリスクリプトで定義されたコマンドを使う。
-- コマンドが定義されていない場合は、プロジェクトファイルを確認する。
-- 必須ワークフローを新しく作り出さない。
-- 別プロジェクトのコマンドを持ち込まない。
-- 振る舞いの再現性が必要な場合は、`docs/spec.md` で定義された外部サポート対象インターフェースを通じて検証する。
+1. `docs/requirements.md` and `docs/spec.md` for requirements and implementation policy.
+2. `docs/task.md` to identify the active milestone.
+3. The active milestone files under `docs/milestones/<milestone-slug>/`.
+4. The target file to understand current structure, style, and local conventions.
+5. `docs/knowledge/` only when shared prior findings or decisions may matter.
 
-## 依存関係と環境変更
+For Phase 1 local Langfuse PoC work, always check `docs/requirements.md`, `docs/spec.md`, `docs/task.md`, and the relevant milestone task before deciding implementation details.
 
-- `docs/spec.md` で要求されている場合、またはユーザーが明示した場合を除き、新しい実行時依存・開発依存を追加しない。
-- 依存関係の変更がタスクに含まれていない場合、lockfile を副作用として更新しない。
-- ネットワーク依存の検証だけを、唯一の正当性根拠にしない。
-- ローカルツールが不足している場合は、不足しているツールと本来実行する予定だったコマンドを報告する。
-- 意図した検証内容を変えるような代替ワークフローを勝手に作らない。
+If these sources disagree, state the conflict before editing.
 
-## テスト方針
+## Confirmation Policy
 
-- テスト範囲は `docs/spec.md` と `docs/task.md` から導出する。
-- 小さく、匿名化済みまたは合成された fixture を使う。
-- 機密データ、実ユーザーデータ、生成された実行時成果物を commit しない。
-- 変更した振る舞いに加えて、隣接するエッジケースと回帰リスクを確認する。
-- 外部ツール、ネットワーク、ローカルマシン、ライブサービスとの境界は分離し、通常の自動テストは決定的に実行できるようにする。
-- 自動検証できない振る舞いは、必要なライブ確認手順を文書化し、ユーザーへ依頼する。エージェントが優先すべきは品質であり、ユーザーの手間を減らすことではない。
+Ask before proceeding when the task would:
 
-## レビューワークフロー
+- make an irreversible change,
+- change product behavior, public interfaces, input/output formats, or security policy,
+- add runtime or development dependencies,
+- conflict with `docs/requirements.md` or `docs/spec.md`,
+- require a product/spec decision missing from `docs/spec.md`,
+- require creating a commit or review note when the milestone is unclear.
 
-実装完了を宣言する前に、変更規模に応じたレビューを行う。
+Do not stop unnecessarily for minor, reversible, local edits.
 
-実装変更、振る舞い変更、外部公開インターフェース変更、セキュリティに関わる変更、広範囲リファクタリングでは、サブエージェントが利用可能な場合、複数のサブエージェントを並列で起動してレビューさせる。
+## Think Before Coding
 
-最低限必要なレビュー観点は次のとおり。
+**Do not assume. Do not hide confusion. Surface tradeoffs.**
 
-- 仕様準拠性と機能的正しさ
-- テスト、エッジケース、回帰リスク
-- 拡張性、保守性、可読性
+Before implementing:
 
-ドキュメントのみ、誤字のみ、整形のみ、その他の軽微で可逆な変更では、記録された自己レビューで足りる。
+- State assumptions explicitly when they affect the work.
+- If multiple interpretations exist, present them instead of choosing silently.
+- If a simpler approach exists, say so.
+- Push back when the request is risky, unclear, or inconsistent with the project source of truth.
 
-### メインエージェントの責務
+## Simplicity First
 
-- レビュー開始前に milestone を確認する。
-- milestone が不明な場合は、`docs/review/<milestone>.md` を作成する前にユーザーへ確認する。
-- メインエージェントはレビュー中、取りまとめに徹する。
-- サブエージェントの指摘事項を重複排除する。
-- 各指摘の妥当性を、`docs/spec.md`、関連テスト、変更内容に照らして検証する。
-- 妥当でない指摘は、理由を明記して棄却する。
-- レビュー結果は、指摘の有無や採否に関わらず、修正前にまず `docs/review/<milestone>.md` にチェックリスト形式で記録する。
-- 指摘事項へ対応した場合は、対応後に同じ review note を更新する。
-- 修正は盲目的に適用しない。必ずコード、テスト、`docs/spec.md` に照らして必要性を説明できるものだけ対応する。
+**Minimum code that solves the problem. Nothing speculative.**
 
-review note には、次を含める。
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No flexibility, configurability, or new workflow unless requested or required by `docs/spec.md`.
+- No error handling for impossible scenarios.
+- If a change is much larger than the problem, simplify it.
 
-- レビュー範囲
-- 変更ファイル
-- 使用したサブエージェント
-- サブエージェントの起動成否
-- raw findings summary
-- メインエージェントの妥当性判断
-- 対応方針
-- 適用した修正
-- 残リスク
-- 保留事項
+Ask: "Would a senior engineer say this is overcomplicated?" If yes, rewrite.
 
-## 完了条件
+## Surgical Changes
 
-作業完了を宣言する前に、次を確認する。
+**Touch only what you must. Clean up only your own mess.**
 
-- 作業開始時に `docs/task.md` を確認し、現在の作業に該当する項目があるか確認した。
-- 該当項目がなく、タスク化が必要な場合は、追加するかユーザーへ確認した。
-- 実装完了前に、`docs/task.md` を現在の実装・検証状況に合わせて更新した。
-- レビュー指摘に対応した場合は、`docs/review/<milestone>.md` も更新した。
-- エージェント間で共有すべき新しい前提、判断、調査結果、確認済み事項が生じた場合は、`docs/knowledge.md` に記録した。
-- 仕様として確定した事項は `docs/spec.md` に反映した。
-- `docs/knowledge.md` だけに仕様を退避していない。
-- 必要な検証を実行し、結果を説明できる。
-- 自動検証できない箇所がある場合は、ライブ確認手順と必要な証跡を提示できる。
+When editing:
 
-`docs/task.md`、`docs/knowledge.md`、`docs/spec.md`、review note を必要に応じて更新できない理由がある場合は、完了宣言しない。
-理由と必要な確認事項をユーザーへ提示する。
+- Do not improve adjacent code, comments, formatting, or structure outside the task.
+- Do not refactor things that are not broken.
+- Match existing style, even if you would choose a different one.
+- If you notice unrelated dead code, mention it; do not delete it unless asked.
 
-## Git 操作と commit ルール
+When your changes create orphans:
 
-エージェントは、依頼された作業に対して必要であり、検証・レビューが完了している場合に限り、ローカル commit を作成してよい。
+- Remove imports, variables, functions, docs, or tests made unused by your change.
+- Do not remove pre-existing dead code unless asked.
 
-禁止事項:
+Every changed line should trace directly to the user's request.
 
-- branch や tag を push しない。
-- pull request を作成、更新、merge、auto-merge しない。
-- remote history を書き換えない。
+## Goal-Driven Execution
 
-commit message は、milestone 名から始め、その後ろを Conventional Commits に準拠させる。
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" -> "Write or identify checks for invalid inputs, then make them pass."
+- "Fix the bug" -> "Reproduce the bug, then verify the fix."
+- "Refactor X" -> "Confirm behavior before and after using the relevant tests or checks."
+
+For multi-step tasks, state a brief plan when useful:
+
+```text
+1. [Step] -> verify: [check]
+2. [Step] -> verify: [check]
+3. [Step] -> verify: [check]
+```
+
+Weak success criteria such as "make it work" require clarification or an explicit assumption.
+
+## Tests and Validation
+
+- Derive test scope from `docs/spec.md`, `docs/task.md`, and the active milestone task.
+- Use small, synthetic or anonymized fixtures.
+- Do not commit secrets, real user data, confidential data, or generated runtime artifacts.
+- Check the changed behavior plus nearby edge cases and regression risks.
+- Keep automated tests deterministic; isolate external services, network, local machine state, and live services.
+- If behavior cannot be automatically verified, document the live check procedure and required evidence.
+- Use commands defined by `docs/spec.md`, project files, or existing repository scripts. Do not invent a mandatory workflow.
+- If required tools are missing, report the missing tool and the command that should have been run.
+
+## Dependencies and Environment
+
+- Do not add runtime or development dependencies unless `docs/spec.md` requires it or the user explicitly asks.
+- Do not update lockfiles as a side effect when dependency changes are out of scope.
+- Do not use network-dependent validation as the only proof of correctness.
+- Do not substitute a different workflow if it changes what is being verified.
+
+## Subagent Delegation
+
+When the user asks to split work across reader and writer subagents, use the repository-local Mission Card guidance in `.agents/skills/codex-subagent-dispatch/SKILL.md`.
+
+- Treat the main Codex chat as the coordinator and subagents as bounded workers.
+- If the active Codex surface does not auto-discover the repo-local skill, explicitly read and follow `.agents/skills/codex-subagent-dispatch/SKILL.md`.
+- Do not delegate vague work. Define the mission, scope, permissions, expected output, and stop condition before assigning work.
+- Prefer reader agents before writer agents when implementation scope is unclear.
+- The main chat integrates results and makes final decisions.
+
+## Review Workflow
+
+Before declaring implementation complete, review the change at a level proportional to its risk.
+
+Use multiple subagents when available for implementation changes, behavior changes, public interface changes, security-sensitive changes, or broad refactors. A recorded self-review is enough for documentation-only, typo-only, formatting-only, or other minor reversible changes.
+
+Minimum review perspectives:
+
+- Spec compliance and functional correctness.
+- Tests, edge cases, and regression risk.
+- Maintainability, readability, and extensibility.
+
+For preserved review records, use `docs/milestones/<milestone-slug>/review.md`. If the milestone is unclear, ask before creating the review note.
+
+## Project Document Updates
+
+Before finishing, update project documents when the task requires it:
+
+- Update the active milestone task and, when needed, `docs/task.md`.
+- Record milestone-local assumptions, decisions, findings, and verification notes in the active milestone notes.
+- Record reusable cross-milestone findings in `docs/knowledge/`.
+- Reflect confirmed product specifications in `docs/spec.md`; do not hide specs only in notes or knowledge files.
+- If required documentation cannot be updated, do not claim completion. State the blocker and needed confirmation.
+
+## Git Rules
+
+Create a local commit only when requested or clearly necessary for the task, and only after validation and review are complete.
+
+Do not:
+
+- push branches or tags,
+- create, update, merge, or auto-merge pull requests,
+- rewrite remote history.
+
+Commit messages must start with the milestone name and then follow Conventional Commits.
+
+---
+
+**These guidelines are working if:** diffs contain fewer unnecessary changes, implementations need fewer rewrites due to overcomplication, and clarifying questions happen before mistakes rather than after them.
