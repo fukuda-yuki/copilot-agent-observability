@@ -19,6 +19,13 @@
 - M20-M22 は品質非劣化 rubric、variant / A-B 計測プロトコル、結果レポート雛形を扱う。
 - M10 follow-up の gitleaks fixture 削除と、共有環境・実データ検証の事前仕様化は独立 follow-up として扱う。
 
+## M14 Langfuse export / API
+
+- M15 の既定入力は、ローカル self-host Langfuse で再現可能な Public API legacy trace / observation read response を保存した JSON とする。
+- Observations API v2 は新規 data extraction 向けの候補だが、M14 時点の公式 docs では Cloud-only のため self-host baseline の既定にはしない。
+- UI export は手動診断用の one-off export、Blob Storage export は scheduled / 大量 export 候補、ClickHouse 直接参照は最後の調査・復旧候補として扱う。
+- M15 fixture や snapshot には API credential、Base64 化済み header、管理者パスワード、実 trace content、実ユーザーデータ、顧客データ、実運用ログを含めない。
+
 ## Trace-driven improvement loop
 
 - 実現可能性の判断は、エージェントが自律的に自分を直接修正する基盤ではなく、trace-driven agent improvement loop として作るなら現実的、というもの。
