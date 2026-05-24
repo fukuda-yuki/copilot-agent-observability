@@ -1,5 +1,8 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using System.Globalization;
 
 namespace CopilotAgentObservability.ConfigCli;
 
@@ -95,10 +98,72 @@ internal static class CliApplication
                 output.WriteLine("OTEL_RESOURCE_ATTRIBUTES is valid.");
                 return 0;
 
+            case "aggregate-measurements":
+                return RunAggregateMeasurements(args, output, error);
+
             default:
                 error.WriteLine($"error: unknown command '{args[0]}'.");
                 error.WriteLine(HelpText);
                 return 1;
+        }
+    }
+
+    private static int RunAggregateMeasurements(string[] args, TextWriter output, TextWriter error)
+    {
+        var parseResult = MeasurementAggregationOptions.Parse(args);
+        if (parseResult.Error is not null)
+        {
+            error.WriteLine($"error: {parseResult.Error}");
+            return 1;
+        }
+
+        try
+        {
+            if (!File.Exists(parseResult.Options!.InputPath))
+            {
+                error.WriteLine($"error: input file not found: {parseResult.Options.InputPath}");
+                return 1;
+            }
+
+            var rows = MeasurementAggregator.Aggregate(parseResult.Options!.InputPath);
+
+            if (parseResult.Options.CsvOutputPath is not null)
+            {
+                File.WriteAllText(parseResult.Options.CsvOutputPath, MeasurementOutputWriter.WriteCsv(rows), Encoding.UTF8);
+            }
+
+            if (parseResult.Options.JsonOutputPath is not null)
+            {
+                File.WriteAllText(parseResult.Options.JsonOutputPath, MeasurementOutputWriter.WriteJson(rows), Encoding.UTF8);
+            }
+
+            output.WriteLine($"Aggregated {rows.Count} measurement row(s).");
+            return 0;
+        }
+        catch (FileNotFoundException)
+        {
+            error.WriteLine($"error: input file not found: {parseResult.Options!.InputPath}");
+            return 1;
+        }
+        catch (JsonException exception)
+        {
+            error.WriteLine($"error: input JSON is invalid: {exception.Message}");
+            return 1;
+        }
+        catch (InvalidDataException exception)
+        {
+            error.WriteLine($"error: {exception.Message}");
+            return 1;
+        }
+        catch (IOException exception)
+        {
+            error.WriteLine($"error: failed to read or write file: {exception.Message}");
+            return 1;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error.WriteLine($"error: failed to access file: {exception.Message}");
+            return 1;
         }
     }
 
@@ -115,7 +180,464 @@ internal static class CliApplication
           config-cli langfuse-copilot-cli-env
           config-cli collector-copilot-cli-env
           config-cli validate-resource-attributes <OTEL_RESOURCE_ATTRIBUTES>
+          config-cli aggregate-measurements <input.json> [--csv <output.csv>] [--json <output.json>]
         """;
+}
+
+internal sealed record MeasurementAggregationOptions(
+    string InputPath,
+    string? CsvOutputPath,
+    string? JsonOutputPath)
+{
+    public static MeasurementAggregationOptionsParseResult Parse(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            return new MeasurementAggregationOptionsParseResult(null, "aggregate-measurements requires an input JSON file path.");
+        }
+
+        var inputPath = args[1];
+        string? csvOutputPath = null;
+        string? jsonOutputPath = null;
+
+        for (var index = 2; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--csv":
+                    if (index + 1 >= args.Length || IsOption(args[index + 1]))
+                    {
+                        return new MeasurementAggregationOptionsParseResult(null, "--csv requires an output file path.");
+                    }
+
+                    csvOutputPath = args[++index];
+                    break;
+
+                case "--json":
+                    if (index + 1 >= args.Length || IsOption(args[index + 1]))
+                    {
+                        return new MeasurementAggregationOptionsParseResult(null, "--json requires an output file path.");
+                    }
+
+                    jsonOutputPath = args[++index];
+                    break;
+
+                default:
+                    return new MeasurementAggregationOptionsParseResult(null, $"unknown aggregate-measurements option '{args[index]}'.");
+            }
+        }
+
+        if (csvOutputPath is null && jsonOutputPath is null)
+        {
+            return new MeasurementAggregationOptionsParseResult(null, "aggregate-measurements requires --csv, --json, or both.");
+        }
+
+        return new MeasurementAggregationOptionsParseResult(
+            new MeasurementAggregationOptions(inputPath, csvOutputPath, jsonOutputPath),
+            null);
+    }
+
+    private static bool IsOption(string value)
+    {
+        return value.StartsWith("--", StringComparison.Ordinal);
+    }
+}
+
+internal sealed record MeasurementAggregationOptionsParseResult(
+    MeasurementAggregationOptions? Options,
+    string? Error);
+
+internal static class MeasurementAggregator
+{
+    public static IReadOnlyList<MeasurementRow> Aggregate(string inputPath)
+    {
+        using var stream = File.OpenRead(inputPath);
+        using var document = JsonDocument.Parse(stream);
+
+        if (!document.RootElement.TryGetProperty("traces", out var tracesElement)
+            || tracesElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException("input JSON must contain a top-level traces array.");
+        }
+
+        var rows = new List<MeasurementRow>();
+        foreach (var traceElement in tracesElement.EnumerateArray())
+        {
+            rows.Add(CreateRow(traceElement));
+        }
+
+        return rows;
+    }
+
+    private static MeasurementRow CreateRow(JsonElement traceElement)
+    {
+        var metadata = traceElement.TryGetProperty("metadata", out var metadataElement)
+            && metadataElement.ValueKind == JsonValueKind.Object
+                ? metadataElement
+                : default;
+
+        var resourceAttributes = TryGetObject(metadata, "resourceAttributes", out var resourceAttributesElement)
+            ? resourceAttributesElement
+            : default;
+
+        var inputTokens = ReadInt(traceElement, "usage", "input")
+            ?? ReadInt(traceElement, "usage", "inputTokens")
+            ?? ReadInt(traceElement, "usage", "promptTokens");
+        var outputTokens = ReadInt(traceElement, "usage", "output")
+            ?? ReadInt(traceElement, "usage", "outputTokens")
+            ?? ReadInt(traceElement, "usage", "completionTokens");
+        var totalTokens = ReadInt(traceElement, "usage", "total")
+            ?? ReadInt(traceElement, "usage", "totalTokens")
+            ?? (inputTokens.HasValue && outputTokens.HasValue ? inputTokens + outputTokens : null);
+
+        var observations = TryGetArray(traceElement, "observations", out var observationsElement)
+            ? observationsElement
+            : default;
+
+        var unknownSpans = new JsonArray();
+        int? toolCallCount = null;
+        int? errorCount = null;
+
+        if (observations.ValueKind == JsonValueKind.Array)
+        {
+            toolCallCount = 0;
+            errorCount = 0;
+
+            foreach (var observation in observations.EnumerateArray())
+            {
+                if (IsToolObservation(observation))
+                {
+                    toolCallCount++;
+                }
+                else
+                {
+                    unknownSpans.Add(CreateUnknownSpanNode(observation));
+                }
+
+                if (IsErrorObservation(observation))
+                {
+                    errorCount++;
+                }
+            }
+        }
+
+        return new MeasurementRow(
+            TraceId: ReadString(traceElement, "id") ?? ReadString(traceElement, "traceId"),
+            ExperimentId: ReadString(resourceAttributes, "experiment.id"),
+            ClientKind: ReadString(resourceAttributes, "client.kind"),
+            TaskId: ReadString(resourceAttributes, "task.id"),
+            TaskCategory: ReadString(resourceAttributes, "task.category"),
+            TaskRunIndex: ReadInt(resourceAttributes, "task.run_index"),
+            ExperimentCondition: ReadString(resourceAttributes, "experiment.condition"),
+            PromptVersion: ReadString(resourceAttributes, "prompt.version"),
+            AgentVariant: ReadString(resourceAttributes, "agent.variant"),
+            RepoSnapshot: ReadString(resourceAttributes, "repo.snapshot"),
+            InputTokens: inputTokens,
+            OutputTokens: outputTokens,
+            TotalTokens: totalTokens,
+            TurnCount: null,
+            ToolCallCount: toolCallCount,
+            DurationMs: ReadInt(traceElement, "durationMs") ?? ReadDurationMs(traceElement),
+            ErrorCount: errorCount,
+            SuccessStatus: "not-evaluated",
+            EvaluatorId: null,
+            EvaluationNotes: null,
+            EvaluatedAt: null,
+            UnknownSpansJson: unknownSpans.Count == 0 ? null : unknownSpans,
+            UnknownAttributesJson: CreateUnknownAttributesNode(resourceAttributes),
+            AggregationNotes: "turn_count is not calculated in M15; tool_call_count is provisional until M16 counting rules are defined.");
+    }
+
+    private static bool IsToolObservation(JsonElement observation)
+    {
+        return HasStringValue(observation, "type", "tool")
+            || HasStringValue(observation, "kind", "tool")
+            || HasStringValue(observation, "category", "tool");
+    }
+
+    private static bool IsErrorObservation(JsonElement observation)
+    {
+        if (HasStringValue(observation, "level", "error")
+            || HasStringValue(observation, "status", "error"))
+        {
+            return true;
+        }
+
+        return TryGetObject(observation, "statusMessage", out _)
+            || ReadString(observation, "error") is not null;
+    }
+
+    private static bool HasStringValue(JsonElement element, string propertyName, string expected)
+    {
+        return ReadString(element, propertyName) is { } actual
+            && string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static JsonObject CreateUnknownSpanNode(JsonElement observation)
+    {
+        var node = new JsonObject();
+        AddStringNode(node, "id", ReadString(observation, "id"));
+        AddStringNode(node, "name", ReadString(observation, "name"));
+        AddStringNode(node, "type", ReadString(observation, "type"));
+        AddStringNode(node, "kind", ReadString(observation, "kind"));
+        return node;
+    }
+
+    private static JsonObject? CreateUnknownAttributesNode(JsonElement resourceAttributes)
+    {
+        var unknown = new JsonObject();
+
+        AddUnknownResourceAttributes(unknown, resourceAttributes);
+
+        return unknown.Count == 0 ? null : unknown;
+    }
+
+    private static void AddUnknownResourceAttributes(JsonObject unknown, JsonElement resourceAttributes)
+    {
+        if (resourceAttributes.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var mappedKeys = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "experiment.id",
+            "client.kind",
+            "task.id",
+            "task.category",
+            "task.run_index",
+            "experiment.condition",
+            "prompt.version",
+            "agent.variant",
+            "repo.snapshot",
+        };
+
+        var unknownResourceAttributes = new JsonObject();
+        foreach (var property in resourceAttributes.EnumerateObject())
+        {
+            if (!mappedKeys.Contains(property.Name))
+            {
+                unknownResourceAttributes[property.Name] = JsonNode.Parse(property.Value.GetRawText());
+            }
+        }
+
+        if (unknownResourceAttributes.Count > 0)
+        {
+            unknown["resourceAttributes"] = unknownResourceAttributes;
+        }
+    }
+
+    private static void AddStringNode(JsonObject node, string propertyName, string? value)
+    {
+        if (value is not null)
+        {
+            node[propertyName] = value;
+        }
+    }
+
+    private static int? ReadDurationMs(JsonElement traceElement)
+    {
+        var durationSeconds = ReadDouble(traceElement, "duration");
+        if (!durationSeconds.HasValue)
+        {
+            return null;
+        }
+
+        return (int)Math.Round(durationSeconds.Value * 1000, MidpointRounding.AwayFromZero);
+    }
+
+    private static string? ReadString(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty(propertyName, out var property)
+            || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : property.GetRawText();
+    }
+
+    private static int? ReadInt(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        return ReadInt(property);
+    }
+
+    private static int? ReadInt(JsonElement element, string containerPropertyName, string propertyName)
+    {
+        return TryGetObject(element, containerPropertyName, out var container)
+            ? ReadInt(container, propertyName)
+            : null;
+    }
+
+    private static int? ReadInt(JsonElement property)
+    {
+        return property.ValueKind switch
+        {
+            JsonValueKind.Number when property.TryGetInt32(out var value) => value,
+            JsonValueKind.String when int.TryParse(property.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) => value,
+            _ => null,
+        };
+    }
+
+    private static double? ReadDouble(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object
+            || !element.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.Number when property.TryGetDouble(out var value) => value,
+            JsonValueKind.String when double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) => value,
+            _ => null,
+        };
+    }
+
+    private static bool TryGetObject(JsonElement element, string propertyName, out JsonElement value)
+    {
+        value = default;
+        return element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty(propertyName, out value)
+            && value.ValueKind == JsonValueKind.Object;
+    }
+
+    private static bool TryGetArray(JsonElement element, string propertyName, out JsonElement value)
+    {
+        value = default;
+        return element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty(propertyName, out value)
+            && value.ValueKind == JsonValueKind.Array;
+    }
+}
+
+internal sealed record MeasurementRow(
+    [property: JsonPropertyName("trace_id")] string? TraceId,
+    [property: JsonPropertyName("experiment_id")] string? ExperimentId,
+    [property: JsonPropertyName("client_kind")] string? ClientKind,
+    [property: JsonPropertyName("task_id")] string? TaskId,
+    [property: JsonPropertyName("task_category")] string? TaskCategory,
+    [property: JsonPropertyName("task_run_index")] int? TaskRunIndex,
+    [property: JsonPropertyName("experiment_condition")] string? ExperimentCondition,
+    [property: JsonPropertyName("prompt_version")] string? PromptVersion,
+    [property: JsonPropertyName("agent_variant")] string? AgentVariant,
+    [property: JsonPropertyName("repo_snapshot")] string? RepoSnapshot,
+    [property: JsonPropertyName("input_tokens")] int? InputTokens,
+    [property: JsonPropertyName("output_tokens")] int? OutputTokens,
+    [property: JsonPropertyName("total_tokens")] int? TotalTokens,
+    [property: JsonPropertyName("turn_count")] int? TurnCount,
+    [property: JsonPropertyName("tool_call_count")] int? ToolCallCount,
+    [property: JsonPropertyName("duration_ms")] int? DurationMs,
+    [property: JsonPropertyName("error_count")] int? ErrorCount,
+    [property: JsonPropertyName("success_status")] string SuccessStatus,
+    [property: JsonPropertyName("evaluator_id")] string? EvaluatorId,
+    [property: JsonPropertyName("evaluation_notes")] string? EvaluationNotes,
+    [property: JsonPropertyName("evaluated_at")] string? EvaluatedAt,
+    [property: JsonPropertyName("unknown_spans_json")] JsonArray? UnknownSpansJson,
+    [property: JsonPropertyName("unknown_attributes_json")] JsonObject? UnknownAttributesJson,
+    [property: JsonPropertyName("aggregation_notes")] string? AggregationNotes);
+
+internal static class MeasurementOutputWriter
+{
+    public static readonly string[] Columns =
+    [
+        "trace_id",
+        "experiment_id",
+        "client_kind",
+        "task_id",
+        "task_category",
+        "task_run_index",
+        "experiment_condition",
+        "prompt_version",
+        "agent_variant",
+        "repo_snapshot",
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "turn_count",
+        "tool_call_count",
+        "duration_ms",
+        "error_count",
+        "success_status",
+        "evaluator_id",
+        "evaluation_notes",
+        "evaluated_at",
+        "unknown_spans_json",
+        "unknown_attributes_json",
+        "aggregation_notes",
+    ];
+
+    public static string WriteJson(IReadOnlyList<MeasurementRow> rows)
+    {
+        return JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;
+    }
+
+    public static string WriteCsv(IReadOnlyList<MeasurementRow> rows)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(string.Join(',', Columns));
+
+        foreach (var row in rows)
+        {
+            builder.AppendLine(string.Join(',', Columns.Select(column => EscapeCsv(GetValue(row, column)))));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string? GetValue(MeasurementRow row, string column)
+    {
+        return column switch
+        {
+            "trace_id" => row.TraceId,
+            "experiment_id" => row.ExperimentId,
+            "client_kind" => row.ClientKind,
+            "task_id" => row.TaskId,
+            "task_category" => row.TaskCategory,
+            "task_run_index" => row.TaskRunIndex?.ToString(),
+            "experiment_condition" => row.ExperimentCondition,
+            "prompt_version" => row.PromptVersion,
+            "agent_variant" => row.AgentVariant,
+            "repo_snapshot" => row.RepoSnapshot,
+            "input_tokens" => row.InputTokens?.ToString(),
+            "output_tokens" => row.OutputTokens?.ToString(),
+            "total_tokens" => row.TotalTokens?.ToString(),
+            "turn_count" => row.TurnCount?.ToString(),
+            "tool_call_count" => row.ToolCallCount?.ToString(),
+            "duration_ms" => row.DurationMs?.ToString(),
+            "error_count" => row.ErrorCount?.ToString(),
+            "success_status" => row.SuccessStatus,
+            "evaluator_id" => row.EvaluatorId,
+            "evaluation_notes" => row.EvaluationNotes,
+            "evaluated_at" => row.EvaluatedAt,
+            "unknown_spans_json" => row.UnknownSpansJson?.ToJsonString(),
+            "unknown_attributes_json" => row.UnknownAttributesJson?.ToJsonString(),
+            "aggregation_notes" => row.AggregationNotes,
+            _ => null,
+        };
+    }
+
+    private static string EscapeCsv(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Any(character => character is ',' or '"' or '\r' or '\n')
+            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+            : value;
+    }
 }
 
 internal static class ConfigSamples
