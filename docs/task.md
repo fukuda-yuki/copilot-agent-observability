@@ -30,7 +30,7 @@ M0-M10 の詳細な履歴は `docs/archive/review/` と `docs/knowledge/phase1-l
 | M13: 模擬保守タスクセット定義 | 完了 | [`docs/milestones/M13-maintenance-task-set/task.md`](milestones/M13-maintenance-task-set/task.md) |
 | M14: Langfuse export / API 調査 | 完了 | [`docs/milestones/M14-langfuse-export/task.md`](milestones/M14-langfuse-export/task.md) |
 | M15: 集計 CLI / script MVP | 完了 | [`docs/milestones/M15-aggregation-cli/task.md`](milestones/M15-aggregation-cli/task.md) |
-| M16: turn count / tool call count 算出ルール | 未着手 | [`docs/milestones/M16-counting-rules/task.md`](milestones/M16-counting-rules/task.md) |
+| M16: turn count / tool call count 算出ルール | 完了 | [`docs/milestones/M16-counting-rules/task.md`](milestones/M16-counting-rules/task.md) |
 | M17: baseline 実行手順と記録様式 | 未着手 | [`docs/milestones/M17-baseline-protocol/task.md`](milestones/M17-baseline-protocol/task.md) |
 | M18: baseline 計測の小規模 dry run | 未着手 | [`docs/milestones/M18-baseline-dry-run/task.md`](milestones/M18-baseline-dry-run/task.md) |
 | M19: baseline 本計測 | 未着手 | [`docs/milestones/M19-baseline-measurement/task.md`](milestones/M19-baseline-measurement/task.md) |

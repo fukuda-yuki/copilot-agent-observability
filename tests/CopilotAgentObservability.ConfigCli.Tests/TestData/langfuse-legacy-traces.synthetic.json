@@ -15,7 +15,10 @@
           "prompt.version": "v1",
           "agent.variant": "default",
           "repo.snapshot": "synthetic-dotnet-fixture-v1",
-          "cli.wrapper.version": "synthetic-v1"
+          "cli.wrapper.version": "synthetic-v1",
+          "prompt.content": "synthetic prompt resource attribute should not leak",
+          "tool.arguments": "synthetic tool arguments should not leak",
+          "authorization.token": "synthetic auth token should not leak"
         }
       },
       "usage": {
@@ -25,9 +28,23 @@
       "durationMs": 1234,
       "observations": [
         {
+          "id": "obs-llm-001",
+          "name": "copilot.chat",
+          "attributes": {
+            "gen_ai.operation.name": "chat"
+          }
+        },
+        {
           "id": "obs-tool-001",
           "name": "execute_tool",
           "type": "tool"
+        },
+        {
+          "id": "obs-tool-002",
+          "name": "copilot.tool",
+          "attributes": {
+            "gen_ai.tool.name": "readFile"
+          }
         },
         {
           "id": "obs-error-001",
@@ -40,7 +57,9 @@
           "name": "copilot.experimental.span",
           "type": "custom",
           "attributes": {
-            "synthetic.detail": "kept out of M15 minimal unknown span identity"
+            "synthetic.detail": "kept out of M15 minimal unknown span identity",
+            "prompt": "synthetic unknown span prompt should not leak",
+            "tool.arguments": "synthetic unknown span tool arguments should not leak"
           }
         },
         {
@@ -99,6 +118,94 @@
         "output": 7
       },
       "durationMs": 50
+    },
+    {
+      "id": "trace-004",
+      "metadata": {
+        "resourceAttributes": {
+          "experiment.id": "baseline",
+          "client.kind": "vscode-copilot-chat"
+        }
+      },
+      "durationMs": 3000,
+      "observations": [
+        {
+          "id": "obs-agent-001",
+          "name": "invoke_agent copilot"
+        },
+        {
+          "id": "obs-chat-001",
+          "name": "chat gpt-4o"
+        },
+        {
+          "id": "obs-tool-vscode-001",
+          "name": "execute_tool readFile"
+        },
+        {
+          "id": "obs-tool-vscode-002",
+          "name": "execute_tool runCommand"
+        },
+        {
+          "id": "obs-tool-llm-overlap-001",
+          "name": "copilot.tool.with.llm.attributes",
+          "type": "tool",
+          "attributes": {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.tool.name": "grep"
+          }
+        },
+        {
+          "id": "obs-permission-001",
+          "name": "permission_prompt",
+          "type": "permission"
+        },
+        {
+          "id": "obs-approval-tool-overlap-001",
+          "name": "execute_tool approval",
+          "type": "approval",
+          "kind": "tool",
+          "attributes": {
+            "gen_ai.tool.name": "runCommand"
+          }
+        },
+        {
+          "id": "obs-hook-001",
+          "name": "execute_hook beforeTool"
+        },
+        {
+          "id": "obs-chat-002",
+          "name": "chat gpt-4o"
+        },
+        {
+          "id": "obs-event-001",
+          "name": "lifecycle_event",
+          "type": "event"
+        }
+      ]
+    },
+    {
+      "id": "trace-005",
+      "turn_count": 7,
+      "attributes": {
+        "github.copilot.tool.call.count": 4
+      },
+      "metadata": {
+        "resourceAttributes": {
+          "experiment.id": "baseline",
+          "client.kind": "copilot-cli"
+        }
+      },
+      "durationMs": 4000,
+      "observations": [
+        {
+          "id": "obs-explicit-chat-001",
+          "name": "chat gpt-4o"
+        },
+        {
+          "id": "obs-explicit-tool-001",
+          "name": "execute_tool readFile"
+        }
+      ]
     }
   ]
 }

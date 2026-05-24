@@ -295,31 +295,52 @@ internal static class MeasurementAggregator
             : default;
 
         var unknownSpans = new JsonArray();
-        int? toolCallCount = null;
+        int? turnCount = ReadExplicitCount(traceElement, resourceAttributes, observations, TurnCountKeys);
+        int? toolCallCount = ReadExplicitCount(traceElement, resourceAttributes, observations, ToolCallCountKeys);
         int? errorCount = null;
 
         if (observations.ValueKind == JsonValueKind.Array)
         {
-            toolCallCount = 0;
+            var observedTurnCount = 0;
+            var observedToolCallCount = 0;
             errorCount = 0;
 
             foreach (var observation in observations.EnumerateArray())
             {
-                if (IsToolObservation(observation))
+                if (IsKnownNonCountedObservation(observation))
                 {
-                    toolCallCount++;
+                    // Explicitly non-counted observations win over overlapping tool or GenAI attributes.
+                }
+                else if (IsToolObservation(observation))
+                {
+                    observedToolCallCount++;
+                }
+                else if (IsLlmObservation(observation))
+                {
+                    observedTurnCount++;
                 }
                 else
                 {
                     unknownSpans.Add(CreateUnknownSpanNode(observation));
                 }
 
+                turnCount ??= ReadExplicitCount(observation, default, default, TurnCountKeys);
+
                 if (IsErrorObservation(observation))
                 {
                     errorCount++;
                 }
             }
+
+            turnCount ??= observedTurnCount;
+            toolCallCount ??= observedToolCallCount;
         }
+        else
+        {
+            toolCallCount = ReadExplicitCount(traceElement, resourceAttributes, observations, ToolCallCountKeys);
+        }
+
+        var aggregationNotes = CreateAggregationNotes(observations, unknownSpans);
 
         return new MeasurementRow(
             TraceId: ReadString(traceElement, "id") ?? ReadString(traceElement, "traceId"),
@@ -335,7 +356,7 @@ internal static class MeasurementAggregator
             InputTokens: inputTokens,
             OutputTokens: outputTokens,
             TotalTokens: totalTokens,
-            TurnCount: null,
+            TurnCount: turnCount,
             ToolCallCount: toolCallCount,
             DurationMs: ReadInt(traceElement, "durationMs") ?? ReadDurationMs(traceElement),
             ErrorCount: errorCount,
@@ -345,14 +366,122 @@ internal static class MeasurementAggregator
             EvaluatedAt: null,
             UnknownSpansJson: unknownSpans.Count == 0 ? null : unknownSpans,
             UnknownAttributesJson: CreateUnknownAttributesNode(resourceAttributes),
-            AggregationNotes: "turn_count is not calculated in M15; tool_call_count is provisional until M16 counting rules are defined.");
+            AggregationNotes: aggregationNotes);
+    }
+
+    private static readonly string[] TurnCountKeys =
+    [
+        "turn_count",
+        "turnCount",
+        "github.copilot.agent.turn.count",
+    ];
+
+    private static readonly string[] ToolCallCountKeys =
+    [
+        "tool_call_count",
+        "toolCallCount",
+        "github.copilot.tool.call.count",
+    ];
+
+    private static readonly string[] GenAiOperationKeys =
+    [
+        "gen_ai.operation.name",
+        "genAi.operation.name",
+    ];
+
+    private static readonly string[] GenAiToolNameKeys =
+    [
+        "gen_ai.tool.name",
+        "genAi.tool.name",
+    ];
+
+    private static int? ReadExplicitCount(JsonElement element, JsonElement resourceAttributes, JsonElement observations, IReadOnlyList<string> candidateKeys)
+    {
+        return ReadFirstInt(element, candidateKeys)
+            ?? ReadFirstIntFromObject(element, "attributes", candidateKeys)
+            ?? ReadFirstIntFromObject(element, "metadata", candidateKeys)
+            ?? ReadFirstInt(resourceAttributes, candidateKeys)
+            ?? ReadFirstIntFromObservations(observations, candidateKeys);
+    }
+
+    private static int? ReadFirstIntFromObject(JsonElement element, string objectPropertyName, IReadOnlyList<string> candidateKeys)
+    {
+        return TryGetObject(element, objectPropertyName, out var nested)
+            ? ReadFirstInt(nested, candidateKeys)
+            : null;
+    }
+
+    private static int? ReadFirstIntFromObservations(JsonElement observations, IReadOnlyList<string> candidateKeys)
+    {
+        if (observations.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        foreach (var observation in observations.EnumerateArray())
+        {
+            var count = ReadFirstInt(observation, candidateKeys)
+                ?? ReadFirstIntFromObject(observation, "attributes", candidateKeys);
+            if (count.HasValue)
+            {
+                return count;
+            }
+        }
+
+        return null;
+    }
+
+    private static int? ReadFirstInt(JsonElement element, IReadOnlyList<string> candidateKeys)
+    {
+        foreach (var candidateKey in candidateKeys)
+        {
+            var value = ReadInt(element, candidateKey);
+            if (value.HasValue)
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsLlmObservation(JsonElement observation)
+    {
+        return HasStringValue(observation, "type", "generation")
+            || HasStringValue(observation, "type", "chat")
+            || HasAnyStringValue(observation, GenAiOperationKeys, "chat", "generate_content", "text_completion")
+            || HasAnyStringValueInObject(observation, "attributes", GenAiOperationKeys, "chat", "generate_content", "text_completion")
+            || HasSpanName(observation, "chat");
     }
 
     private static bool IsToolObservation(JsonElement observation)
     {
         return HasStringValue(observation, "type", "tool")
             || HasStringValue(observation, "kind", "tool")
-            || HasStringValue(observation, "category", "tool");
+            || HasStringValue(observation, "category", "tool")
+            || HasAnyStringValue(observation, GenAiToolNameKeys)
+            || HasAnyStringValueInObject(observation, "attributes", GenAiToolNameKeys)
+            || HasSpanName(observation, "execute_tool");
+    }
+
+    private static bool IsKnownNonCountedObservation(JsonElement observation)
+    {
+        return HasSpanName(observation, "invoke_agent")
+            || HasSpanName(observation, "execute_hook")
+            || HasSpanName(observation, "lifecycle_event")
+            || HasAnyStringValue(observation, ["type", "kind", "category"], "permission", "approval", "hook", "lifecycle")
+            || HasAnyStringValueInObject(observation, "attributes", ["type", "kind", "category"], "permission", "approval", "hook", "lifecycle");
+    }
+
+    private static string CreateAggregationNotes(JsonElement observations, JsonArray unknownSpans)
+    {
+        var countSource = observations.ValueKind == JsonValueKind.Array
+            ? "turn_count and tool_call_count are calculated from explicit count attributes when present, otherwise from classified observations."
+            : "turn_count and tool_call_count require explicit count attributes when observations are missing.";
+
+        return unknownSpans.Count == 0
+            ? countSource
+            : $"{countSource} Unknown observations are listed in unknown_spans_json.";
     }
 
     private static bool IsErrorObservation(JsonElement observation)
@@ -371,6 +500,42 @@ internal static class MeasurementAggregator
     {
         return ReadString(element, propertyName) is { } actual
             && string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasAnyStringValue(JsonElement element, IReadOnlyList<string> propertyNames, params string[] expectedValues)
+    {
+        foreach (var propertyName in propertyNames)
+        {
+            if (ReadString(element, propertyName) is not { } actual)
+            {
+                continue;
+            }
+
+            if (expectedValues.Length == 0
+                || expectedValues.Any(expected => string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasAnyStringValueInObject(JsonElement element, string objectPropertyName, IReadOnlyList<string> propertyNames, params string[] expectedValues)
+    {
+        return TryGetObject(element, objectPropertyName, out var nested)
+            && HasAnyStringValue(nested, propertyNames, expectedValues);
+    }
+
+    private static bool HasSpanName(JsonElement observation, string expectedName)
+    {
+        if (ReadString(observation, "name") is not { } actualName)
+        {
+            return false;
+        }
+
+        return string.Equals(actualName, expectedName, StringComparison.OrdinalIgnoreCase)
+            || actualName.StartsWith($"{expectedName} ", StringComparison.OrdinalIgnoreCase);
     }
 
     private static JsonObject CreateUnknownSpanNode(JsonElement observation)
@@ -415,7 +580,7 @@ internal static class MeasurementAggregator
         var unknownResourceAttributes = new JsonObject();
         foreach (var property in resourceAttributes.EnumerateObject())
         {
-            if (!mappedKeys.Contains(property.Name))
+            if (!mappedKeys.Contains(property.Name) && !IsContentOrCredentialLikeKey(property.Name))
             {
                 unknownResourceAttributes[property.Name] = JsonNode.Parse(property.Value.GetRawText());
             }
@@ -425,6 +590,22 @@ internal static class MeasurementAggregator
         {
             unknown["resourceAttributes"] = unknownResourceAttributes;
         }
+    }
+
+    private static bool IsContentOrCredentialLikeKey(string key)
+    {
+        var normalizedKey = key.ToLowerInvariant();
+        return normalizedKey.Contains("prompt", StringComparison.Ordinal)
+            || normalizedKey.Contains("response", StringComparison.Ordinal)
+            || normalizedKey.Contains("content", StringComparison.Ordinal)
+            || normalizedKey.Contains("argument", StringComparison.Ordinal)
+            || normalizedKey.Contains("result", StringComparison.Ordinal)
+            || normalizedKey.Contains("secret", StringComparison.Ordinal)
+            || normalizedKey.Contains("password", StringComparison.Ordinal)
+            || normalizedKey.Contains("credential", StringComparison.Ordinal)
+            || normalizedKey.Contains("authorization", StringComparison.Ordinal)
+            || normalizedKey.Contains("api.key", StringComparison.Ordinal)
+            || normalizedKey.Contains("token", StringComparison.Ordinal);
     }
 
     private static void AddStringNode(JsonObject node, string propertyName, string? value)
