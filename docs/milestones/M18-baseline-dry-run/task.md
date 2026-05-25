@@ -2,7 +2,7 @@
 
 ## 目的
 
-1 類型 x 2 回の小規模 dry run で schema と集計が成立するか確認する。
+`maint-refactor-001` の 1 類型 x 2 client_kind x 2 runs の小規模 dry run で schema と集計が成立するか確認する。
 
 ## 完了条件
 
@@ -15,4 +15,3 @@
 ## 検証記録
 
 - 未実施。
-

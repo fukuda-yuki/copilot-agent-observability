@@ -24,7 +24,7 @@
 - Langfuse UI は `http://localhost:3000`、OTLP endpoint は `http://localhost:3000/api/public/otel`、trace-specific endpoint は `http://localhost:3000/api/public/otel/v1/traces` を既定候補とした。
 - Langfuse 認証は public key と secret key を Basic Auth 化し、`OTEL_EXPORTER_OTLP_HEADERS` または `OTEL_EXPORTER_OTLP_TRACES_HEADERS` で渡す方針とした。
 - `tmp/langfuse/.env` を作成し、`docker compose up -d --wait --wait-timeout 600` で Langfuse self-host を起動した。
-- `http://localhost:3000` に到達でき、`demo@langfuse.com` / `password` でサインインできた。
+- `http://localhost:3000` に到達でき、Langfuse self-host のデモ用初期ログインでサインインできた。
 - Config CLI に `langfuse-vscode-settings`、`langfuse-vscode-env`、`langfuse-copilot-cli-env` を追加した。
 - Basic Auth 生成サンプルでは PowerShell の parser error を避けるため、`${publicKey}:${secretKey}` の形で変数名を区切る。
 
@@ -49,4 +49,3 @@
 
 - Config CLI の汎用コマンド `vscode-settings`、`vscode-env`、`copilot-cli-env` の既定 endpoint は Phase 1 Langfuse 直接送信用の `http://localhost:3000/api/public/otel` に切り替えた。
 - `langfuse-*` コマンドは Langfuse 直接送信を明示するコマンドとして維持し、`collector-*` コマンドは Collector 経由送信用に `http://localhost:4318` と Langfuse header cleanup を維持する。
-

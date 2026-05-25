@@ -2,7 +2,7 @@
 
 ## 目的
 
-4 類型 x N 回の baseline trace を取得し、研究計測用 dataset を作成する。
+4 類型 x 2 client_kind x N=10 の baseline trace を取得し、研究計測用 dataset を作成する。
 
 ## 完了条件
 
@@ -15,4 +15,3 @@
 ## 検証記録
 
 - 未実施。
-
