@@ -35,7 +35,7 @@ M0-M10 の詳細な履歴は `docs/archive/review/` と `docs/knowledge/phase1-l
 | M18: baseline 計測の小規模 dry run | 完了 | [`docs/milestones/M18-baseline-dry-run/task.md`](milestones/M18-baseline-dry-run/task.md) |
 | M19: baseline 本計測 | 進行中 | [`docs/milestones/M19-baseline-measurement/task.md`](milestones/M19-baseline-measurement/task.md) |
 | M20: 品質非劣化 rubric 定義 | 完了 | [`docs/milestones/M20-quality-rubric/task.md`](milestones/M20-quality-rubric/task.md) |
-| M21: variant / A-B 計測プロトコル | 未着手 | [`docs/milestones/M21-variant-protocol/task.md`](milestones/M21-variant-protocol/task.md) |
+| M21: variant / A-B 計測プロトコル | 完了 | [`docs/milestones/M21-variant-protocol/task.md`](milestones/M21-variant-protocol/task.md) |
 | M22: 結果レポート雛形 | 未着手 | [`docs/milestones/M22-report-template/task.md`](milestones/M22-report-template/task.md) |
 
 ## Future Backlog
