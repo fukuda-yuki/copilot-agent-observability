@@ -788,6 +788,61 @@ proposal record の固定列は以下とする。
 出力には実 prompt / response content、tool arguments / results、credential、secret、Base64 header、実 user identity を含めない。
 `proposed_change` は具体的な patch、diff、repository file の編集内容、採用判断、優先順位、効果判定を表現しない。
 
+### 5.15 M26 proposal evaluator
+
+M26 では、M25 の improvement proposal record を入力として、人間承認前に必要な安全性、仕様整合、レビュー観点を deterministic に検証する最小 CLI を追加する。
+M26 は proposal pre-review までを対象とし、改善案の採用、改善実装、repository 修正、patch / diff 生成、commit / push / pull request 作成、自動勝敗決定、改善効果判定は行わない。
+
+Config CLI に以下を追加する。
+
+```text
+config-cli evaluate-improvement-proposals <proposals.csv|proposals.json> [--csv <output.csv>] [--json <output.json>]
+```
+
+入力は M25 proposal CSV / JSON と同じ形式とする。
+入力 JSON は top-level array、または `{ "proposals": [...] }` を許可する。
+入力 CSV は M25 proposal 固定 header を要求する。
+`human_review_status` は `needs-human-review` のみ許可する。
+
+proposal evaluation record は、1 input proposal を 1 evaluation record として扱う。
+固定列は以下とする。
+
+| 列 | 値 |
+| --- | --- |
+| `proposal_id` | 元 proposal id |
+| `source_diagnosis_index` | 元 proposal の source diagnosis index |
+| `trace_id` | 元 proposal の trace id |
+| `task_id` | 元 proposal の task id または空欄 |
+| `task_category` | 元 proposal の task category または空欄 |
+| `client_kind` | 元 proposal の client kind または空欄 |
+| `comparison_id` | 元 proposal の comparison id または空欄 |
+| `experiment_id` | 元 proposal の experiment id または空欄 |
+| `experiment_condition` | 元 proposal の experiment condition または空欄 |
+| `prompt_version` | 元 proposal の prompt version または空欄 |
+| `agent_variant` | 元 proposal の agent variant または空欄 |
+| `task_run_index` | 元 proposal の task run index または空欄 |
+| `failure_category_id` | 元 proposal の `F-*` ID |
+| `anti_pattern_id` | 元 proposal の `AP-*` ID または空欄 |
+| `severity` | 元 proposal の severity |
+| `improvement_target` | 元 proposal の improvement target |
+| `proposal_title` | 元 proposal title |
+| `proposal_evaluation_status` | `ready-for-human-approval`、`needs-revision`、`blocked` |
+| `evaluator_findings` | sanitized evaluator finding |
+| `required_human_checks` | 人間承認前に確認する項目 |
+| `evaluator_notes` | 短い補足 |
+
+`proposal_evaluation_status` は以下の意味で使用する。
+
+| 値 | 意味 |
+| --- | --- |
+| `ready-for-human-approval` | proposal は schema、安全性、非スコープ境界、human review 前提を満たしている |
+| `needs-revision` | proposal の方向性は評価可能だが、metadata または human review context が不足している |
+| `blocked` | 自動採用、自動実装、patch / diff 生成、repository 修正、自動勝敗決定などの非スコープ表現がある |
+
+M26 evaluator は deterministic rule のみを使用し、LLM 呼び出し、live Langfuse 接続、実 trace content、外部サービス接続は行わない。
+出力には実 prompt / response content、tool arguments / results、credential、secret、Base64 header、実 user identity を含めない。
+`ready-for-human-approval` は人間承認 workflow に渡せる pre-review 状態であり、proposal の採用、実装、優先順位、効果、勝敗を決めるものではない。
+
 ## 6. セキュリティとデータ扱い
 
 Phase 1 はローカル限定 PoC とし、Langfuse に投入するデータは合成データまたは検証用データを基本とする。
