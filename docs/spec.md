@@ -742,6 +742,52 @@ diagnosis record は、1 行を 1 つの `(trace_id, failure_category_id, anti_p
 
 M24 の検証では synthetic fixture だけを使用し、live Langfuse 接続や実 trace content を必須にしない。
 
+### 5.14 M25 improvement proposal generator
+
+M25 では、M24 の検証済み diagnosis record から、人間が採否できる improvement proposal record を生成する最小 CLI を追加する。
+M25 は proposal 生成までを対象とし、自動採用、自動実装、repository 修正、patch / diff 生成、commit / push / pull request 作成、自動勝敗決定は行わない。
+
+Config CLI に以下を追加する。
+
+```text
+config-cli generate-improvement-proposals <diagnoses.csv|diagnoses.json> [--csv <output.csv>] [--json <output.json>]
+```
+
+入力は M24 の diagnosis CSV / JSON と同じ形式とし、既存の diagnosis reader / validator を通して検証する。
+`review_status` が `accepted-for-proposal` の diagnosis record だけを 1 行 1 proposal として出力する。
+`needs-human-review` と `rejected` は proposal 出力対象外とする。
+
+proposal record の固定列は以下とする。
+
+| 列 | 値 |
+| --- | --- |
+| `proposal_id` | `proposal-0001` から出力順に採番する proposal id |
+| `source_diagnosis_index` | 入力 diagnosis record の 1-based 行番号 |
+| `trace_id` | 元 diagnosis の trace id |
+| `task_id` | 元 diagnosis の task id または空欄 |
+| `task_category` | 元 diagnosis の task category または空欄 |
+| `client_kind` | 元 diagnosis の client kind または空欄 |
+| `comparison_id` | 元 diagnosis の comparison id または空欄 |
+| `experiment_id` | 元 diagnosis の experiment id または空欄 |
+| `experiment_condition` | 元 diagnosis の experiment condition または空欄 |
+| `prompt_version` | 元 diagnosis の prompt version または空欄 |
+| `agent_variant` | 元 diagnosis の agent variant または空欄 |
+| `task_run_index` | 元 diagnosis の task run index または空欄 |
+| `failure_category_id` | 元 diagnosis の `F-*` ID |
+| `anti_pattern_id` | 元 diagnosis の `AP-*` ID または空欄 |
+| `severity` | 元 diagnosis の severity |
+| `improvement_target` | 元 diagnosis の `recommended_improvement_target` |
+| `evidence_summary` | 元 diagnosis の sanitized evidence summary |
+| `proposal_title` | deterministic template で生成する短い提案名 |
+| `proposal_summary` | failure category、anti-pattern、severity、evidence summary に基づく安全な要約 |
+| `proposed_change` | improvement target に対する人間レビュー用の改善提案 |
+| `acceptance_check` | 人間が採否前に確認する acceptance check |
+| `human_review_status` | 常に `needs-human-review` |
+
+`proposal_title`、`proposal_summary`、`proposed_change`、`acceptance_check` は deterministic template で生成し、LLM 呼び出しや外部サービス接続は行わない。
+出力には実 prompt / response content、tool arguments / results、credential、secret、Base64 header、実 user identity を含めない。
+`proposed_change` は具体的な patch、diff、repository file の編集内容、採用判断、優先順位、効果判定を表現しない。
+
 ## 6. セキュリティとデータ扱い
 
 Phase 1 はローカル限定 PoC とし、Langfuse に投入するデータは合成データまたは検証用データを基本とする。

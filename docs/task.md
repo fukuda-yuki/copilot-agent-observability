@@ -39,13 +39,13 @@ M0-M10 の詳細な履歴は `docs/archive/review/` と `docs/knowledge/phase1-l
 | M22: 結果レポート雛形 | 完了 | [`docs/milestones/M22-report-template/task.md`](milestones/M22-report-template/task.md) |
 | M23: failure taxonomy / anti-pattern 定義 | 完了 | [`docs/milestones/M23-failure-taxonomy/task.md`](milestones/M23-failure-taxonomy/task.md) |
 | M24: trace-to-diagnosis MVP | 完了 | [`docs/milestones/M24-trace-to-diagnosis/task.md`](milestones/M24-trace-to-diagnosis/task.md) |
+| M25: improvement proposal generator | 完了 | [`docs/milestones/M25-improvement-proposal-generator/task.md`](milestones/M25-improvement-proposal-generator/task.md) |
 
 ## Future Backlog
 
-M25 以降は M24 完了後に別 milestone として切り出す。
-M25 以降候補も人間採否の提案・評価までを既定とし、自動採用、自動実装、repository 自動修正、patch / diff 生成、commit / push / pull request 作成、自動勝敗決定は含めない。
+M26 以降は M25 完了後に別 milestone として切り出す。
+M26 以降候補も人間採否の提案・評価までを既定とし、自動採用、自動実装、repository 自動修正、patch / diff 生成、commit / push / pull request 作成、自動勝敗決定は含めない。
 
-- M25: improvement proposal generator
 - M26: proposal evaluator
 - M27: human approval workflow
 

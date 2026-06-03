@@ -105,6 +105,9 @@ internal static class CliApplication
             case "validate-diagnoses":
                 return RunValidateDiagnoses(args, output, error);
 
+            case "generate-improvement-proposals":
+                return RunGenerateImprovementProposals(args, output, error);
+
             default:
                 error.WriteLine($"error: unknown command '{args[0]}'.");
                 error.WriteLine(HelpText);
@@ -152,6 +155,87 @@ internal static class CliApplication
             }
 
             output.WriteLine($"Validated {rows.Count} diagnosis record(s).");
+            return 0;
+        }
+        catch (FileNotFoundException)
+        {
+            error.WriteLine($"error: input file not found: {parseResult.Options!.InputPath}");
+            return 1;
+        }
+        catch (JsonException exception)
+        {
+            error.WriteLine($"error: input JSON is invalid: {exception.Message}");
+            return 1;
+        }
+        catch (InvalidDataException exception)
+        {
+            error.WriteLine($"error: {exception.Message}");
+            return 1;
+        }
+        catch (IOException exception)
+        {
+            error.WriteLine($"error: failed to read or write file: {exception.Message}");
+            return 1;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error.WriteLine($"error: failed to access file: {exception.Message}");
+            return 1;
+        }
+    }
+
+    private static int RunGenerateImprovementProposals(string[] args, TextWriter output, TextWriter error)
+    {
+        var parseResult = ImprovementProposalGenerationOptions.Parse(args);
+        if (parseResult.Error is not null)
+        {
+            error.WriteLine($"error: {parseResult.Error}");
+            return 1;
+        }
+
+        try
+        {
+            if (!File.Exists(parseResult.Options!.InputPath))
+            {
+                error.WriteLine($"error: input file not found: {parseResult.Options.InputPath}");
+                return 1;
+            }
+
+            var diagnoses = DiagnosisInputReader.Read(parseResult.Options.InputPath);
+            var validationErrors = DiagnosisValidator.Validate(diagnoses);
+            foreach (var validationError in validationErrors)
+            {
+                error.WriteLine($"error: {validationError}");
+            }
+
+            if (validationErrors.Count > 0)
+            {
+                return 1;
+            }
+
+            var proposals = ImprovementProposalGenerator.Generate(diagnoses);
+            var proposalValidationErrors = ImprovementProposalSafetyValidator.Validate(proposals);
+            foreach (var validationError in proposalValidationErrors)
+            {
+                error.WriteLine($"error: {validationError}");
+            }
+
+            if (proposalValidationErrors.Count > 0)
+            {
+                return 1;
+            }
+
+            if (parseResult.Options.CsvOutputPath is not null)
+            {
+                File.WriteAllText(parseResult.Options.CsvOutputPath, ImprovementProposalOutputWriter.WriteCsv(proposals), Encoding.UTF8);
+            }
+
+            if (parseResult.Options.JsonOutputPath is not null)
+            {
+                File.WriteAllText(parseResult.Options.JsonOutputPath, ImprovementProposalOutputWriter.WriteJson(proposals), Encoding.UTF8);
+            }
+
+            output.WriteLine($"Generated {proposals.Count} improvement proposal record(s).");
             return 0;
         }
         catch (FileNotFoundException)
@@ -255,6 +339,7 @@ internal static class CliApplication
           config-cli validate-resource-attributes <OTEL_RESOURCE_ATTRIBUTES>
           config-cli aggregate-measurements <input.json> [--csv <output.csv>] [--json <output.json>]
           config-cli validate-diagnoses <input.csv|input.json> [--csv <output.csv>] [--json <output.json>]
+          config-cli generate-improvement-proposals <diagnoses.csv|diagnoses.json> [--csv <output.csv>] [--json <output.json>]
         """;
 }
 
@@ -382,6 +467,69 @@ internal sealed record DiagnosisValidationOptions(
 
 internal sealed record DiagnosisValidationOptionsParseResult(
     DiagnosisValidationOptions? Options,
+    string? Error);
+
+internal sealed record ImprovementProposalGenerationOptions(
+    string InputPath,
+    string? CsvOutputPath,
+    string? JsonOutputPath)
+{
+    public static ImprovementProposalGenerationOptionsParseResult Parse(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            return new ImprovementProposalGenerationOptionsParseResult(null, "generate-improvement-proposals requires an input CSV or JSON file path.");
+        }
+
+        var inputPath = args[1];
+        string? csvOutputPath = null;
+        string? jsonOutputPath = null;
+
+        for (var index = 2; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--csv":
+                    if (index + 1 >= args.Length || IsOption(args[index + 1]))
+                    {
+                        return new ImprovementProposalGenerationOptionsParseResult(null, "--csv requires an output file path.");
+                    }
+
+                    csvOutputPath = args[++index];
+                    break;
+
+                case "--json":
+                    if (index + 1 >= args.Length || IsOption(args[index + 1]))
+                    {
+                        return new ImprovementProposalGenerationOptionsParseResult(null, "--json requires an output file path.");
+                    }
+
+                    jsonOutputPath = args[++index];
+                    break;
+
+                default:
+                    return new ImprovementProposalGenerationOptionsParseResult(null, $"unknown generate-improvement-proposals option '{args[index]}'.");
+            }
+        }
+
+        if (csvOutputPath is null && jsonOutputPath is null)
+        {
+            return new ImprovementProposalGenerationOptionsParseResult(null, "generate-improvement-proposals requires --csv, --json, or both.");
+        }
+
+        return new ImprovementProposalGenerationOptionsParseResult(
+            new ImprovementProposalGenerationOptions(inputPath, csvOutputPath, jsonOutputPath),
+            null);
+    }
+
+    private static bool IsOption(string value)
+    {
+        return value.StartsWith("--", StringComparison.Ordinal);
+    }
+}
+
+internal sealed record ImprovementProposalGenerationOptionsParseResult(
+    ImprovementProposalGenerationOptions? Options,
     string? Error);
 
 internal static class MeasurementAggregator
@@ -976,6 +1124,30 @@ internal sealed record DiagnosisRow(
     [property: JsonPropertyName("recommended_improvement_target")] string? RecommendedImprovementTarget,
     [property: JsonPropertyName("review_status")] string? ReviewStatus);
 
+internal sealed record ImprovementProposalRow(
+    [property: JsonPropertyName("proposal_id")] string ProposalId,
+    [property: JsonPropertyName("source_diagnosis_index")] int SourceDiagnosisIndex,
+    [property: JsonPropertyName("trace_id")] string? TraceId,
+    [property: JsonPropertyName("task_id")] string? TaskId,
+    [property: JsonPropertyName("task_category")] string? TaskCategory,
+    [property: JsonPropertyName("client_kind")] string? ClientKind,
+    [property: JsonPropertyName("comparison_id")] string? ComparisonId,
+    [property: JsonPropertyName("experiment_id")] string? ExperimentId,
+    [property: JsonPropertyName("experiment_condition")] string? ExperimentCondition,
+    [property: JsonPropertyName("prompt_version")] string? PromptVersion,
+    [property: JsonPropertyName("agent_variant")] string? AgentVariant,
+    [property: JsonPropertyName("task_run_index")] int? TaskRunIndex,
+    [property: JsonPropertyName("failure_category_id")] string? FailureCategoryId,
+    [property: JsonPropertyName("anti_pattern_id")] string? AntiPatternId,
+    [property: JsonPropertyName("severity")] string? Severity,
+    [property: JsonPropertyName("improvement_target")] string? ImprovementTarget,
+    [property: JsonPropertyName("evidence_summary")] string? EvidenceSummary,
+    [property: JsonPropertyName("proposal_title")] string ProposalTitle,
+    [property: JsonPropertyName("proposal_summary")] string ProposalSummary,
+    [property: JsonPropertyName("proposed_change")] string ProposedChange,
+    [property: JsonPropertyName("acceptance_check")] string AcceptanceCheck,
+    [property: JsonPropertyName("human_review_status")] string HumanReviewStatus);
+
 internal static class DiagnosisInputReader
 {
     public static IReadOnlyList<DiagnosisRow> Read(string inputPath)
@@ -1359,6 +1531,11 @@ internal static partial class DiagnosisValidator
 
     private static bool ContainsUnsafeEvidence(string value)
     {
+        return ContainsUnsafeMaterial(value);
+    }
+
+    public static bool ContainsUnsafeMaterial(string value)
+    {
         var normalized = value.ToLowerInvariant();
         if (normalized.Contains('\r', StringComparison.Ordinal) || normalized.Contains('\n', StringComparison.Ordinal))
         {
@@ -1504,6 +1681,199 @@ internal static class DiagnosisOutputWriter
             "evidence_summary" => row.EvidenceSummary,
             "recommended_improvement_target" => row.RecommendedImprovementTarget,
             "review_status" => row.ReviewStatus,
+            _ => null,
+        };
+    }
+
+    private static string EscapeCsv(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Any(character => character is ',' or '"' or '\r' or '\n')
+            ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+            : value;
+    }
+}
+
+internal static class ImprovementProposalSafetyValidator
+{
+    public static IReadOnlyList<string> Validate(IReadOnlyList<ImprovementProposalRow> rows)
+    {
+        var errors = new List<string>();
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var row = rows[index];
+            var rowNumber = index + 1;
+            foreach (var field in GetStringFields(row))
+            {
+                if (!string.IsNullOrWhiteSpace(field.Value)
+                    && DiagnosisValidator.ContainsUnsafeMaterial(field.Value))
+                {
+                    errors.Add($"row {rowNumber}: proposal field '{field.Name}' appears to contain raw content, credential, secret, token, or identity-bearing material.");
+                }
+            }
+        }
+
+        return errors;
+    }
+
+    private static IEnumerable<(string Name, string? Value)> GetStringFields(ImprovementProposalRow row)
+    {
+        yield return ("proposal_id", row.ProposalId);
+        yield return ("trace_id", row.TraceId);
+        yield return ("task_id", row.TaskId);
+        yield return ("task_category", row.TaskCategory);
+        yield return ("client_kind", row.ClientKind);
+        yield return ("comparison_id", row.ComparisonId);
+        yield return ("experiment_id", row.ExperimentId);
+        yield return ("experiment_condition", row.ExperimentCondition);
+        yield return ("prompt_version", row.PromptVersion);
+        yield return ("agent_variant", row.AgentVariant);
+        yield return ("failure_category_id", row.FailureCategoryId);
+        yield return ("anti_pattern_id", row.AntiPatternId);
+        yield return ("severity", row.Severity);
+        yield return ("improvement_target", row.ImprovementTarget);
+        yield return ("evidence_summary", row.EvidenceSummary);
+        yield return ("proposal_title", row.ProposalTitle);
+        yield return ("proposal_summary", row.ProposalSummary);
+        yield return ("proposed_change", row.ProposedChange);
+        yield return ("acceptance_check", row.AcceptanceCheck);
+        yield return ("human_review_status", row.HumanReviewStatus);
+    }
+}
+
+internal static class ImprovementProposalGenerator
+{
+    private const string AcceptedForProposal = "accepted-for-proposal";
+    private const string HumanReviewStatus = "needs-human-review";
+
+    public static IReadOnlyList<ImprovementProposalRow> Generate(IReadOnlyList<DiagnosisRow> diagnoses)
+    {
+        var proposals = new List<ImprovementProposalRow>();
+        for (var index = 0; index < diagnoses.Count; index++)
+        {
+            var diagnosis = diagnoses[index];
+            if (!string.Equals(diagnosis.ReviewStatus, AcceptedForProposal, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var sourceDiagnosisIndex = index + 1;
+            var proposalId = $"proposal-{proposals.Count + 1:0000}";
+            var descriptor = CreateDescriptor(diagnosis);
+            var target = diagnosis.RecommendedImprovementTarget ?? "unknown";
+
+            proposals.Add(new ImprovementProposalRow(
+                ProposalId: proposalId,
+                SourceDiagnosisIndex: sourceDiagnosisIndex,
+                TraceId: diagnosis.TraceId,
+                TaskId: diagnosis.TaskId,
+                TaskCategory: diagnosis.TaskCategory,
+                ClientKind: diagnosis.ClientKind,
+                ComparisonId: diagnosis.ComparisonId,
+                ExperimentId: diagnosis.ExperimentId,
+                ExperimentCondition: diagnosis.ExperimentCondition,
+                PromptVersion: diagnosis.PromptVersion,
+                AgentVariant: diagnosis.AgentVariant,
+                TaskRunIndex: diagnosis.TaskRunIndex,
+                FailureCategoryId: diagnosis.FailureCategoryId,
+                AntiPatternId: diagnosis.AntiPatternId,
+                Severity: diagnosis.Severity,
+                ImprovementTarget: diagnosis.RecommendedImprovementTarget,
+                EvidenceSummary: diagnosis.EvidenceSummary,
+                ProposalTitle: $"Review {target} improvement for {descriptor}",
+                ProposalSummary: $"A {diagnosis.Severity} diagnosis for {descriptor} was accepted for proposal. Evidence: {diagnosis.EvidenceSummary}",
+                ProposedChange: $"Prepare a human-reviewed {target} improvement that addresses {descriptor} using only the sanitized evidence summary.",
+                AcceptanceCheck: $"A human reviewer can confirm the {target} proposal addresses {descriptor} without automatic adoption, repository edits, patches, diffs, or sensitive material exposure.",
+                HumanReviewStatus: HumanReviewStatus));
+        }
+
+        return proposals;
+    }
+
+    private static string CreateDescriptor(DiagnosisRow diagnosis)
+    {
+        return string.IsNullOrWhiteSpace(diagnosis.AntiPatternId)
+            ? diagnosis.FailureCategoryId ?? "unknown diagnosis"
+            : $"{diagnosis.FailureCategoryId} / {diagnosis.AntiPatternId}";
+    }
+}
+
+internal static class ImprovementProposalOutputWriter
+{
+    public static readonly string[] Columns =
+    [
+        "proposal_id",
+        "source_diagnosis_index",
+        "trace_id",
+        "task_id",
+        "task_category",
+        "client_kind",
+        "comparison_id",
+        "experiment_id",
+        "experiment_condition",
+        "prompt_version",
+        "agent_variant",
+        "task_run_index",
+        "failure_category_id",
+        "anti_pattern_id",
+        "severity",
+        "improvement_target",
+        "evidence_summary",
+        "proposal_title",
+        "proposal_summary",
+        "proposed_change",
+        "acceptance_check",
+        "human_review_status",
+    ];
+
+    public static string WriteJson(IReadOnlyList<ImprovementProposalRow> rows)
+    {
+        return JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;
+    }
+
+    public static string WriteCsv(IReadOnlyList<ImprovementProposalRow> rows)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(string.Join(',', Columns));
+
+        foreach (var row in rows)
+        {
+            builder.AppendLine(string.Join(',', Columns.Select(column => EscapeCsv(GetValue(row, column)))));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string? GetValue(ImprovementProposalRow row, string column)
+    {
+        return column switch
+        {
+            "proposal_id" => row.ProposalId,
+            "source_diagnosis_index" => row.SourceDiagnosisIndex.ToString(CultureInfo.InvariantCulture),
+            "trace_id" => row.TraceId,
+            "task_id" => row.TaskId,
+            "task_category" => row.TaskCategory,
+            "client_kind" => row.ClientKind,
+            "comparison_id" => row.ComparisonId,
+            "experiment_id" => row.ExperimentId,
+            "experiment_condition" => row.ExperimentCondition,
+            "prompt_version" => row.PromptVersion,
+            "agent_variant" => row.AgentVariant,
+            "task_run_index" => row.TaskRunIndex?.ToString(CultureInfo.InvariantCulture),
+            "failure_category_id" => row.FailureCategoryId,
+            "anti_pattern_id" => row.AntiPatternId,
+            "severity" => row.Severity,
+            "improvement_target" => row.ImprovementTarget,
+            "evidence_summary" => row.EvidenceSummary,
+            "proposal_title" => row.ProposalTitle,
+            "proposal_summary" => row.ProposalSummary,
+            "proposed_change" => row.ProposedChange,
+            "acceptance_check" => row.AcceptanceCheck,
+            "human_review_status" => row.HumanReviewStatus,
             _ => null,
         };
     }
