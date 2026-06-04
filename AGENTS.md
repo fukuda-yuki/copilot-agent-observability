@@ -17,7 +17,7 @@ When instructions conflict, use this order:
 1. The user's latest explicit instruction.
 2. `docs/requirements.md`.
 3. `docs/spec.md`.
-4. The active milestone task in `docs/milestones/<milestone-slug>/task.md`.
+4. The active sprint material in `docs/sprints/<sprint-slug>/`.
 5. `docs/task.md`.
 6. `README.md` and existing implementation.
 
@@ -30,12 +30,14 @@ Do not infer product requirements from `README.md` or existing implementation un
 Before changing code, repository guidance, or project documents, inspect context in this order:
 
 1. `docs/requirements.md` and `docs/spec.md` for requirements and implementation policy.
-2. `docs/task.md` to identify the active milestone.
-3. The active milestone files under `docs/milestones/<milestone-slug>/`.
+2. `docs/task.md` to identify the active sprint or roadmap item.
+3. The active sprint files under `docs/sprints/<sprint-slug>/`.
 4. The target file to understand current structure, style, and local conventions.
-5. `docs/knowledge/` only when shared prior findings or decisions may matter.
+5. Sprint-local `knowledge/` only when shared prior findings or decisions may matter.
 
-For Phase 1 local Langfuse PoC work, always check `docs/requirements.md`, `docs/spec.md`, `docs/task.md`, and the relevant milestone task before deciding implementation details.
+For Sprint1 / Phase 1 local Langfuse PoC work, always check `docs/requirements.md`, `docs/spec.md`, `docs/task.md`, and the Sprint1 reference material before deciding implementation details.
+Sprint1 material under `docs/sprints/sprint1-langfuse-poc/` is completed reference material.
+For Sprint2 raw data loop work, treat `docs/sprints/sprint2-raw-data-loop/README.md` as idea-level planning context only. It does not change product behavior by itself; update `docs/requirements.md` and `docs/spec.md` before implementing confirmed Sprint2 behavior.
 For Aspire AppHost usage decisions, refer to `docs/spec.md` § 9 (Aspire AppHost の役割と使い分け).
 
 If these sources disagree, state the conflict before editing.
@@ -49,7 +51,7 @@ Ask before proceeding when the task would:
 - add runtime or development dependencies,
 - conflict with `docs/requirements.md` or `docs/spec.md`,
 - require a product/spec decision missing from `docs/spec.md`,
-- require creating a commit or review note when the milestone is unclear.
+- require creating a commit or review note when the active sprint or work item is unclear.
 
 Do not stop unnecessarily for minor, reversible, local edits.
 
@@ -116,7 +118,7 @@ Weak success criteria such as "make it work" require clarification or an explici
 
 ## Tests and Validation
 
-- Derive test scope from `docs/spec.md`, `docs/task.md`, and the active milestone task.
+- Derive test scope from `docs/spec.md`, `docs/task.md`, and the active sprint material.
 - Use small, synthetic or anonymized fixtures.
 - Do not commit secrets, real user data, confidential data, or generated runtime artifacts.
 - Check the changed behavior plus nearby edge cases and regression risks.
@@ -154,15 +156,15 @@ Minimum review perspectives:
 - Tests, edge cases, and regression risk.
 - Maintainability, readability, and extensibility.
 
-For preserved review records, use `docs/milestones/<milestone-slug>/review.md`. If the milestone is unclear, ask before creating the review note.
+For preserved review records, use the active sprint's review location. If the active sprint or work item is unclear, ask before creating the review note.
 
 ## Project Document Updates
 
 Before finishing, update project documents when the task requires it:
 
-- Update the active milestone task and, when needed, `docs/task.md`.
-- Record milestone-local assumptions, decisions, findings, and verification notes in the active milestone notes.
-- Record reusable cross-milestone findings in `docs/knowledge/`.
+- Update the active sprint task or planning document and, when needed, `docs/task.md`.
+- Record sprint-local assumptions, decisions, findings, and verification notes in the active sprint notes.
+- Record reusable cross-sprint findings in the relevant sprint `knowledge/` directory or a new shared docs location after updating `docs/spec.md` if needed.
 - Reflect confirmed product specifications in `docs/spec.md`; do not hide specs only in notes or knowledge files.
 - If required documentation cannot be updated, do not claim completion. State the blocker and needed confirmation.
 
@@ -170,7 +172,7 @@ Before finishing, update project documents when the task requires it:
 
 Create local commits in small, coherent steps after validation and review are complete.
 Do not wait for an explicit user request when a completed, verified step can be committed cleanly.
-If the milestone is unclear or the change mixes unrelated concerns, ask before committing.
+If the active sprint or work item is unclear, or the change mixes unrelated concerns, ask before committing.
 
 Do not:
 
@@ -178,7 +180,7 @@ Do not:
 - create, update, merge, or auto-merge pull requests,
 - rewrite remote history.
 
-Commit messages must start with the milestone name and then follow Conventional Commits.
+Commit messages must start with the active sprint or work item name and then follow Conventional Commits.
 
 ---
 

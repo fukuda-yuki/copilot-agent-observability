@@ -5,13 +5,19 @@ README や既存実装に本書と異なる記述がある場合、`docs/require
 
 ## 1. 現在のフェーズ
 
-現在の主作業は Phase 1: ローカル Langfuse PoC である。
+Sprint1: ローカル Langfuse PoC は完了済みである。
+現在の主作業候補は Sprint2: raw telemetry store と Langfuse 非依存改善ループの検討である。
+Sprint2 の現時点の内容は idea-level であり、実装 schema、migration、CLI interface、運用手順は正式仕様として未確定である。
 
 Phase 0: ローカル Aspire Dashboard 疎通確認は完了済み背景として扱う。
 Phase 0 では、VS Code GitHub Copilot Chat から Aspire Dashboard へ OTLP HTTP 送信できることを確認し、Node/Electron 側のローカル開発証明書問題を避けるため `http` launch profile を主手順とした。
 
-Phase 1 では、ローカル self-host Langfuse に VS Code GitHub Copilot Chat と GitHub Copilot CLI の OTel を直接送信し、Langfuse 上で trace、prompt、response、tool call、token usage を確認する。
+Phase 1 / Sprint1 では、ローカル self-host Langfuse に VS Code GitHub Copilot Chat と GitHub Copilot CLI の OTel を直接送信し、Langfuse 上で trace、prompt、response、tool call、token usage を確認した。
 Phase 1 の主目的は、VS Code GitHub Copilot Chat / GitHub Copilot CLI の公式 OTel 出力を Langfuse に取り込み、trace / prompt / response / tool call / token usage を確認することである。
+
+Langfuse は Sprint1 baseline observability backend である。
+ただし、改善ループの必須依存とは限らない。
+Sprint2 では raw telemetry / normalized dataset を source of truth とし、Langfuse UI を dashboard / trace viewer として再位置づける方針を検討する。
 
 M9 では、Langfuse 直接送信を Phase 1 baseline として維持したうえで、直接送信が不安定な場合や後続の組織展開候補に備え、ローカル OTel Collector 経由送信を次候補として仕様化し、最小サンプルを追加する。
 
@@ -948,6 +954,8 @@ Phase 1 の既定スコープでは以下を扱わない。
 - commit / push / pull request 自動化
 
 これらが必要になった場合は、実装前に `docs/spec.md` を更新する。
+
+Sprint2 で raw telemetry store を扱う場合は、上記の Phase 1 非スコープを見直し、保存対象、保存先、schema、保持期間、sanitization 方針を `docs/requirements.md` と本書に反映してから実装する。
 
 ## 8. 検証方針
 
