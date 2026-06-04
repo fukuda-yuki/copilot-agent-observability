@@ -1,23 +1,67 @@
-# M1 Review
+# Review
+
+レビュー実施時に、レビュー範囲、変更ファイル、指摘、妥当性判断、対応方針、適用した修正、残リスクを記録する。
 
 ## 2026-06-04: Sprint2 M1 start
 
-### Spec compliance
+### 仕様整合
 
-- `docs/task.md` and Sprint2 README now mark Sprint2 as specification work in progress, not implementation-ready.
-- The README continues to state that schema, migration, CLI interface, and operating procedures must be reflected in `docs/requirements.md` and `docs/spec.md` before implementation.
-- The M1 task keeps product behavior undecided and frames the next work as specification and milestone breakdown.
+- `docs/task.md` と Sprint2 README は Sprint2 を仕様化中として扱い、実装可能な確定仕様とはしていない。
+- README は schema、migration、CLI interface、運用手順を `docs/requirements.md` と `docs/spec.md` へ反映してから確定するとしている。
+- M1 task は product behavior を未確定のままにし、次の作業を仕様化と milestone 分割としている。
 
-### Tests and validation
+### テストと検証
 
-- Documentation-only change; no code path changed.
-- Existing readiness check evidence is recorded in `task.md`: `dotnet test CopilotAgentObservability.slnx` passed with 121 tests, and `dotnet build CopilotAgentObservability.slnx` passed after rerun.
+- documentation-only のため、実行コードは変更していない。
+- 開始前調査の検証記録として、`dotnet test CopilotAgentObservability.slnx` 121 件成功と、`dotnet build CopilotAgentObservability.slnx` の単独再実行成功を `task.md` に記録した。
 
-### Maintainability
+### 保守性
 
-- M1 uses the existing Sprint1 milestone convention with `task.md`, `questions.md`, `notes.md`, and `review.md`.
-- Open questions are recorded separately so implementation agents do not treat Sprint2 idea notes as settled product behavior.
+- M1 は既存 Sprint1 milestone と同じく `task.md`、`questions.md`、`notes.md`、`review.md` を使う。
+- 未決事項を `questions.md` に分離し、実装 agent が Sprint2 の idea notes を確定仕様として扱わないようにした。
 
-### Result
+### 結果
 
-No blocking issues found for starting Sprint2 as a specification task.
+Sprint2 を仕様化タスクとして開始するうえでの blocking issue は見つからなかった。
+
+## 2026-06-04: 並列 sub-agent レビュー後の再レビュー
+
+### 実施内容
+
+source-of-truth 整合と、M1 start package の使いやすさの 2 観点で read-only sub-agent レビューを実施した。
+Main-Agent は各指摘を `docs/requirements.md`、`docs/spec.md`、M1 の目的に照らして評価し、妥当な指摘のみ修正した。
+
+### 採用した指摘
+
+- 指摘: Sprint2 README の `diagnose` 説明が、trace から failure category / anti-pattern 候補を抽出する確定 behavior のように読め、現行 `docs/spec.md` の M24 境界と衝突する。
+  - 対応: `diagnose` は人間が分類した diagnosis record の検証を既定説明とし、trace からの自動診断を Sprint2 MVP に含めるかは M1 で確定する表現へ修正した。
+- 指摘: Sprint2 README と `docs/task.md` の一部が、raw store 中心の構成や Langfuse 再位置づけを確定済み方針のように読める。
+  - 対応: README の目的、改善ループ、Langfuse UI、`docs/task.md` の follow-up を「検討する」表現へ弱めた。
+- 指摘: M1 task は完了条件は明確だが、次の agent が最初に何をするかが暗黙だった。
+  - 対応: `task.md` に「次に行うこと」を追加し、`questions.md` の判断を `notes.md` に記録し、確定内容を requirements / spec に反映し、実装は後続 milestone 作成後に開始する流れを明記した。
+
+### 再レビュー結果
+
+M1 docs は Sprint2 を確定仕様ではなく仕様化中の作業として扱っている。
+raw store、normalized dataset、Langfuse 非依存 loop、trace からの自動診断は M1 で確定する論点として残っており、実装 agent が未確定事項を product behavior として扱うリスクは低減された。
+
+### 残リスク
+
+- M1 ではまだ `docs/requirements.md` と `docs/spec.md` を更新していないため、Sprint2 実装は開始できない。
+- raw payload の保存範囲、retention、sanitization、SQLite dependency 追加可否は M1 の後続判断に依存する。
+
+## 2026-06-04: 修正後 sub-agent 再レビュー
+
+### 実施内容
+
+前回指摘を修正した後、同じ 2 つの read-only sub-agent に再レビューを依頼した。
+
+### 結果
+
+- source-of-truth 整合レビュー: 残存 finding なし。前回の blocking finding だった `diagnose` の自動診断誤読リスクは解消済みと判断された。
+- M1 start package レビュー: 残存 finding なし。README と `docs/task.md` の raw store / Langfuse UI 表現は「検討する」に揃い、未確定事項として読めると判断された。
+
+### 残リスク
+
+追加の残リスクはない。
+M1 の本来の未決事項は `questions.md` に残しており、実装前に requirements / spec へ反映する必要がある。
