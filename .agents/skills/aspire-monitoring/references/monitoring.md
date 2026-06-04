@@ -1,5 +1,10 @@
 # Monitoring
 
+Repository-local scope guard: `docs/spec.md` § 9 is the source of truth. Do not use these
+reference notes to add AppHost resources, enable deployment workflows, expose content-capture
+telemetry, or save/share `aspire export` archives, dashboard login URLs/tokens, API keys,
+prompt/response content, or tool arguments/results.
+
 Use this when the task is about inspecting app state, logs, traces, endpoints, or sharable diagnostics.
 
 ## Scenario: I Need To Know What Is Running And Where The Endpoints Are
@@ -54,7 +59,8 @@ aspire export [resource]
 
 Keep these points in mind:
 
-- Use `aspire export` when you need a sharable bundle of telemetry and resource state.
+- Use `aspire export` only for local diagnosis. Do not save, commit, paste, or share the
+  archive unless `docs/spec.md` explicitly allows that exposure.
 - `[resource]` is optional. Include it to filter the export to a single resource; omit it to export all resources.
 - The output is a zip archive (default name `aspire-export-<timestamp>.zip`) containing up to four directories:
   - `resources/` — one JSON file per resource with resource details (name, type, state, endpoints, environment variables, etc.).
@@ -111,9 +117,9 @@ No additional configuration is needed for Azure once the AppHost and deployment 
 
 | Target | Tool | Commands |
 |--------|------|----------|
-| Azure Container Apps / App Service | azure-diagnostics | `az containerapp logs show`, `az webapp log tail`, App Insights |
-| Azure resource health (Front Door, NSP, private endpoint, App Insights) | azure-diagnostics | AppLens, `az monitor app-insights query` |
-| AKS workload (pods, workloads) | kubectl + Container Insights | `kubectl logs <pod>`, `kubectl describe pod <pod>`, Azure Monitor Container Insights |
+| Azure Container Apps / App Service | Out of scope unless `docs/spec.md` is updated first | Do not proceed without a scope update |
+| Azure resource health (Front Door, NSP, private endpoint, App Insights) | Out of scope unless `docs/spec.md` is updated first | Do not proceed without a scope update |
+| AKS workload (pods, workloads) | Out of scope unless `docs/spec.md` is updated first | Do not proceed without a scope update |
 | Docker / Compose | Docker CLI | `docker logs <container>`, `docker compose logs <service>` |
 
 ## Standalone Dashboard (`aspire dashboard run`)
@@ -152,10 +158,10 @@ Frontend resources opted into `Aspire.Hosting.Browsers` via `WithBrowserLogs()` 
 |------|--------|
 | Inspect browser telemetry that is already wired | Open the dashboard; browser logs / network / screenshots appear next to server telemetry for the resource |
 | Confirm a frontend has it enabled | Check the AppHost for `.WithBrowserLogs()` on the resource |
-| Add `WithBrowserLogs()` to a resource | Route to `aspireify`; this is AppHost authoring, not monitoring |
+| Add `WithBrowserLogs()` to a resource | Out of scope unless `docs/spec.md` is updated first |
 
 ## Why Aspire CLI Can't Do Remote Diagnostics
 
-The Aspire CLI talks to a *running AppHost* through a local backchannel socket at `~/.aspire/backchannels/`. This is by design — there is no remote backchannel. For deployed apps, route to platform-specific tools such as azure-diagnostics, kubectl, or Docker.
+The Aspire CLI talks to a *running AppHost* through a local backchannel socket at `~/.aspire/backchannels/`. This is by design — there is no remote backchannel. Deployed app diagnostics are out of scope for this repository unless `docs/spec.md` is updated first.
 
-**Exception**: if a Dashboard is reachable (deployed alongside the app, or running standalone), `aspire otel logs` and `aspire otel traces` can query it via `--dashboard-url` and optional `--api-key`. This does not apply to `aspire logs` or `aspire describe`.
+**Exception**: if a Dashboard is reachable (deployed alongside the app, or running standalone), `aspire otel logs` and `aspire otel traces` can query it via `--dashboard-url` and optional `--api-key`. Do not save or share dashboard URLs, tokens, or API keys. This does not apply to `aspire logs` or `aspire describe`.

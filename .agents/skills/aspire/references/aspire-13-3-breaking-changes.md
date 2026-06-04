@@ -7,6 +7,10 @@ code, scripts, CI snippets, or skill routing. Source:
 > Use this page when reviewing AppHost code, CI YAML, or shell snippets for 13.3 compatibility.
 > Agents must scrub for these patterns before recommending or generating code.
 
+Repository-local scope guard: in this repository, `docs/spec.md` § 9 is the source of truth.
+Do not use these 13.3 notes to run `aspire init`, route to `aspireify`, add ServiceDefaults,
+wire resources, or enable deployment workflows unless `docs/spec.md` is updated first.
+
 ## Quick scrub table
 
 | Change | Migration |
@@ -24,7 +28,7 @@ code, scripts, CI snippets, or skill routing. Source:
 | CLI telemetry `--format json` schema aligned with MCP tool format | Update parsers consuming `--format json` from telemetry commands. |
 | `ASPIREEXTENSION001` JS diagnostic ID renamed to `ASPIREJAVASCRIPT001` | Update `#pragma warning disable` and any code-search rules. |
 | Docker Swarm `UpdateConfig` property types changed | Update generated/hand-written Swarm overrides. |
-| `aspire init` no longer wires up the AppHost | Follow with `aspireify` (in-plugin sibling skill or project-local copy). |
+| `aspire init` no longer wires up the AppHost | Out of scope in this repository unless `docs/spec.md` is updated first. |
 | In-dashboard GitHub Copilot UI removed | Replaced by `aspire agent init`-driven agentic flow (works with Copilot, Claude, Cursor, any MCP/skill agent). |
 
 ## TypeScript `withEnvironment` migration
@@ -66,8 +70,9 @@ If a script or environment file still sets `ASPIRE_DASHBOARD_MCP_ENDPOINT_URL`, 
 
 In 13.3, `aspire init` drops a skeleton (`aspire.config.json` + AppHost stub) and installs the
 `aspireify` agent skill, but does **not** wire resources, projects, or integrations on its own.
+This workflow is out of scope in this repository unless `docs/spec.md` is updated first.
 
-Workflow:
+General upstream workflow, not active repository-local guidance:
 
 1. `aspire init --language csharp|typescript --non-interactive`
 2. Hand off to the `aspireify` skill (in-plugin sibling or project-local
@@ -78,6 +83,8 @@ Skills shipped in this plugin:
 
 - `aspire-init` — owns the skeleton drop and template choice.
 - `aspireify` — owns the wiring step after the skeleton lands.
+
+Repository-local note: both are out of scope here unless `docs/spec.md` is updated first.
 
 ## Migration from Aspire 13.2 to 13.3
 
@@ -99,8 +106,8 @@ recommending Aspire-related changes against an existing repo.
    `ASPIRE_DASHBOARD_MCP_ENDPOINT_URL` env var.
 7. **Re-pin Node versions** in Dockerfiles if you were relying on `package.json`
    `engines.node` for base-image selection.
-8. **Rewire AppHost via `aspireify`** if the repo went through `aspire init` on 13.3 — the
-   skeleton is unwired by design.
+8. **Rewire AppHost via `aspireify`** only when `docs/spec.md` permits AppHost wiring; in this
+   repository the existing AppHost is intentionally empty.
 9. **Replace deprecated TS `withEnvironment*` helpers** with the unified
    `withEnvironment(name, value)` (see [migration table](#typescript-withenvironment-migration)).
 10. **Update Kubernetes Ingress / Gateway `using` directives** if your AppHost references the

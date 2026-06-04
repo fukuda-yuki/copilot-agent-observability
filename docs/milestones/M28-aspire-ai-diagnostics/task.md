@@ -20,7 +20,7 @@ GitHub Issue: [#22](https://github.com/fukuda-yuki/copilot-agent-observability/i
 - [x] Codex / 開発者向けの Aspire 利用指針が文書化されている
 - [x] `dotnet build CopilotAgentObservability.slnx` が成功する
 - [x] `dotnet test CopilotAgentObservability.slnx` が成功する
-- [x] secrets / connection string / credential / 実 trace content が repository に保存されていない
+- [x] secrets / connection string / credential / 実 trace content が tracked repository files に保存されていない
 
 ## 検証記録
 
@@ -33,4 +33,4 @@ GitHub Issue: [#22](https://github.com/fukuda-yuki/copilot-agent-observability/i
 - 2026-06-04: `docs/knowledge/phase0-aspire.md` に M28 再評価結果を追記した。
 - 2026-06-04: `dotnet build CopilotAgentObservability.slnx` 成功（0 警告・0 エラー）。
 - 2026-06-04: `dotnet test CopilotAgentObservability.slnx` 成功。121 tests passed。
-- 2026-06-04: repository 内に secrets / connection string / credential / 実 trace content が保存されていないことを確認した。
+- 2026-06-04: tracked repository files に secrets / connection string / credential / 実 trace content が保存されていないことを確認した。ignore 済みの `tmp/langfuse/.env` はローカル Langfuse 実行用 credential を含むため、この完了条件の対象外とする。

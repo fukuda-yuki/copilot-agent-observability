@@ -27,25 +27,21 @@ aspire stop
 ## Create A New Aspire App Or Add Aspire To An Existing App
 
 ```bash
-aspire new
-aspire init
-aspire init --language typescript
+aspire start
+aspire describe
+aspire stop
 ```
 
-- Use `aspire new` when creating a brand-new Aspire app from scratch.
-- Use `aspire init` when adding Aspire to an existing application.
+- Creating a brand-new Aspire app is out of scope for this repository unless `docs/spec.md` is updated first.
+- Adding Aspire to an existing application is out of scope for this repository unless `docs/spec.md` is updated first.
 
-## After `aspire init` — Hand Off to `aspireify`
+## AppHost Wiring Scope
 
-`aspire init` drops a minimal AppHost skeleton + AppHost configuration into the
-repo and installs the **`aspireify`** agent skill alongside it. `aspire init` itself does not
-wire resources, projects, or integrations. Hand off the wiring step to:
+This repository already has an AppHost and intentionally keeps it empty. Do not run
+`aspire init`, create skeletons, or route to AppHost wiring skills unless `docs/spec.md` is
+updated first.
 
-1. The in-plugin sibling skill: [`../../aspireify/SKILL.md`](../../aspireify/SKILL.md), or
-2. The project-local `.agents/skills/aspireify/SKILL.md` if `aspire init` installed it
-   (project-local wins — defer to it and warn the user).
-
-The aspireify workflow:
+Out-of-scope wiring work includes:
 
 1. **Scan** the repository — discover .NET projects, Node.js apps, Python/Go services, docker-compose files
 2. **Present findings** — confirm with user which services to include
@@ -101,7 +97,7 @@ aspire restore
 
 ## Key Rules
 
-- **Never install the obsolete Aspire workload** (`dotnet workload install aspire`). Use `aspire add`, `aspire init`, or `aspire new` instead.
+- **Never install the obsolete Aspire workload** (`dotnet workload install aspire`). In this repository, do not use `aspire add`, `aspire init`, or `aspire new` unless `docs/spec.md` is updated first.
 - **Never edit `.aspire/modules/` directly** in TypeScript AppHosts. Use `aspire add <package>` to regenerate APIs, `aspire restore` if files are missing.
 - For unfamiliar C# AppHost APIs, use `aspire docs search` as primary reference. If the `dotnet-inspect` skill is available, use it to inspect local symbols and overloads — but keep docs as the source of truth.
 - For custom dashboard or resource commands (`WithCommand`), always run `aspire docs search "custom resource commands"` before implementing.

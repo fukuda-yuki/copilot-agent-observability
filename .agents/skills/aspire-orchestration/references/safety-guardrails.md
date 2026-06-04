@@ -252,7 +252,7 @@ AI agents run in non-interactive terminals. Some Aspire CLI commands may prompt 
 ```bash
 # ✅ Agent-safe commands
 aspire start --non-interactive
-aspire deploy --non-interactive
+# Deployment is out of scope for this repository unless docs/spec.md is updated first.
 aspire agent init --non-interactive
 ```
 

@@ -61,7 +61,7 @@ See [detection.md](references/detection.md) for detailed fingerprinting.
 | Editing unfamiliar API | `aspire docs search <topic>` then `aspire docs api search <query>` for API reference | Guessing API shape |
 | C# AppHost API inspection | Use `dotnet-inspect` skill (if available) for local symbols | Guessing overloads or builder chains |
 | Adding custom dashboard/resource commands | `aspire docs search "custom resource commands"` first | Inventing `WithCommand` patterns without docs |
-| Installing Aspire support | Use `aspire add` or `aspire init` | ~~`dotnet workload install aspire`~~ (obsolete) |
+| Installing Aspire support | Out of scope for this repository unless `docs/spec.md` is updated first | ~~`dotnet workload install aspire`~~ (obsolete) |
 
 See [safety-guardrails.md](references/safety-guardrails.md) for detailed rules and recovery patterns.
 
@@ -85,9 +85,9 @@ See [safety-guardrails.md](references/safety-guardrails.md) for detailed rules a
 | Check status | `aspire ps` or `aspire describe` |
 | Show hidden resources (proxies, helpers, migrations) | `aspire ps --include-hidden` / `aspire describe --include-hidden` |
 | Resource operation | `aspire resource <resource-name> <command>` such as `stop`, `start`, or `rebuild` when exposed |
-| Create new project | `aspire new aspire-starter` |
-| Add Aspire to existing | `aspire init` (then hand off to `aspireify` skill for wiring) |
-| Add integration | `aspire add <package>` |
+| Create new project | Out of scope for this repository unless `docs/spec.md` is updated first |
+| Add Aspire to existing | Out of scope for this repository unless `docs/spec.md` is updated first |
+| Add integration | Out of scope for this repository unless `docs/spec.md` is updated first |
 | Discover integrations | `aspire integration list --format Json` / `aspire integration search <query> --format Json` |
 | Upgrade the CLI itself | `aspire update --self` |
 | Update project package refs | `aspire update` (modifies project files — get user approval) |
@@ -146,14 +146,14 @@ The same rule applies to any "file in use", "cannot access the file", or
 
 | Scenario | Route To |
 |----------|----------|
-| AppHost wiring after `aspire init` (scan repo, add resources, ServiceDefaults/OTel) | → `aspireify` skill ([`../aspireify/SKILL.md`](../aspireify/SKILL.md)) or project-local `.agents/skills/aspireify/SKILL.md` |
-| Browser logs (`Aspire.Hosting.Browsers` / `WithBrowserLogs()`) and dashboard authoring | → `aspireify` skill (code edits) and `aspire-monitoring` (discovery) |
-| Custom resource commands (`WithCommand`, `ExecuteCommandResult`, `HttpCommandResultMode`) | → `aspireify` skill |
-| Lifecycle hooks (`SubscribeBeforeStart`, `SubscribeAfterResourcesCreated`, BeforeStart pipeline phase) | → `aspireify` skill |
-| Endpoint authoring (`WithEndpoint` updates, `ExcludeReferenceEndpoint` flag) | → `aspireify` skill |
-| Deploy, publish, pipeline steps, `aspire destroy` | → `aspire-deployment` skill |
+| AppHost wiring after `aspire init` (scan repo, add resources, ServiceDefaults/OTel) | Out of scope for this repository unless `docs/spec.md` is updated first |
+| Browser logs (`Aspire.Hosting.Browsers` / `WithBrowserLogs()`) and dashboard authoring | Out of scope for this repository unless `docs/spec.md` is updated first |
+| Custom resource commands (`WithCommand`, `ExecuteCommandResult`, `HttpCommandResultMode`) | Out of scope for this repository unless `docs/spec.md` is updated first |
+| Lifecycle hooks (`SubscribeBeforeStart`, `SubscribeAfterResourcesCreated`, BeforeStart pipeline phase) | Out of scope for this repository unless `docs/spec.md` is updated first |
+| Endpoint authoring (`WithEndpoint` updates, `ExcludeReferenceEndpoint` flag) | Out of scope for this repository unless `docs/spec.md` is updated first |
+| Deploy, publish, pipeline steps, `aspire destroy` | Out of scope for this repository unless `docs/spec.md` is updated first |
 | Logs, traces, metrics, dashboard, `aspire dashboard run` | → `aspire-monitoring` skill |
-| Deployed app diagnostics | → `azure-diagnostics` skill (azure-skills) |
+| Deployed app diagnostics | Out of scope unless `docs/spec.md` is updated first |
 
 ## Runtime Settings And Environment
 
@@ -166,8 +166,9 @@ The same rule applies to any "file in use", "cannot access the file", or
 
 ## TypeScript AppHost Note
 
-Detection covers TS AppHosts (`apphost.ts`), but **all TS AppHost authoring is delegated to `aspireify`**.
-Current rules to apply when handing off:
+Detection covers TS AppHosts (`apphost.ts`), but TS AppHost authoring is out of scope for
+this repository unless `docs/spec.md` is updated first. Current rules only apply after that
+scope update:
 
 | Rule | Why |
 |------|-----|
@@ -177,12 +178,10 @@ Current rules to apply when handing off:
 
 ## Skill Routing — In-Plugin Sibling Skills
 
-After `aspire init` drops a skeleton AppHost + `aspire.config.json`, route AppHost wiring
-(scan repo → propose resource graph → edit AppHost → wire `Aspire.ServiceDefaults` / OTel →
-validate via `aspire start`) to the in-plugin **aspireify** skill: [`../aspireify/SKILL.md`](../aspireify/SKILL.md).
-For first-run flows that only need the skeleton drop, see the in-plugin **aspire-init** skill:
-[`../aspire-init/SKILL.md`](../aspire-init/SKILL.md). This orchestration skill stays focused
-on lifecycle (start/stop/wait/restart) and never edits AppHost code itself.
+This repository already has an AppHost and intentionally keeps it empty. Do not route AppHost
+wiring, skeleton creation, ServiceDefaults, or deployment work to bootstrap/deployment skills
+unless `docs/spec.md` is updated first. This orchestration skill stays focused on lifecycle
+(start/stop/wait/restart) and never edits AppHost code itself.
 
 ## Project-Local Skill Precedence
 
@@ -190,10 +189,10 @@ If `.agents/skills/aspire/SKILL.md` exists (from `aspire agent init`), defer to 
 C# AppHost editing, TS AppHost editing, Playwright handoff, investigation workflows.
 Safety guardrails from this plugin ALWAYS apply.
 
-If `.agents/skills/aspireify/SKILL.md` exists project-locally (installed by `aspire init` in
-current Aspire), **warn the user** that a project-local aspireify skill is present and **defer to it**
-for AppHost wiring instead of the in-plugin sibling. Same precedence rule as the project-local
-`aspire` skill above: project-local wins, plugin guardrails still apply.
+If `.agents/skills/aspireify/SKILL.md` exists project-locally, **warn the user** that it is
+out of scope for this repository unless `docs/spec.md` is updated first. Same precedence rule
+as the project-local `aspire` skill above: project-local wins only when it does not conflict
+with repository source-of-truth documents.
 
 ## References
 

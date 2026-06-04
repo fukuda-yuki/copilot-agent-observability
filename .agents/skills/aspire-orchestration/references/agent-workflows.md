@@ -65,7 +65,8 @@ Inspect the live app before editing code:
 2. `aspire otel logs <resource>` to inspect structured logs. Add `--search "<term>"` to filter by keyword.
 3. `aspire logs <resource>` to inspect console output. Add `--search "<term>"` to filter by keyword.
 4. `aspire otel traces <resource>` to follow cross-service activity. Add `--search "<term>"` to narrow results.
-5. `aspire export` when you need a zipped telemetry snapshot for deeper analysis or handoff.
+5. `aspire export` only for local diagnosis. Do not save, commit, paste, or share the archive
+   unless `docs/spec.md` explicitly allows that exposure.
 
 ## Scenario: I Need To Add An Integration, Understand An API, Or Add A Custom Command Safely
 
@@ -114,6 +115,6 @@ aspire secret set Parameters:postgres-password MySecretValue
 aspire secret list
 ```
 
-Use `aspire publish` and `aspire deploy` for full deployment work, or `aspire do <step>` when the user only wants one named pipeline step such as seeding data or pushing containers.
+Deployment work is out of scope for this repository unless `docs/spec.md` is updated first. Do not use `aspire publish`, `aspire deploy`, or `aspire do <step>` as repository-local guidance before that scope update.
 
 If Playwright CLI is configured in the environment, use Aspire to discover the endpoint first and let Playwright use that discovered URL afterward. When multiple frontends exist or the URL needs to be passed to another tool, prefer `aspire describe --format Json` before the Playwright handoff.

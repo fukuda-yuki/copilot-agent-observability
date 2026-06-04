@@ -1,5 +1,11 @@
 # Diagnostics Bridge — Local vs Deployed
 
+Repository-local scope guard: `docs/spec.md` § 9 is the source of truth. In this repository,
+AppHost authoring, deployment, Azure/K8s diagnostics, and telemetry sharing are out of scope
+unless `docs/spec.md` is updated first. Do not save, commit, paste, or share `aspire export`
+archives, dashboard login URLs/tokens, API keys, prompt/response content, or tool
+arguments/results.
+
 > **Purpose**: Route diagnostics requests to the correct tool based on where the application is running.
 
 ## Decision Flowchart
@@ -7,7 +13,7 @@
 ```
 Is the request about AppHost code or deployment definition?
 │
-├── YES → Route to aspire-deployment skill (and aspireify for code edits)
+├── YES → Out of scope unless docs/spec.md is updated first
 │
 └── NO → Is the app running locally (via aspire start)?
     │
@@ -22,18 +28,14 @@ Is the request about AppHost code or deployment definition?
     │   └── Standalone dash    → aspire dashboard run  (foreground/blocking)
     │
     └── NO (deployed) → Route by target
-        ├── Azure Kubernetes Service (AKS)
-        │   ├── Pod logs           → kubectl logs <pod>
-        │   ├── Pod / workload state → kubectl describe pod <pod>, kubectl get pods
-        │   ├── Cluster Azure resources → azure-diagnostics skill
-        │   └── Cluster-wide telemetry → Azure Monitor Container Insights
+        ├── Azure Kubernetes Service (AKS) → out of scope unless docs/spec.md is updated first
         │
-        ├── Other Azure (App Service, Container Apps) → azure-diagnostics skill
+        ├── Other Azure (App Service, Container Apps) → out of scope unless docs/spec.md is updated first
         │   ├── App logs           → az containerapp logs show / az webapp log tail
         │   ├── Metrics            → az monitor metrics list
         │   ├── App Insights       → az monitor app-insights query
         │   ├── Resource health    → az resource show / AppLens
-        │   └── Front Door / NSP / private endpoint → azure-diagnostics
+        │   └── Front Door / NSP / private endpoint → out of scope unless docs/spec.md is updated first
         │
         └── Docker / Compose → Use Docker tooling
             ├── Container logs     → docker logs <container>
@@ -132,7 +134,7 @@ The `Aspire.Hosting.Browsers` integration captures **browser console logs, netwo
 |------|--------|
 | Inspect existing browser telemetry | Open the dashboard or run `aspire otel logs <frontend-resource>` |
 | Check whether a frontend has it enabled | Look for `.WithBrowserLogs()` in the AppHost |
-| Add `WithBrowserLogs()` to a resource | → **`aspireify` skill** (AppHost authoring) |
+| Add `WithBrowserLogs()` to a resource | Out of scope unless `docs/spec.md` is updated first |
 
 ---
 
@@ -142,7 +144,7 @@ The `Aspire.Hosting.Browsers` integration captures **browser console logs, netwo
 
 The Aspire CLI's `aspire logs`, `aspire describe`, and other backchannel commands use the local backchannel socket at `~/.aspire/backchannels/`. This is **by design** — there is no remote backchannel. When an app is deployed, the Aspire CLI cannot reach it directly.
 
-**Exception:** if a Dashboard is reachable (deployed alongside the app, or running standalone), `aspire otel logs --dashboard-url` and `aspire otel traces --dashboard-url` (with `--api-key` when the dashboard requires it) can query it remotely. This does **not** extend to `aspire logs` or `aspire describe`.
+**Exception:** if a Dashboard is reachable (deployed alongside the app, or running standalone), `aspire otel logs --dashboard-url` and `aspire otel traces --dashboard-url` (with `--api-key` when the dashboard requires it) can query it remotely. Do not save or share dashboard URLs, tokens, or API keys. This does **not** extend to `aspire logs` or `aspire describe`.
 
 ```bash
 # Limited remote support via deployed Dashboard — login URL form
@@ -157,20 +159,20 @@ aspire otel logs --dashboard-url https://my-dashboard.azurecontainerapps.io --ap
 
 | Target | Use | Examples |
 |--------|-----|----------|
-| **AKS workload (pod logs, pod state, container insights)** | `kubectl` + Azure Monitor Container Insights | `kubectl logs <pod>`, `kubectl describe pod <pod>`, Container Insights queries |
-| **Azure resource health** (App Insights, Front Door, NSP, private endpoint, ACA, App Service) | `azure-diagnostics` skill (azure-skills) | `az containerapp logs show`, `az monitor app-insights query`, AppLens |
+| **AKS workload (pod logs, pod state, container insights)** | Out of scope unless `docs/spec.md` is updated first | Do not proceed without a scope update |
+| **Azure resource health** (App Insights, Front Door, NSP, private endpoint, ACA, App Service) | Out of scope unless `docs/spec.md` is updated first | Do not proceed without a scope update |
 | **Docker / Compose** | Docker CLI | `docker logs <container>`, `docker compose logs <service>` |
 
-### azure-diagnostics — quick reference
+### Deployed diagnostics — repository-local note
 
-| Need | azure-diagnostics Approach |
+| Need | Repository-local handling |
 |------|---------------------------|
-| Application logs | `az containerapp logs show --name APP -g RG --follow` |
-| Metrics | `az monitor metrics list --resource RESOURCE_ID` |
-| App Insights queries | `az monitor app-insights query --analytics-query "KQL"` |
-| Resource health | AppLens MCP tool or `az resource show` |
-| Activity log | `az monitor activity-log list -g RG` |
-| Front Door / NSP / private endpoint | `az network front-door`, `az network perimeter`, AppLens |
+| Application logs | Out of scope unless `docs/spec.md` is updated first |
+| Metrics | Out of scope unless `docs/spec.md` is updated first |
+| App Insights queries | Out of scope unless `docs/spec.md` is updated first |
+| Resource health | Out of scope unless `docs/spec.md` is updated first |
+| Activity log | Out of scope unless `docs/spec.md` is updated first |
+| Front Door / NSP / private endpoint | Out of scope unless `docs/spec.md` is updated first |
 
 ### Production Telemetry — Automatic Configuration
 
@@ -200,10 +202,10 @@ No additional configuration is needed — Aspire wires the connection string dur
 
 | Question | Local Dev | Deployed |
 |----------|-----------|----------|
-| "What's the status of my resources?" | `aspire describe` (try `--include-hidden` if missing) | Azure Portal / `az containerapp show` / `kubectl describe pod` |
-| "Show me the logs" | `aspire logs <resource>` | `az containerapp logs show` / `kubectl logs <pod>` / `docker logs` |
+| "What's the status of my resources?" | `aspire describe` (try `--include-hidden` if missing) | Out of scope unless `docs/spec.md` is updated first |
+| "Show me the logs" | `aspire logs <resource>` | Out of scope unless `docs/spec.md` is updated first |
 | "Show me distributed traces" | `aspire otel traces` | App Insights → Transaction Search |
-| "Why is this resource unhealthy?" | `aspire describe` + `aspire logs` | AppLens / azure-diagnostics / `kubectl describe pod` |
+| "Why is this resource unhealthy?" | `aspire describe` + `aspire logs` | Out of scope unless `docs/spec.md` is updated first |
 | "What metrics are available?" | Aspire Dashboard (auto-launched or `aspire dashboard run`) | Azure Monitor / App Insights / Container Insights |
 | "Export telemetry for analysis" | `aspire export` | App Insights export / KQL query |
 | "Browser console / network logs" | Dashboard (with `WithBrowserLogs()` enabled) — N/A in production |

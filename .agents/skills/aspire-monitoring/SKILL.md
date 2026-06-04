@@ -2,15 +2,15 @@
 name: aspire-monitoring
 description: >-
   **ANALYSIS SKILL** - Observe Aspire apps: logs, traces, metrics, resource state,
-  telemetry export, browser telemetry, and the standalone dashboard. Routes between local
-  Aspire CLI, AKS workload diagnostics, and deployed Azure resource health.
+  telemetry export, browser telemetry, and the standalone dashboard. Routes local
+  Aspire CLI diagnostics.
   USE FOR: aspire logs, aspire otel logs, aspire otel traces, aspire otel spans, aspire
   describe, aspire ps, aspire export, aspire dashboard run, --include-hidden, browser logs
-  in dashboard, WithBrowserLogs, App Insights query, AKS pod logs, container app logs.
+  in dashboard.
   DO NOT USE FOR: start/stop/wait (use aspire-orchestration), deploy/publish/destroy (use
-  aspire-deployment), AppHost code edits like WithBrowserLogs() (use aspireify), Azure
+  repository scope update), AppHost code edits like WithBrowserLogs() (requires docs/spec.md update), Azure
   provisioning (use azure-prepare).
-  INVOKES: aspire CLI, azure-diagnostics (deployed Azure), kubectl + Container Insights.
+  INVOKES: aspire CLI.
   FOR SINGLE OPERATIONS: Run the aspire CLI command directly for quick log or describe lookups.
 license: MIT
 metadata:
@@ -34,21 +34,26 @@ metadata:
 | Telemetry export | Local dev | Aspire CLI | `aspire export [resource]` |
 | Standalone dashboard | Any (no AppHost) | Aspire CLI | `aspire dashboard run` (foreground/blocking — see below) |
 | Browser console / network / screenshots | Local dev (frontend) | Aspire dashboard | Surfaced via `Aspire.Hosting.Browsers` + `WithBrowserLogs()` |
-| AppHost / deployment definition | Authoring | aspire-deployment skill | → `aspire-deployment` skill |
-| AKS workload (pod logs, pod state) | Deployed AKS | kubectl + Container Insights | `kubectl logs <pod>`, `kubectl describe pod <pod>`, Container Insights in Azure Monitor |
-| Azure resource health (App Insights, Front Door, NSP, private endpoint) | Deployed Azure | azure-diagnostics | → `azure-diagnostics` skill |
-| App Service / Container Apps logs | Deployed Azure | azure-diagnostics | → `azure-diagnostics` skill |
+| AppHost / deployment definition | Authoring | Repository scope update | Update `docs/spec.md` before proceeding |
+| AKS workload (pod logs, pod state) | Deployed AKS | Out of scope | Update `docs/spec.md` before proceeding |
+| Azure resource health (App Insights, Front Door, NSP, private endpoint) | Deployed Azure | Out of scope | Update `docs/spec.md` before proceeding |
+| App Service / Container Apps logs | Deployed Azure | Out of scope | Update `docs/spec.md` before proceeding |
 | Logs/state | Deployed Docker / Compose | Docker CLI | `docker logs <container>`, `docker compose logs <service>` |
 
 **Decision tree:**
 
-1. Is this about **AppHost code or deployment definition**? → `aspire-deployment` skill.
+1. Is this about **AppHost code or deployment definition**? → Out of scope unless `docs/spec.md` is updated first.
 2. Is the app **running locally** via `aspire start`? → Aspire CLI.
-3. Is it deployed to **AKS**? → kubectl + Container Insights for workload; `azure-diagnostics` for the cluster's Azure resources.
-4. Is it deployed to **other Azure** (App Service, Container Apps)? → `azure-diagnostics`.
+3. Is it deployed to **AKS**? → Out of scope unless `docs/spec.md` is updated first.
+4. Is it deployed to **other Azure** (App Service, Container Apps)? → Out of scope unless `docs/spec.md` is updated first.
 5. Is it deployed to **Docker / Compose**? → `docker` / `docker compose` CLI.
 
 See [diagnostics-bridge.md](references/diagnostics-bridge.md) for detailed routing.
+
+Repository-local safety: do not save, commit, paste, or share `aspire export` archives,
+dashboard login URLs/tokens, API keys, prompt/response content, tool arguments/results, or
+content-capture telemetry. If telemetry may contain sensitive content, stop and update the
+exposure decision in `docs/spec.md` § 9 before showing it to an AI agent.
 
 ## Investigation Workflow
 
@@ -154,7 +159,7 @@ The `Aspire.Hosting.Browsers` integration captures **browser console logs, netwo
 |------|--------|
 | Inspect browser telemetry that is already wired | Open the dashboard; browser logs / network / screenshots appear next to server telemetry for the resource |
 | Confirm a frontend has it enabled | Check the AppHost for `.WithBrowserLogs()` on the resource (e.g., `AddViteApp("frontend").WithBrowserLogs()`) |
-| Add `WithBrowserLogs()` to a resource | → **`aspireify` skill** (AppHost authoring) — do not edit the AppHost from this skill |
+| Add `WithBrowserLogs()` to a resource | Out of scope unless `docs/spec.md` is updated first |
 
 When parsing telemetry programmatically, browser logs surface as additional OTLP log records associated with the frontend resource — `aspire otel logs <frontend-resource>` returns them alongside server logs.
 
@@ -166,11 +171,11 @@ Agents inspecting a running dashboard should know:
 - **Rebuild command** — available on container and project resources; rebuilds the image and restarts the resource without restarting the whole AppHost. Result lands in the notification center.
 - **Structured command results** — custom resource commands return `ExecuteCommandResult` with a `Message` payload that the dashboard renders inline; HTTP commands set `HttpCommandResultMode.Auto | Json | Text | None` to control how the response body is shown.
 
-> Authoring custom commands or `WithBrowserLogs()` calls is AppHost work — route to **`aspireify`**. This skill is for *observing* what those features surface in the dashboard.
+> Authoring custom commands or `WithBrowserLogs()` calls is AppHost work and is out of scope unless `docs/spec.md` is updated first. This skill is for *observing* what those features surface in the dashboard.
 
 ## Why Aspire CLI Can't Do Remote Diagnostics
 
-The Aspire CLI talks to a *running AppHost* through a local backchannel socket at `~/.aspire/backchannels/`. This is **by design** — there is no remote backchannel. For deployed apps, route to platform-specific tools (azure-diagnostics, kubectl, docker).
+The Aspire CLI talks to a *running AppHost* through a local backchannel socket at `~/.aspire/backchannels/`. This is **by design** — there is no remote backchannel. Deployed app diagnostics are out of scope for this repository unless `docs/spec.md` is updated first.
 
 **Exception**: if a Dashboard is reachable (deployed alongside the app, or running standalone), `aspire otel logs` and `aspire otel traces` can query it via `--dashboard-url` (login URL form) and optional `--api-key` (see the Standalone Dashboard section above). This does **not** apply to `aspire logs` or `aspire describe`.
 
@@ -179,10 +184,10 @@ The Aspire CLI talks to a *running AppHost* through a local backchannel socket a
 | Scenario | Route To |
 |----------|----------|
 | Start/stop/wait/rebuild lifecycle | → `aspire-orchestration` skill |
-| Deploy, publish, pipeline steps, AppHost compute environment binding | → `aspire-deployment` skill |
-| AppHost code changes (`WithBrowserLogs()`, custom commands, `WithHttpCommand`) | → `aspireify` skill |
-| Deployed Azure resource health (App Insights, Front Door, NSP, private endpoint, ACA, App Service) | → `azure-diagnostics` skill (azure-skills) |
-| AKS workload diagnostics (pod logs, pod state, Container Insights) | → `kubectl` + Azure Monitor Container Insights |
+| Deploy, publish, pipeline steps, AppHost compute environment binding | Out of scope unless `docs/spec.md` is updated first |
+| AppHost code changes (`WithBrowserLogs()`, custom commands, `WithHttpCommand`) | Out of scope unless `docs/spec.md` is updated first |
+| Deployed Azure resource health (App Insights, Front Door, NSP, private endpoint, ACA, App Service) | Out of scope unless `docs/spec.md` is updated first |
+| AKS workload diagnostics (pod logs, pod state, Container Insights) | Out of scope unless `docs/spec.md` is updated first |
 | Docker / Compose container logs | → `docker logs` / `docker compose logs` |
 
 ## Project-Local Skill Routing
