@@ -10,7 +10,12 @@ Sprint2 MVP の入力、raw store、CLI interface、data handling は `../../req
 
 | Milestone | 状態 | 概要 |
 | --- | --- | --- |
-| [M1: Sprint2 仕様化](milestones/M1-sprint2-specification/task.md) | 進行中 | raw store / normalize / Langfuse 非依存 loop の MVP 境界を requirements / spec へ反映し、後続 milestone と task breakdown を作成する |
+| [M1: Sprint2 仕様化](milestones/M1-sprint2-specification/task.md) | 完了 | raw store / normalize / Langfuse 非依存 loop の MVP 境界を requirements / spec へ反映し、後続 milestone と task breakdown を作成した |
+| [M2: raw store 基盤](milestones/M2-raw-store-foundation/task.md) | 未着手 | SQLite raw store schema version 1、DB 作成、record model、synthetic fixture の基盤を追加する |
+| [M3: raw OTLP ingest](milestones/M3-raw-otlp-ingest/task.md) | 未着手 | `ingest-raw <raw.json> --db <raw-store.db>` で synthetic raw OTLP JSON を SQLite raw store に取り込む |
+| [M4: raw normalization](milestones/M4-raw-normalization/task.md) | 未着手 | `normalize-raw <raw-store.db|raw.json>` で M12 measurement schema の CSV / JSON を生成する |
+| [M5: Langfuse 非依存 loop](milestones/M5-langfuse-independent-loop/task.md) | 未着手 | normalized dataset から既存 diagnosis / proposal / evaluation / human decision workflow へ接続する |
+| [M6: Sprint2 docs and release check](milestones/M6-docs-and-release-check/task.md) | 未着手 | MVP 実装後に README / getting-started 更新、最終検証、Sprint2 完了レビューを行う |
 
 ## 目的
 

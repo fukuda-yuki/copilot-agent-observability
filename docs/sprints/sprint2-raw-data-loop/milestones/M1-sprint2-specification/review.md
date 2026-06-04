@@ -105,7 +105,7 @@ Sprint3 の正式化は、Sprint2 の raw store / normalize 実装と M1 の req
 ### 妥当性判断
 
 decision draft は、raw OTLP file-based ingest、SQLite raw store、`ingest-raw` / `normalize-raw`、既存 `aggregate-measurements` との責務分離、Langfuse なしの最小 loop を整理している。
-同時に、正式仕様として扱うには `docs/requirements.md` と `docs/spec.md` への反映が必要であることを明記している。
+同時に、この時点では `docs/requirements.md` と `docs/spec.md` への反映前であることを明記していた。
 
 ### 残リスク
 
@@ -137,5 +137,55 @@ Sprint2 MVP の実装前に必要な主要な product / interface / data handlin
 
 ### 残リスク
 
-- Sprint2 の後続 milestone と task breakdown はまだ作成していない。
+- この時点では Sprint2 の後続 milestone と task breakdown は未作成だった。
 - `ingest-raw` / `normalize-raw`、SQLite dependency、raw store schema は未実装である。
+
+## 2026-06-05: Sprint2 後続 milestone / task breakdown レビュー
+
+### レビュー範囲
+
+- `docs/requirements.md`
+- `docs/spec.md`
+- `docs/task.md`
+- `docs/sprints/sprint2-raw-data-loop/README.md`
+- `docs/sprints/sprint2-raw-data-loop/milestones/M1-sprint2-specification/task.md`
+- `docs/sprints/sprint2-raw-data-loop/milestones/M2-raw-store-foundation/task.md`
+- `docs/sprints/sprint2-raw-data-loop/milestones/M3-raw-otlp-ingest/task.md`
+- `docs/sprints/sprint2-raw-data-loop/milestones/M4-raw-normalization/task.md`
+- `docs/sprints/sprint2-raw-data-loop/milestones/M5-langfuse-independent-loop/task.md`
+- `docs/sprints/sprint2-raw-data-loop/milestones/M6-docs-and-release-check/task.md`
+
+### 要件定義との照合
+
+| 要件 / 仕様 | 対応 milestone | 妥当性判断 |
+| --- | --- | --- |
+| `docs/requirements.md` 8.3 の raw OTLP file-based ingest | M3 | 自前 HTTP receiver、常駐 process、独自 OTLP receiver を明示的に非スコープにしている |
+| `docs/requirements.md` 8.3 の SQLite raw store / PostgreSQL 将来候補 | M2 | SQLite schema version 1 のみを扱い、PostgreSQL を実装対象にしていない |
+| `docs/spec.md` 5.17 の raw record schema と index | M2 | 固定列、source 値域、index、migration なしを完了条件にしている |
+| `docs/spec.md` 5.17 の `ingest-raw` CLI | M3 | raw OTLP JSON file と temp SQLite DB の deterministic tests を完了条件にしている |
+| `docs/spec.md` 5.17 の `normalize-raw` CLI | M4 | raw store / raw JSON input、M12 measurement schema、M15 / M16 集計方針、`aggregate-measurements` との責務分離を完了条件にしている |
+| Langfuse 非依存 loop | M5 | `validate-diagnoses` 以降の既存 workflow への synthetic E2E 接続を完了条件にしている |
+| data handling / repository 保存禁止 | M2-M6 | synthetic fixture、temp DB、credential / secret / Base64 header / 実 identity 排除を各 milestone に含めている |
+| trace からの自動診断除外 | M5 | `diagnose` は人間分類 diagnosis record validation に留めることを完了条件にしている |
+| README / getting-started 更新タイミング | M6 | MVP 実装と automated verification 完了後に user-facing docs を更新する順序にしている |
+
+### 指摘と対応
+
+- 指摘: `ingest-raw` と SQLite raw store を同じ milestone にすると、DB schema と CLI parsing の失敗原因が混ざる。
+  - 対応: M2 を raw store 基盤、M3 を ingest CLI に分離した。
+- 指摘: `normalize-raw` は既存 `aggregate-measurements` と責務が近く、回帰リスクがある。
+  - 対応: M4 の完了条件に `aggregate-measurements` を変更しないことと既存 tests の regression 確認を入れた。
+- 指摘: Langfuse 非依存 loop の確認が user-facing docs 更新より前に必要である。
+  - 対応: M5 を E2E synthetic loop、M6 を docs and release check に分離した。
+
+### 妥当性判断
+
+M2-M6 は `docs/requirements.md` と `docs/spec.md` 5.17 の順序に沿っており、未確定の product behavior を追加していない。
+各 milestone は実装範囲、非スコープ、検証方法を明記しているため、次の agent が迷いやすい点は M1 時点より減っている。
+今回の変更は documentation-only であり、実装、public CLI 実体、依存関係は変更していない。
+
+### 残リスク
+
+- SQLite dependency の追加方法は M2 実装時に project file と lockfile 影響を確認する必要がある。
+- raw OTLP の実 shape は synthetic fixture で最小確認するため、live Copilot / Collector output の網羅性は Sprint2 MVP 後の追加検証に残る。
+- README / getting-started の利用者向け更新は M6 まで行わない。

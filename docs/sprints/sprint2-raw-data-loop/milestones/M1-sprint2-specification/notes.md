@@ -19,7 +19,8 @@
 ## 2026-06-05 Sprint2 M1 decision draft
 
 この section は、`questions.md` へのユーザー回答をもとにした M1 の decision draft である。
-正式仕様として扱うには、`docs/requirements.md` と `docs/spec.md` へ反映する必要がある。
+2026-06-05 に `docs/requirements.md` と `docs/spec.md` へ反映済みである。
+実装時の正式判断は `docs/requirements.md` と `docs/spec.md` を優先する。
 
 ### 推奨判断
 
@@ -58,7 +59,7 @@ ingest-raw -> normalize-raw -> validate-diagnoses -> generate-improvement-propos
 - 最小 loop の検証は synthetic fixture で完結させ、live Copilot / live Langfuse は手動確認として分離する。
 - README / getting-started に Langfuse 非依存フローを載せるのは、Sprint2 MVP の実装と automated verification が完了した後にする。
 
-### 後続反映が必要な文書
+### 反映済みの文書
 
 - `docs/requirements.md`
   - raw JSON / raw OTLP store を Sprint2 MVP の対象にすること。
@@ -69,4 +70,4 @@ ingest-raw -> normalize-raw -> validate-diagnoses -> generate-improvement-propos
   - `aggregate-measurements` と `normalize-raw` の責務分離。
   - Langfuse なしで動く最小 loop。
 - `.gitignore`
-  - `data/` または `data/raw-store.db` を実装時に ignore 対象へ追加する。
+  - `data/` は既存 `.gitignore` で ignore 済みのため追加変更は不要。
