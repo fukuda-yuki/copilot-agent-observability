@@ -9,3 +9,9 @@
 - 既存改善支援 loop は diagnosis record 入力以降を deterministic に扱うが、raw trace または measurement から diagnosis を自動生成する実装はない。
 - Config CLI project は現時点で追加 package dependency を持たないため、SQLite 採用は明示的な dependency 判断を伴う。
 - AppHost は空であり、現行仕様では raw store / DB / worker を AppHost に追加しない方針である。
+
+## 2026-06-05 User answers
+
+- Sprint2 MVP では、`diagnose` は引き続き人間分類 diagnosis record の validation とする。
+- trace から failure category / anti-pattern 候補を自動抽出する診断機能は Sprint2 MVP に含めない。
+- trace からの自動診断は Sprint3 あたりの後続要求として忘れないように、`docs/sprints/sprint3-trace-diagnosis/` に候補メモを作成する。

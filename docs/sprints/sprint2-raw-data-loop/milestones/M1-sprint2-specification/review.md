@@ -65,3 +65,27 @@ raw store、normalized dataset、Langfuse 非依存 loop、trace からの自動
 
 追加の残リスクはない。
 M1 の本来の未決事項は `questions.md` に残しており、実装前に requirements / spec へ反映する必要がある。
+
+## 2026-06-05: Sprint3 trace diagnosis 候補メモ追加レビュー
+
+### レビュー範囲
+
+- `docs/task.md`
+- `docs/sprints/sprint2-raw-data-loop/milestones/M1-sprint2-specification/notes.md`
+- `docs/sprints/sprint3-trace-diagnosis/README.md`
+
+### 指摘と対応
+
+- 指摘: trace からの自動診断を Sprint2 MVP に混ぜると、既存の `diagnose` validation workflow と責務が混ざる。
+  - 対応: Sprint2 MVP では `diagnose` を人間分類 diagnosis record の validation に留め、trace からの自動診断は Sprint3 候補として分離した。
+- 指摘: 後続候補として残す場合も、自動採用や repository 修正につながる誤読を避ける必要がある。
+  - 対応: Sprint3 候補メモに、出力は人間分類の補助候補であり、自動採用、自動改善実装、repository 修正、patch / diff 生成、commit / push / pull request 作成、自動勝敗決定は非スコープであることを明記した。
+
+### 妥当性判断
+
+今回の変更は documentation-only であり、実装、public CLI、schema、依存関係は変更していない。
+Sprint3 は候補 sprint として記録しただけで、`docs/requirements.md` と `docs/spec.md` の正式仕様は変更していない。
+
+### 残リスク
+
+Sprint3 の正式化は、Sprint2 の raw store / normalize 実装と M1 の requirements / spec 更新後に改めて判断する必要がある。
