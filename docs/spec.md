@@ -6,7 +6,7 @@ README や既存実装に本書と異なる記述がある場合、`docs/require
 ## 1. 現在のフェーズ
 
 Sprint1: ローカル Langfuse PoC は完了済みである。
-現在の主作業は Sprint2: raw telemetry store と Langfuse 非依存改善ループの MVP 仕様化である。
+現在の主作業は Sprint2: raw telemetry store と Langfuse 非依存改善ループ MVP の実装・検証である。
 Sprint2 MVP では raw OTLP の file-based ingest、SQLite raw store、raw store から normalized dataset への変換、既存改善支援 CLI への接続を扱う。
 
 Phase 0: ローカル Aspire Dashboard 疎通確認は完了済み背景として扱う。
