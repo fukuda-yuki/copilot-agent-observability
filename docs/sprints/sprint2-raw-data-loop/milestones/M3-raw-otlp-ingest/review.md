@@ -34,3 +34,24 @@
 - Follow-up subagent review found three actionable gaps: `ingest-raw --db <db>` should be classified as missing input, missing/malformed input failures should assert no DB creation, and SQLite open/write failures should be deterministic CLI errors. These were accepted and fixed.
 - Follow-up subagent review also noted `resource_attributes_json` is a key/value projection and `trace_id` indexes the first non-empty trace id in an OTLP batch. These are accepted M3 limitations because `payload_json` preserves the full raw payload; M4 should avoid treating those projection fields as the complete raw OTLP batch.
 - Re-review after the follow-up fix found no remaining blocker / major / minor issues.
+
+## 2026-06-08 follow-up review
+
+### Sub-Agent finding and Main-Agent evaluation
+
+- Finding: `ingest-raw` accepted any syntactically valid JSON as `source=raw-otlp`; inputs without a top-level `resourceSpans` array could be stored and fail later during `normalize-raw`.
+  - Evaluation: Accepted. M3 limits input to saved raw OTLP JSON files, and the M4 normalizer already treats a missing top-level `resourceSpans` array as invalid raw OTLP.
+  - Fix: `RawOtlpIngestor` now validates that the input has a top-level `resourceSpans` array before creating the raw record.
+  - Regression test: `CliApplicationTests.Run_IngestRaw_ReturnsNonZeroForNonOtlpJson` verifies deterministic error handling and no DB creation for valid non-OTLP JSON.
+
+### Remaining risk
+
+- The validation remains intentionally minimal for Sprint2 MVP. It verifies the raw OTLP traces envelope but does not validate the full OTLP schema.
+
+## 2026-06-08 re-review follow-up
+
+- Re-review result: The previous non-OTLP object JSON finding was resolved.
+- New finding: Top-level non-object JSON such as `[]` could take a non-deterministic exception path because the envelope validator called `TryGetProperty` before confirming an object root.
+  - Evaluation: Accepted. It is the same invalid raw OTLP input class and should return the same deterministic CLI error without creating a DB.
+  - Fix: `ValidateRawOtlpEnvelope` now checks `root.ValueKind == JsonValueKind.Object` before reading `resourceSpans`.
+  - Regression test: `CliApplicationTests.Run_IngestRaw_ReturnsNonZeroForNonObjectJson` verifies deterministic error handling and no DB creation.

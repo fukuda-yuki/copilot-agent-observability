@@ -166,6 +166,11 @@ internal static class CliApplication
             error.WriteLine($"error: input JSON is invalid: {exception.Message}");
             return 1;
         }
+        catch (InvalidDataException exception)
+        {
+            error.WriteLine($"error: {exception.Message}");
+            return 1;
+        }
         catch (SqliteException exception)
         {
             error.WriteLine($"error: failed to write raw store: {exception.Message}");
@@ -870,6 +875,7 @@ internal static class RawOtlpIngestor
     {
         var payloadJson = File.ReadAllText(inputPath, Encoding.UTF8);
         using var document = JsonDocument.Parse(payloadJson);
+        ValidateRawOtlpEnvelope(document.RootElement);
 
         return new RawTelemetryRecord(
             Id: null,
@@ -878,6 +884,16 @@ internal static class RawOtlpIngestor
             ReceivedAt: receivedAt,
             ResourceAttributesJson: ExtractResourceAttributesJson(document.RootElement),
             PayloadJson: payloadJson);
+    }
+
+    private static void ValidateRawOtlpEnvelope(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.TryGetProperty("resourceSpans", out var resourceSpans)
+            || resourceSpans.ValueKind != JsonValueKind.Array)
+        {
+            throw new InvalidDataException("raw OTLP JSON must contain a top-level resourceSpans array.");
+        }
     }
 
     private static string? FindTraceId(JsonElement root)

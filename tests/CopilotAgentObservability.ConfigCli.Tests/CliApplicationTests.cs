@@ -280,6 +280,36 @@ public class CliApplicationTests
     }
 
     [Fact]
+    public void Run_IngestRaw_ReturnsNonZeroForNonOtlpJson()
+    {
+        using var tempDirectory = new TempDirectory();
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var inputPath = tempDirectory.WriteFile("not-otlp.json", """{"traces":[]}""");
+
+        var exitCode = CliApplication.Run(["ingest-raw", inputPath, "--db", tempDirectory.DatabasePath], output, error);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("raw OTLP JSON must contain a top-level resourceSpans array", error.ToString());
+        Assert.False(File.Exists(tempDirectory.DatabasePath));
+    }
+
+    [Fact]
+    public void Run_IngestRaw_ReturnsNonZeroForNonObjectJson()
+    {
+        using var tempDirectory = new TempDirectory();
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var inputPath = tempDirectory.WriteFile("not-object.json", "[]");
+
+        var exitCode = CliApplication.Run(["ingest-raw", inputPath, "--db", tempDirectory.DatabasePath], output, error);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("raw OTLP JSON must contain a top-level resourceSpans array", error.ToString());
+        Assert.False(File.Exists(tempDirectory.DatabasePath));
+    }
+
+    [Fact]
     public void Run_IngestRaw_ReturnsNonZeroForInvalidRawStoreDatabase()
     {
         using var tempDirectory = new TempDirectory();
