@@ -20,7 +20,7 @@ Findings:
 
 Residual risk:
 
-- M2 still needs deterministic rule ids and rule behavior before implementation.
+- M2 must finalize deterministic rule ids, rule behavior, and sensitive bundle read contract before implementation.
 - Sprint4 repository modification safety remains intentionally unresolved.
 
 Validation:

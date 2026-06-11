@@ -13,7 +13,8 @@ normalized measurements + optional raw telemetry
 ```
 
 既存の M24 / M25 / M27 command は変更しない。
-candidate pipeline は既存 human-review pipeline の前段であり、既存 command への変換や接続は後続 milestone で扱う。
+candidate pipeline は既存 human-review pipeline の前段であり、既存 command への変換や接続は Sprint3 M5 で扱う。
+Sprint3 の auto-decision は実装可否を自動採用するものではなく、人間レビューへ渡す readiness record を deterministic に作ることに限定する。
 
 ## Command 1: generate-diagnosis-candidates
 
@@ -37,6 +38,22 @@ config-cli generate-diagnosis-candidates <measurements.csv|measurements.json>
 
 `--include-sensitive-content` を指定しない場合、raw content は standard output にも sensitive bundle にも出力しない。
 `--include-sensitive-content` を指定する場合、`--raw` も指定する。
+
+### 初期 rule set
+
+M2 で以下の初期 rule set を確定してから M3 実装に進む。
+M3 の最小実装は、この表の rule だけを実装対象とする。
+
+| rule_id | 入力 | 条件 | 出力候補 |
+| --- | --- | --- | --- |
+| `DIAG-METRIC-ERROR-COUNT-V1` | normalized measurement | `error_count > 0` | `F-ERROR`、severity `major`、target `workflow` |
+| `DIAG-METRIC-TOOL-LOOP-V1` | normalized measurement | `tool_call_count >= 10` かつ `success_status != pass` | `F-TOOL` / `AP-TOOL-LOOP`、severity `major`、target `workflow` |
+| `DIAG-CONTENT-ERROR-MESSAGE-V1` | raw span / event content | span event、tool result、response の error-like field または message に deterministic error pattern がある | `F-ERROR` / `AP-ERROR-BLIND`、severity `major`、target `workflow` |
+| `DIAG-CONTENT-SENSITIVE-LEAK-V1` | raw prompt / response / tool arguments / tool results | credential、secret、Base64 header、実 user identity を示す deterministic sensitive pattern がある | `F-DATA` / `AP-RAW-CONTENT`、severity `blocking`、target `workflow` |
+| `DIAG-METADATA-MISSING-TRACE-CONTEXT-V1` | normalized measurement | `trace_id` または分類に必要な client / experiment metadata が欠損している | `F-MEASURE` / `AP-SCHEMA-DRIFT`、severity `major`、target `eval` |
+
+content-aware rule は raw content を LLM で解釈しない。
+M2 では span attribute、span event、tool result、prompt / response fragment に対する deterministic pattern matching と分類条件だけを定義する。
 
 ### 出力列
 
@@ -64,7 +81,7 @@ config-cli generate-diagnosis-candidates <measurements.csv|measurements.json>
 | `sensitive_bundle_path` | sensitive bundle file path または空欄 |
 | `confidence` | `high`、`medium`、`low` |
 | `required_human_checks` | 人間が確認すべき残項目 |
-| `candidate_status` | `candidate`、`auto-eligible`、`blocked` |
+| `candidate_status` | `candidate`、`review-ready`、`blocked` |
 
 ## Command 2: generate-improvement-candidates
 
@@ -104,7 +121,7 @@ config-cli generate-improvement-candidates <diagnosis-candidates.csv|diagnosis-c
 | `proposed_change_kind` | `prompt`、`instruction`、`skill`、`tool schema`、`workflow`、`eval` |
 | `evidence_ref` | 元 diagnosis candidate の evidence ref |
 | `sensitive_bundle_path` | 元 diagnosis candidate の sensitive bundle path または空欄 |
-| `candidate_status` | `candidate`、`auto-eligible`、`blocked` |
+| `candidate_status` | `candidate`、`review-ready`、`blocked` |
 
 ## Command 3: generate-auto-decisions
 
@@ -127,7 +144,7 @@ config-cli generate-auto-decisions <improvement-candidates.csv|improvement-candi
 | `source_improvement_candidate_id` | 元 improvement candidate id |
 | `source_diagnosis_candidate_id` | 元 diagnosis candidate id |
 | `trace_id` | 元 candidate の trace id |
-| `decision_status` | `auto-approved`、`needs-human-review`、`blocked` |
+| `decision_status` | `needs-human-review`、`blocked` |
 | `decision_rule_id` | decision を生成した deterministic rule id |
 | `decision_reason` | 判断理由の短い説明 |
 | `confidence` | `high`、`medium`、`low` |
@@ -135,10 +152,21 @@ config-cli generate-auto-decisions <improvement-candidates.csv|improvement-candi
 | `sensitive_content_included` | `true` / `false` |
 | `sensitive_bundle_path` | sensitive bundle file path または空欄 |
 | `implementation_target` | `prompt`、`instruction`、`skill`、`tool schema`、`workflow`、`eval` |
-| `next_action` | `handoff-to-implementation`、`request-human-review`、`do-not-implement` |
+| `next_action` | `convert-to-human-review`、`request-human-review`、`do-not-implement` |
 
-`auto-approved` は Sprint4 以降の自動改善実装候補に渡せる状態を意味する。
+Sprint3 では `auto-approved` を出力しない。
+Sprint4 以降で repository file 自動修正を扱う場合に限り、allowlist、dry-run、diff preview、rollback、test 実行、commit 境界、失敗時の停止条件を仕様化したうえで `auto-approved` 相当の状態を再検討する。
 Sprint3 内で repository file の修正、patch / diff 生成、commit、push、pull request 作成は行わない。
+
+### 初期 decision rule set
+
+M4 で以下の初期 rule set を確定してから `generate-auto-decisions` 実装に進む。
+
+| decision_rule_id | 条件 | decision_status | next_action |
+| --- | --- | --- | --- |
+| `DEC-BLOCK-SENSITIVE-DATA-V1` | source candidate が `F-DATA`、`AP-RAW-CONTENT`、または sensitive content included | `blocked` | `do-not-implement` |
+| `DEC-BLOCK-SCOPE-OVERREACH-V1` | proposal が repository 修正、patch / diff、commit / PR、自動勝敗決定を要求する | `blocked` | `do-not-implement` |
+| `DEC-HUMAN-REVIEW-DEFAULT-V1` | blocked 条件に該当しない | `needs-human-review` | `convert-to-human-review` |
 
 ## Sensitive Output
 
@@ -170,6 +198,52 @@ tmp/sprint3-sensitive/<run_id>/
 
 Sensitive output は repository に保存・commit しない。
 Sprint-local docs、review record、自動テスト fixture には sensitive bundle の実 content を貼り付けない。
+
+### Sensitive bundle read contract
+
+M2 で以下の schema version 1 を確定してから、bundle を読む command や test fixture を作る。
+
+`manifest.json` は以下の top-level fields を持つ。
+
+| field | 値 |
+| --- | --- |
+| `schema_version` | `1` |
+| `bundle_id` | `run_id` と同じ値 |
+| `created_at_utc` | UTC timestamp |
+| `expires_at_utc` | 既定で `created_at_utc` から 7 日後 |
+| `generated_by_command` | 生成 command 名 |
+| `source_inputs` | 入力 file path と sha256 の配列 |
+| `content_included` | `true` |
+| `delete_target_paths` | bundle 削除時に削除する path の配列 |
+| `evidence_index` | evidence reference の配列 |
+
+`evidence_index` の各要素は以下を持つ。
+
+| field | 値 |
+| --- | --- |
+| `evidence_ref` | standard output に出す stable reference |
+| `diagnosis_candidate_id` | 対応する candidate id |
+| `trace_id` | 対象 trace id |
+| `source_locator` | span id、event name、observation id、raw json path など |
+| `evidence_file` | bundle root からの相対 path |
+| `content_kinds` | `prompt`、`response`、`tool_arguments`、`tool_results`、`identity`、`credential`、`secret`、`base64_header` の配列 |
+| `fragment_count` | evidence file 内 fragment 数 |
+
+`evidence/*.json` は以下の top-level fields を持つ。
+
+| field | 値 |
+| --- | --- |
+| `schema_version` | `1` |
+| `evidence_ref` | manifest の reference と一致 |
+| `diagnosis_candidate_id` | 対応する candidate id |
+| `trace_id` | 対象 trace id |
+| `source_locator` | span id、event name、observation id、raw json path など |
+| `fragments` | content fragment の配列 |
+
+fragment は source span / event / field 単位を基本粒度とし、raw trace 全体を丸ごと保存しない。
+各 fragment は `fragment_id`、`content_kind`、`source_path`、`sequence`、`value`、`sha256` を持つ。
+bundle からの逆引きは、standard output の `evidence_ref` から `manifest.json` の `evidence_index` を引き、対応する `evidence_file` を読む手順に固定する。
+期限切れの bundle を読む command は warning を出せるが、Sprint3 では自動削除 command は実装しない。
 
 ## Synthetic Fixture Policy
 

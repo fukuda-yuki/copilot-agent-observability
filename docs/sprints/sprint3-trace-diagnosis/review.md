@@ -12,14 +12,14 @@ Scope reviewed:
 Findings:
 
 - No implementation code was changed.
-- Sprint3 is now defined as requirements/planning work for content-aware trace diagnosis and auto-decision.
-- M11-M22 and M23-M27 historical boundaries remain documented as earlier phases, while Sprint3 adds the new exception for auto-approval.
+- Sprint3 is now defined as requirements/planning work for deterministic trace diagnosis candidates and human-review readiness.
+- M11-M22 and M23-M27 historical boundaries remain documented as earlier phases, while Sprint3 adds deterministic candidate generation before the human-review pipeline.
 - Sensitive content is allowed only in explicit opt-in local output and remains disallowed in repository documents, fixtures, and review records.
 - Repository-changing auto-improvement remains deferred to Sprint4 or later.
 
 Residual risk:
 
-- The command names, candidate schema, content evidence schema, and auto-decision schema still need to be finalized before implementation.
+- The command names, candidate schema, content evidence schema, and readiness decision schema still need to be finalized before implementation.
 - The Sprint4 repository modification safety model is intentionally unresolved.
 
 ## 2026-06-12: source-of-truth follow-up review
@@ -32,7 +32,7 @@ Finding addressed:
 Implementation-start decisions recorded:
 
 - Use a candidate-specific diagnosis command and candidate-specific schema before mapping to M24 diagnosis records.
-- Use a separate auto-decision schema instead of extending M27 human decision records.
+- Use a separate readiness decision schema instead of extending M27 human decision records.
 
 Validation:
 
@@ -57,4 +57,25 @@ Decision summary:
 
 Residual risk:
 
-- M2 still needs deterministic rule ids and rule behavior.
+- M2 must finalize deterministic rule ids, rule behavior, and sensitive bundle read contract before implementation.
+
+## 2026-06-12: Claude finding follow-up review
+
+Findings accepted:
+
+- The previous Sprint3 name overstated the implemented mechanism.
+- `--include-sensitive-content` had a write shape but no read contract.
+- `auto-approved` had no Sprint3 consumer.
+- Candidate pipeline to M24-M27 connection was deferred without a milestone.
+- Initial `rule_id` and `decision_rule_id` sets were not defined.
+- `requirements.md` could be read as including auto-improvement implementation in Sprint3.
+- Startup check did not include `dotnet test`.
+
+Resolution:
+
+- Renamed Sprint3 to Deterministic Trace Diagnosis Candidate Pipeline.
+- Added M2-M5 milestones.
+- Added initial deterministic rule tables and sensitive bundle read contract to M1 command boundary.
+- Removed `auto-approved` from Sprint3 output states and reserved automatic adoption for Sprint4 or later safety planning.
+- Updated `requirements.md`, `spec.md`, and `task.md` to stop Sprint3 at human-review readiness.
+- Ran and recorded `dotnet test CopilotAgentObservability.slnx`; 173 tests passed.
