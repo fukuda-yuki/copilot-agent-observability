@@ -7,4 +7,3 @@ internal sealed record HumanDecisionRow(
     [property: JsonPropertyName("approver_id")] string? ApproverId,
     [property: JsonPropertyName("approved_at")] string? ApprovedAt,
     [property: JsonPropertyName("conditions_or_notes")] string? ConditionsOrNotes);
-

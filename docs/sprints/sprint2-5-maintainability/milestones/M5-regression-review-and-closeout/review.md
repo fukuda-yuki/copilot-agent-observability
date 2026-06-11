@@ -48,3 +48,30 @@
 ### Review note
 
 Subagent review was not used because the current request did not ask to split work across reader and writer subagents. This review records the required M5 perspectives in the sprint-local milestone.
+
+## 2026-06-12 Codex post-Claude review
+
+### Scope reviewed
+
+- Sprint2.5 implementation commits from planning through closeout.
+- Config CLI responsibility split, shared CSV / JSON helpers, raw normalization boundary, and sprint-local evidence.
+- Repository formatting hygiene and validation commands after the Claude implementation.
+
+### Findings
+
+- Functional / spec review: no blocking or major issue found. The implementation remains within Sprint2.5 scope and does not add new product behavior, AppHost resources, trace-driven diagnosis, LLM-based generation, or automatic repository modification.
+- Minor hygiene issue: `git diff --check 441bfd1..HEAD` reported extra blank lines at EOF in split Config CLI `.cs` files. This was a valid review finding because it makes whitespace checks fail even though it has no runtime behavior impact.
+
+### Fix applied
+
+- Removed the extra EOF blank line from the affected split Config CLI source files. No logic, CLI contract, output schema, or documentation semantics were changed.
+
+### Validation
+
+- `git diff --check` passed.
+- `dotnet build CopilotAgentObservability.slnx` passed with 0 warnings and 0 errors.
+- `dotnet test CopilotAgentObservability.slnx --no-build` passed, 173 tests.
+
+### Residual risks
+
+- Same as the closeout review: VS Code Copilot Chat live capture remains a user-driven/manual follow-up, while the redacted real-trace E2E evidence covers GitHub Copilot CLI shaped input.

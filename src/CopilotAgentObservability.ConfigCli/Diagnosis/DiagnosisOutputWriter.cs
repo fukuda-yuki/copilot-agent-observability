@@ -65,4 +65,3 @@ internal static class DiagnosisOutputWriter
     }
 
 }
-

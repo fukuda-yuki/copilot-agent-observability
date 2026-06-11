@@ -408,4 +408,3 @@ internal static class MeasurementAggregator
             && value.ValueKind == JsonValueKind.Array;
     }
 }
-

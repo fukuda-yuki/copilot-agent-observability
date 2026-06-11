@@ -253,4 +253,3 @@ internal sealed record DecisionTemplateGenerationOptions(
 internal sealed record DecisionTemplateGenerationOptionsParseResult(
     DecisionTemplateGenerationOptions? Options,
     string? Error);
-

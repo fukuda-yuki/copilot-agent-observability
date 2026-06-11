@@ -23,4 +23,3 @@ internal sealed record ImprovementProposalRow(
     [property: JsonPropertyName("proposed_change")] string ProposedChange,
     [property: JsonPropertyName("acceptance_check")] string AcceptanceCheck,
     [property: JsonPropertyName("human_review_status")] string HumanReviewStatus);
-

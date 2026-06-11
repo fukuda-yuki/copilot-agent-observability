@@ -217,4 +217,3 @@ internal static class ProposalEvaluationInputReader
     }
 
 }
-

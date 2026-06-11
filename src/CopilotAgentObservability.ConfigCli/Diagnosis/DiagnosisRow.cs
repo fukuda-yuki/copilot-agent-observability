@@ -17,4 +17,3 @@ internal sealed record DiagnosisRow(
     [property: JsonPropertyName("evidence_summary")] string? EvidenceSummary,
     [property: JsonPropertyName("recommended_improvement_target")] string? RecommendedImprovementTarget,
     [property: JsonPropertyName("review_status")] string? ReviewStatus);
-

@@ -62,4 +62,3 @@ internal sealed record DiagnosisValidationOptions(
 internal sealed record DiagnosisValidationOptionsParseResult(
     DiagnosisValidationOptions? Options,
     string? Error);
-

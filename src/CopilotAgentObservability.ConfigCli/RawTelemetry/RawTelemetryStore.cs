@@ -134,4 +134,3 @@ internal sealed class RawTelemetryStore
         command.Parameters.AddWithValue(name, value ?? DBNull.Value);
     }
 }
-

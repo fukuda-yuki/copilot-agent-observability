@@ -46,4 +46,3 @@ internal static class ImprovementProposalSafetyValidator
         yield return ("human_review_status", row.HumanReviewStatus);
     }
 }
-

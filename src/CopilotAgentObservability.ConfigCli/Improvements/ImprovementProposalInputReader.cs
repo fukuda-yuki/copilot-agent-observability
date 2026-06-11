@@ -232,4 +232,3 @@ internal static class ImprovementProposalInputReader
     }
 
 }
-

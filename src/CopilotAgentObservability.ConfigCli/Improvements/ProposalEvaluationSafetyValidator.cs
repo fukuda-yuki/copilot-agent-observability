@@ -45,4 +45,3 @@ internal static class ProposalEvaluationSafetyValidator
         yield return ("evaluator_notes", row.EvaluatorNotes);
     }
 }
-

@@ -32,4 +32,3 @@ internal static class HumanDecisionSafetyValidator
         yield return ("conditions_or_notes", row.ConditionsOrNotes);
     }
 }
-

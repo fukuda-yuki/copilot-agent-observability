@@ -28,4 +28,3 @@ internal static class RawNormalizationInputReader
         return bytesRead >= 16 && Encoding.ASCII.GetString(header) == "SQLite format 3\0";
     }
 }
-

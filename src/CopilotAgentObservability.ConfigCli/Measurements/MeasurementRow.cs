@@ -25,4 +25,3 @@ internal sealed record MeasurementRow(
     [property: JsonPropertyName("unknown_spans_json")] JsonArray? UnknownSpansJson,
     [property: JsonPropertyName("unknown_attributes_json")] JsonObject? UnknownAttributesJson,
     [property: JsonPropertyName("aggregation_notes")] string? AggregationNotes);
-

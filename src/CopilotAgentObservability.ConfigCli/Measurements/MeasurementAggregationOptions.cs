@@ -62,4 +62,3 @@ internal sealed record MeasurementAggregationOptions(
 internal sealed record MeasurementAggregationOptionsParseResult(
     MeasurementAggregationOptions? Options,
     string? Error);
-

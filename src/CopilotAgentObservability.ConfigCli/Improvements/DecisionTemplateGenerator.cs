@@ -24,4 +24,3 @@ internal static class DecisionTemplateGenerator
         return rows;
     }
 }
-

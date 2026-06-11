@@ -22,4 +22,3 @@ internal sealed record ProposalEvaluationRow(
     [property: JsonPropertyName("evaluator_findings")] string EvaluatorFindings,
     [property: JsonPropertyName("required_human_checks")] string RequiredHumanChecks,
     [property: JsonPropertyName("evaluator_notes")] string EvaluatorNotes);
-

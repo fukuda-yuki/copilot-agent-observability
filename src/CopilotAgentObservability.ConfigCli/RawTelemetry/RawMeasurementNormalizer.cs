@@ -562,4 +562,3 @@ internal static class RawMeasurementNormalizer
         string? Name,
         JsonObject Attributes);
 }
-

@@ -75,4 +75,3 @@ internal static class ProposalEvaluationOutputWriter
     }
 
 }
-

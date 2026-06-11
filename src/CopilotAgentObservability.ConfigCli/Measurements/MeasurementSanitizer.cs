@@ -166,4 +166,3 @@ internal static class MeasurementSanitizer
         return false;
     }
 }
-

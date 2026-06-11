@@ -56,4 +56,3 @@ internal static class ImprovementProposalGenerator
             : $"{diagnosis.FailureCategoryId} / {diagnosis.AntiPatternId}";
     }
 }
-

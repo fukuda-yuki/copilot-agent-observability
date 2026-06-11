@@ -137,4 +137,3 @@ internal static class ImprovementProposalValidator
         }
     }
 }
-

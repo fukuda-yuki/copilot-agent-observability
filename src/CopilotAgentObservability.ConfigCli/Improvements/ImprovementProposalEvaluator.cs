@@ -132,4 +132,3 @@ internal static class ImprovementProposalEvaluator
         return blockedPhrases.Any(phrase => normalized.Contains(phrase, StringComparison.Ordinal));
     }
 }
-

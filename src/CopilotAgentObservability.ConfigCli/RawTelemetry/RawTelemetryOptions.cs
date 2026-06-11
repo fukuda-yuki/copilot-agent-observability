@@ -155,4 +155,3 @@ internal sealed record RawNormalizationOptions(
 internal sealed record RawNormalizationOptionsParseResult(
     RawNormalizationOptions? Options,
     string? Error);
-

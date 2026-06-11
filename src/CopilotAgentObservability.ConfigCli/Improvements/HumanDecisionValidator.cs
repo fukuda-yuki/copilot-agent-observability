@@ -58,4 +58,3 @@ internal static class HumanDecisionValidator
         return errors;
     }
 }
-

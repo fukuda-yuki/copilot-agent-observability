@@ -77,4 +77,3 @@ internal static class ImprovementProposalOutputWriter
     }
 
 }
-
