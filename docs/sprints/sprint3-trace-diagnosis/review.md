@@ -142,3 +142,30 @@ Validation:
 
 - `dotnet build CopilotAgentObservability.slnx` succeeded.
 - `dotnet test CopilotAgentObservability.slnx` succeeded with 181 tests passed.
+
+## 2026-06-17: M4 implementation review
+
+Scope reviewed:
+
+- `src/CopilotAgentObservability.ConfigCli/ImprovementCandidates/`
+- `src/CopilotAgentObservability.ConfigCli/Cli/`
+- `tests/CopilotAgentObservability.ConfigCli.Tests/ImprovementCandidatePipelineTests.cs`
+- `docs/sprints/sprint3-trace-diagnosis/milestones/M4-improvement-and-auto-decision-implementation/task.md`
+
+Findings:
+
+- No blocking issues found in the M4 implementation review.
+- The new `generate-improvement-candidates` and `generate-auto-decisions` commands use Sprint3 candidate schemas and do not modify existing M24-M27 human-review commands.
+- `auto-approved` exits only through `next_action=record-for-sprint4-planning`; no repository-modifying consumer, patch / diff generation, commit, push, or pull request behavior was added.
+- Sensitive bundle references are routed to `needs-human-review`, while scope-overreach patterns and unsupported implementation targets are blocked.
+
+Residual risk:
+
+- Scope-overreach detection is deterministic substring / regex matching and intentionally limited to the M2 rule inventory.
+- M5 adapter and M6 redacted real-trace E2E remain open follow-up milestones.
+
+Validation:
+
+- `dotnet build CopilotAgentObservability.slnx` succeeded.
+- `dotnet test tests\CopilotAgentObservability.ConfigCli.Tests\CopilotAgentObservability.ConfigCli.Tests.csproj --no-build --filter FullyQualifiedName~ImprovementCandidatePipelineTests` succeeded with 11 tests passed.
+- `dotnet test CopilotAgentObservability.slnx` succeeded with 192 tests passed.

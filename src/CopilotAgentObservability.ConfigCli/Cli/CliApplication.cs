@@ -99,6 +99,12 @@ internal static class CliApplication
             case "generate-diagnosis-candidates":
                 return RunGenerateDiagnosisCandidates(args, output, error);
 
+            case "generate-improvement-candidates":
+                return RunGenerateImprovementCandidates(args, output, error);
+
+            case "generate-auto-decisions":
+                return RunGenerateAutoDecisions(args, output, error);
+
             case "generate-improvement-proposals":
                 return RunGenerateImprovementProposals(args, output, error);
 
@@ -439,6 +445,126 @@ internal static class CliApplication
             }
 
             output.WriteLine($"Generated {proposals.Count} improvement proposal record(s).");
+            return 0;
+        }
+        catch (FileNotFoundException)
+        {
+            error.WriteLine($"error: input file not found: {parseResult.Options!.InputPath}");
+            return 1;
+        }
+        catch (JsonException exception)
+        {
+            error.WriteLine($"error: input JSON is invalid: {exception.Message}");
+            return 1;
+        }
+        catch (InvalidDataException exception)
+        {
+            error.WriteLine($"error: {exception.Message}");
+            return 1;
+        }
+        catch (IOException exception)
+        {
+            error.WriteLine($"error: failed to read or write file: {exception.Message}");
+            return 1;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error.WriteLine($"error: failed to access file: {exception.Message}");
+            return 1;
+        }
+    }
+
+    private static int RunGenerateImprovementCandidates(string[] args, TextWriter output, TextWriter error)
+    {
+        var parseResult = ImprovementCandidateGenerationOptions.Parse(args);
+        if (parseResult.Error is not null)
+        {
+            error.WriteLine($"error: {parseResult.Error}");
+            return 1;
+        }
+
+        try
+        {
+            if (!File.Exists(parseResult.Options!.InputPath))
+            {
+                error.WriteLine($"error: input file not found: {parseResult.Options.InputPath}");
+                return 1;
+            }
+
+            var diagnoses = DiagnosisCandidateInputReader.Read(parseResult.Options.InputPath);
+            var candidates = ImprovementCandidateGenerator.Generate(diagnoses);
+
+            if (parseResult.Options.CsvOutputPath is not null)
+            {
+                File.WriteAllText(parseResult.Options.CsvOutputPath, ImprovementCandidateOutputWriter.WriteCsv(candidates), Encoding.UTF8);
+            }
+
+            if (parseResult.Options.JsonOutputPath is not null)
+            {
+                File.WriteAllText(parseResult.Options.JsonOutputPath, ImprovementCandidateOutputWriter.WriteJson(candidates), Encoding.UTF8);
+            }
+
+            output.WriteLine($"Generated {candidates.Count} improvement candidate record(s).");
+            return 0;
+        }
+        catch (FileNotFoundException)
+        {
+            error.WriteLine($"error: input file not found: {parseResult.Options!.InputPath}");
+            return 1;
+        }
+        catch (JsonException exception)
+        {
+            error.WriteLine($"error: input JSON is invalid: {exception.Message}");
+            return 1;
+        }
+        catch (InvalidDataException exception)
+        {
+            error.WriteLine($"error: {exception.Message}");
+            return 1;
+        }
+        catch (IOException exception)
+        {
+            error.WriteLine($"error: failed to read or write file: {exception.Message}");
+            return 1;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error.WriteLine($"error: failed to access file: {exception.Message}");
+            return 1;
+        }
+    }
+
+    private static int RunGenerateAutoDecisions(string[] args, TextWriter output, TextWriter error)
+    {
+        var parseResult = AutoDecisionGenerationOptions.Parse(args);
+        if (parseResult.Error is not null)
+        {
+            error.WriteLine($"error: {parseResult.Error}");
+            return 1;
+        }
+
+        try
+        {
+            if (!File.Exists(parseResult.Options!.InputPath))
+            {
+                error.WriteLine($"error: input file not found: {parseResult.Options.InputPath}");
+                return 1;
+            }
+
+            var candidates = ImprovementCandidateInputReader.Read(parseResult.Options.InputPath);
+            var decisions = AutoDecisionGenerator.Generate(candidates);
+
+            if (parseResult.Options.CsvOutputPath is not null)
+            {
+                File.WriteAllText(parseResult.Options.CsvOutputPath, AutoDecisionOutputWriter.WriteCsv(decisions), Encoding.UTF8);
+            }
+
+            if (parseResult.Options.JsonOutputPath is not null)
+            {
+                File.WriteAllText(parseResult.Options.JsonOutputPath, AutoDecisionOutputWriter.WriteJson(decisions), Encoding.UTF8);
+            }
+
+            output.WriteLine($"Generated {decisions.Count} auto-decision record(s).");
             return 0;
         }
         catch (FileNotFoundException)
