@@ -52,3 +52,8 @@
 - Added M6 collaborative real-trace E2E so Sprint3 validates redacted real Copilot trace input, with agent handling CLI work and user handling lower-cost VS Code Copilot Chat prompt operations.
 - Kept automatic sensitive bundle deletion out of scope per user direction, but documented manual deletion via `manifest.json` `delete_target_paths`.
 - Reduced candidate output schemas by removing measurement context carry-through columns and relying on `trace_id` plus `source_record_ref` joins.
+
+## 2026-06-17: M1/M2 spec promotion
+
+- Promoted the Sprint3 M1/M2 command contracts, candidate schemas, initial rule set, sensitive bundle schema, auto-decision boundary, and M5 adapter command requirement into `docs/spec.md`.
+- Updated Sprint3 state from requirements definition to implementation preparation.

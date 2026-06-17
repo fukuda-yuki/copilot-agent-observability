@@ -1104,17 +1104,171 @@ Aspire MCP 経由で logs / traces / environment を AI agent に公開する場
 ### 5.19 Sprint3 deterministic trace diagnosis candidate pipeline
 
 Sprint3 では、Sprint2 raw data loop と Sprint2.5 maintainability の成果を前提に、trace content を含む観測データから deterministic rule により診断候補、改善候補、自動採用判断を含む auto-decision record を生成する基盤を定義する。
-Sprint3 は要件定義中であり、command contract、candidate schema、content evidence schema、auto-decision schema は sprint-local material で確定してから本書に反映する。
 
-現時点で本書に確定する Sprint3 の対象は以下に限定する。
+Sprint3 candidate pipeline は既存 M24-M27 human-review pipeline の前段である。
+既存 M24-M27 command / schema は置換せず互換性維持対象とする。
 
-- trace-driven diagnosis candidate、improvement proposal candidate、auto-decision record を検討する。
-- raw store、raw OTLP JSON、normalized measurement CSV / JSON を入力候補として扱う。
-- 既存 M24-M27 human-review command / schema は置換せず互換性維持対象とし、Sprint3 candidate output から既存 record へ渡す adapter / mapping contract を実装前に確定する。
-- 明示 opt-in 時に限り、実 prompt / response content、tool arguments / results、credential、secret、Base64 header、実 user identity を sensitive local output に含めることを許容する。
-- sensitive local output は repository に保存・commit しない。
-- sensitive local output の自動削除 command は Sprint3 では実装せず、`manifest.json` の `delete_target_paths` を確認したユーザーが手動削除する。
-- synthetic automated verification に加え、GitHub Copilot CLI と GitHub Copilot Chat の redacted real-trace E2E をユーザー協業で実施する。
+Sprint3 candidate pipeline は以下の command を追加する。
+
+```text
+config-cli generate-diagnosis-candidates <measurements.csv|measurements.json>
+  [--raw <raw-store.db|raw-otlp.json>]
+  [--include-sensitive-content]
+  [--sensitive-output-dir <dir>]
+  [--csv <output.csv>]
+  [--json <output.json>]
+
+config-cli generate-improvement-candidates <diagnosis-candidates.csv|diagnosis-candidates.json>
+  [--csv <output.csv>]
+  [--json <output.json>]
+
+config-cli generate-auto-decisions <improvement-candidates.csv|improvement-candidates.json>
+  [--csv <output.csv>]
+  [--json <output.json>]
+```
+
+M5 では、diagnosis candidate CSV / JSON と normalized measurement CSV / JSON を入力に取り、既存 M24 `validate-diagnoses` が読める diagnosis record CSV / JSON を出力する adapter command を追加する。
+Adapter command 名は M5 実装時に既存 CLI 命名と整合させる。
+M5 は文書上の手動 mapping だけで完了扱いにしない。
+
+#### Diagnosis candidate command
+
+`generate-diagnosis-candidates` は M12 measurement schema の normalized dataset を必須入力とする。
+`--raw` には raw store SQLite DB または raw OTLP JSON を指定できる。
+`--include-sensitive-content` を指定しない場合、raw prompt / response content、tool arguments / results、identity、credential、secret、Base64 header を standard CSV / JSON にも sensitive bundle にも出力しない。
+`--include-sensitive-content` を指定する場合、`--raw` も指定する。
+
+Diagnosis candidate output は以下の列を持つ。
+
+| 列 | 値 |
+| --- | --- |
+| `diagnosis_candidate_id` | `diagcand-0001` から出力順に採番 |
+| `trace_id` | measurement または raw telemetry の trace id |
+| `source_record_ref` | input file、row number、raw record id など、元 record へ戻るための reference |
+| `rule_id` | candidate を生成した deterministic rule id |
+| `failure_category_id` | M23 `F-*` ID |
+| `anti_pattern_id` | M23 `AP-*` ID または空欄 |
+| `severity` | `blocking`、`major`、`minor` |
+| `recommended_improvement_target` | `prompt`、`instruction`、`skill`、`tool schema`、`workflow`、`eval` |
+| `evidence_summary` | candidate の短い根拠。full raw content を入れない |
+| `evidence_ref` | raw span id、observation id、または sensitive bundle 内の reference |
+| `content_included` | `true` / `false` |
+| `sensitive_bundle_path` | sensitive bundle file path または空欄 |
+| `confidence` | `high`、`medium`、`low` |
+| `required_human_checks` | 人間が確認すべき残項目 |
+| `candidate_status` | `candidate`、`auto-eligible`、`blocked` |
+
+Measurement の `task_id`、`task_category`、`client_kind`、`experiment_id`、`experiment_condition`、`prompt_version`、`agent_variant`、`task_run_index` などの context は candidate output に carry-through しない。
+後続処理は `trace_id` と `source_record_ref` で元 measurement / raw record に join する。
+
+Sprint3 の初期 diagnosis rule set は以下に限定する。
+これは Sprint3 初期実装 set であり、最終的な長期 rule inventory ではない。
+duration threshold、token-volume threshold、unknown span count、同一 tool の繰り返し、`needs-review` 専用 rule などは Sprint4 以降の追加候補とする。
+
+| rule_id | 初期条件 | 出力候補 |
+| --- | --- | --- |
+| `DIAG-METRIC-ERROR-COUNT-V1` | `error_count > 0` | `F-ERROR`、severity `major`、target `workflow` |
+| `DIAG-METRIC-TOOL-LOOP-V1` | `tool_call_count >= 10` かつ `success_status != pass` | `F-TOOL` / `AP-TOOL-LOOP`、severity `major`、target `workflow` |
+| `DIAG-CONTENT-ERROR-MESSAGE-V1` | raw span / event が M2 の error field predicate または error text pattern に一致する | `F-ERROR` / `AP-ERROR-BLIND`、severity `major`、target `workflow` |
+| `DIAG-CONTENT-SENSITIVE-LEAK-V1` | raw attribute / event / content fragment が M2 の sensitive key predicate、sensitive text regex、または Base64 credential predicate に一致する | `F-DATA` / `AP-RAW-CONTENT`、severity `blocking`、target `workflow` |
+| `DIAG-METADATA-MISSING-TRACE-CONTEXT-V1` | `trace_id`、`client_kind`、または `experiment_id` が欠損している | `F-MEASURE` / `AP-SCHEMA-DRIFT`、severity `major`、target `eval` |
+
+Content-aware rule は raw content を LLM で解釈しない。
+Content-aware rule は raw OTLP の resource attributes、span id、span name、span status、span attributes、event name、event attributes に対する deterministic field predicate / regex / Base64 credential predicate だけを使用する。
+詳細な predicate と regex は sprint-local の `docs/sprints/sprint3-trace-diagnosis/milestones/M2-deterministic-rule-and-evidence-contract/rule-and-evidence-contract.md` を実装契約とする。
+
+#### Improvement candidate command
+
+`generate-improvement-candidates` は diagnosis candidate CSV / JSON を入力にする。
+`candidate_status=blocked` の diagnosis candidate は improvement candidate にしない。
+
+Improvement candidate output は以下の列を持つ。
+
+| 列 | 値 |
+| --- | --- |
+| `improvement_candidate_id` | `impcand-0001` から出力順に採番 |
+| `source_diagnosis_candidate_id` | 元 diagnosis candidate id |
+| `trace_id` | 元 diagnosis candidate の trace id |
+| `failure_category_id` | 元 diagnosis candidate の `F-*` ID |
+| `anti_pattern_id` | 元 diagnosis candidate の `AP-*` ID または空欄 |
+| `severity` | 元 diagnosis candidate の severity |
+| `improvement_target` | 元 diagnosis candidate の recommended target |
+| `proposal_title` | candidate の短い題名 |
+| `proposal_summary` | full raw content を含まない短い提案要約 |
+| `proposed_change_kind` | `prompt`、`instruction`、`skill`、`tool schema`、`workflow`、`eval` |
+| `evidence_ref` | 元 diagnosis candidate の evidence ref |
+| `sensitive_bundle_path` | 元 diagnosis candidate の sensitive bundle path または空欄 |
+| `candidate_status` | `candidate`、`auto-eligible`、`blocked` |
+
+#### Auto-decision command
+
+`generate-auto-decisions` は improvement candidate CSV / JSON を入力にする。
+`candidate_status=blocked` の improvement candidate は `blocked` decision として出力する。
+
+Auto-decision output は以下の列を持つ。
+
+| 列 | 値 |
+| --- | --- |
+| `auto_decision_id` | `autodec-0001` から出力順に採番 |
+| `source_improvement_candidate_id` | 元 improvement candidate id |
+| `source_diagnosis_candidate_id` | 元 diagnosis candidate id |
+| `trace_id` | 元 candidate の trace id |
+| `decision_status` | `auto-approved`、`needs-human-review`、`blocked` |
+| `decision_rule_id` | decision を生成した deterministic rule id |
+| `decision_reason` | 判断理由の短い説明 |
+| `confidence` | `high`、`medium`、`low` |
+| `blocking_risk_checks` | blocked または human review が必要な理由 |
+| `sensitive_content_included` | `true` / `false` |
+| `sensitive_bundle_path` | sensitive bundle file path または空欄 |
+| `implementation_target` | `prompt`、`instruction`、`skill`、`tool schema`、`workflow`、`eval` |
+| `next_action` | `record-for-sprint4-planning`、`request-human-review`、`do-not-implement` |
+
+Decision rule は以下の順で評価する。
+
+| decision_rule_id | 条件 | decision_status | next_action |
+| --- | --- | --- | --- |
+| `DEC-BLOCK-SCOPE-OVERREACH-V1` | proposal が repository 修正、patch / diff、commit / PR、自動勝敗決定、Sprint3 外 target を要求する | `blocked` | `do-not-implement` |
+| `DEC-HUMAN-REVIEW-SENSITIVE-CONTENT-V1` | sensitive content が含まれる、または source diagnosis が `DIAG-CONTENT-SENSITIVE-LEAK-V1` である | `needs-human-review` | `request-human-review` |
+| `DEC-AUTO-APPROVE-SAFE-METADATA-V1` | blocked ではなく、sensitive content を含まず、severity が `minor` または `major` で、implementation target が Sprint3 の許可 target である | `auto-approved` | `record-for-sprint4-planning` |
+| `DEC-HUMAN-REVIEW-DEFAULT-V1` | 上記に該当しない | `needs-human-review` | `request-human-review` |
+
+`auto-approved` は record state であり、Sprint3 内で repository file 修正、patch / diff 生成、commit、push、pull request 作成、自動勝敗決定を実行しない。
+Sprint3 内の出口は M5 / M6 の review evidence または Sprint4 planning handoff note への記録に限定する。
+
+#### Sensitive bundle schema
+
+Sensitive bundle は `--include-sensitive-content` 指定時だけ生成する。
+既定保存先は以下とする。
+
+```text
+tmp/sprint3-sensitive/<run_id>/
+```
+
+Sensitive bundle は `manifest.json` と `evidence/*.json` で構成する。
+`manifest.json` は `schema_version=1`、`bundle_id`、`created_at_utc`、`expires_at_utc`、`generated_by_command`、`source_inputs`、`content_included`、`delete_target_paths`、`evidence_index` を持つ。
+`evidence/*.json` は `schema_version=1`、`evidence_ref`、`diagnosis_candidate_id`、`trace_id`、`source_locator`、`fragments` を持つ。
+Fragment は source span / event / field 単位を基本粒度とし、raw trace 全体を丸ごと 1 fragment として保存しない。
+
+Standard output から bundle content への逆引きは、standard output の `evidence_ref` から `manifest.json` の `evidence_index` を引き、対応する `evidence_file` を読む手順に固定する。
+期限切れ bundle を読む command は warning を出せるが、Sprint3 では自動削除 command は実装しない。
+削除は `manifest.json` の `delete_target_paths` を確認したユーザーが手動で行う。
+
+#### M24-M27 adapter boundary
+
+M5 adapter command は diagnosis candidate を M24 diagnosis record に変換する。
+Adapter は diagnosis candidate と normalized measurement を入力に取り、`trace_id` と `source_record_ref` で context を join する。
+M24 の `evidence_summary` には sanitized な `rule_id` と `evidence_ref` を含めてよいが、`sensitive_bundle_path` や raw fragment value は含めない。
+
+`candidate_status` から M24 `review_status` への mapping は以下とする。
+
+| candidate_status | M24 `review_status` |
+| --- | --- |
+| `auto-eligible` | `accepted-for-proposal` |
+| `candidate` | `needs-human-review` |
+| `blocked` | `rejected` |
+
+Adapter 後は既存の `validate-diagnoses`、`generate-improvement-proposals`、`evaluate-improvement-proposals`、`generate-decision-template`、`record-human-decisions` を使用する。
+Sprint3 auto-decision record は M27 human decision record に変換しない。
 
 Sprint3 では以下を扱わない。
 

@@ -4,7 +4,8 @@ Sprint3 は、Sprint2 MVP と Sprint2.5 で除外していた trace からの自
 
 この文書は Sprint3 の作業方針を記録する。
 正式な product behavior は `../../requirements.md` と `../../spec.md` を source of truth とする。
-未確定の command contract、candidate schema、content evidence schema、auto-decision schema はこの sprint-local material に留め、確定後に `../../spec.md` へ反映する。
+M1 / M2 で確定した command contract、candidate schema、content evidence schema、auto-decision schema は `../../spec.md` へ反映済みである。
+後続 milestone で変更する場合は、先に `../../spec.md` と sprint-local material の整合を取る。
 
 ## 背景
 
