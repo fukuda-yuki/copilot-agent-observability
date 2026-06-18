@@ -220,6 +220,49 @@ public class DiagnosisCandidateGenerationTests
         Assert.DoesNotContain(attributeValue, jsonText);
     }
 
+    [Theory]
+    [InlineData("gen_ai.usage.input_tokens", "42")]
+    [InlineData("gen_ai.usage.output_tokens", "100")]
+    [InlineData("gen_ai.usage.total_tokens", "142")]
+    public void GenerateDiagnosisCandidates_DoesNotFlagTokenUsageKeysAsSensitive(string attributeKey, string attributeValue)
+    {
+        using var tempDirectory = new TempDirectory();
+        var measurementsPath = WriteMeasurements(tempDirectory.Path, "trace-tokens");
+        var rawPath = WriteRawOtlpWithAttribute(tempDirectory.Path, "trace-tokens", attributeKey, attributeValue);
+        var outputPath = Path.Combine(tempDirectory.Path, "candidates.json");
+
+        var exitCode = CliApplication.Run(
+            ["generate-diagnosis-candidates", measurementsPath, "--raw", rawPath, "--json", outputPath],
+            new StringWriter(),
+            new StringWriter());
+
+        Assert.Equal(0, exitCode);
+        var jsonText = File.ReadAllText(outputPath);
+        Assert.DoesNotContain("DIAG-CONTENT-SENSITIVE-LEAK-V1", jsonText);
+    }
+
+    [Fact]
+    public void GenerateDiagnosisCandidates_StillFlagsRealCredentialTokenKey()
+    {
+        using var tempDirectory = new TempDirectory();
+        var measurementsPath = WriteMeasurements(tempDirectory.Path, "trace-authtoken");
+        var rawPath = WriteRawOtlpWithAttribute(tempDirectory.Path, "trace-authtoken", "auth.token", "synthetic-credential-value");
+        var outputPath = Path.Combine(tempDirectory.Path, "candidates.json");
+
+        var exitCode = CliApplication.Run(
+            ["generate-diagnosis-candidates", measurementsPath, "--raw", rawPath, "--json", outputPath],
+            new StringWriter(),
+            new StringWriter());
+
+        Assert.Equal(0, exitCode);
+        var jsonText = File.ReadAllText(outputPath);
+        using var document = JsonDocument.Parse(jsonText);
+        var row = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal("DIAG-CONTENT-SENSITIVE-LEAK-V1", row.GetProperty("rule_id").GetString());
+        Assert.Equal("blocked", row.GetProperty("candidate_status").GetString());
+    }
+
+
     private static string WriteMeasurements(string directory, string traceId)
     {
         var path = Path.Combine(directory, "measurements.json");

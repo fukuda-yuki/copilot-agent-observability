@@ -473,11 +473,18 @@ internal static partial class RawEvidenceReader
             || normalized.StartsWith("token", StringComparison.Ordinal)
             || normalized.EndsWith(".token", StringComparison.Ordinal))
         {
-            contentKind = "credential";
-            return true;
+            // Exclude known OTel GenAI token-usage keys (e.g. gen_ai.usage.input_tokens)
+            // which after _ → . normalization contain ".token" but represent token counts,
+            // not credential tokens.
+            if (!normalized.EndsWith(".tokens", StringComparison.Ordinal)
+                && !normalized.Contains(".tokens.", StringComparison.Ordinal))
+            {
+                contentKind = "credential";
+                return true;
+            }
         }
 
-        contentKind = "secret";
+        contentKind = string.Empty;
         return false;
     }
 
