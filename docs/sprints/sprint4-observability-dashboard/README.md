@@ -64,7 +64,7 @@ Decision targets:
 | Milestone | Status | Scope |
 | --- | --- | --- |
 | [M1: dashboard requirements](milestones/M1-dashboard-requirements/task.md) | complete | dashboard の目的、非目的、view set、metric inventory、dimension / filter、drilldown、data source 境界を確定する |
-| [M2: dashboard dataset contract](milestones/M2-dashboard-dataset-contract/task.md) | in progress | normalized measurement / candidate outputs から dashboard dataset を生成する CSV / JSON schema を定義する |
+| [M2: dashboard dataset contract](milestones/M2-dashboard-dataset-contract/task.md) | complete | normalized measurement / candidate outputs から dashboard dataset を生成する CSV / JSON schema を定義した |
 | M3: synthetic dashboard data | planned | synthetic fixture から dashboard dataset を生成し、metric 欠損と PII 非混入を確認する |
 | M4: dashboard prototype path | planned | Grafana JSON dashboard を第一候補とし、static report、repository-local preview と比較する |
 | M5: review and handoff | planned | Sprint4 の要件と prototype 方針を review し、Sprint5 以降の実装範囲を分離する |
@@ -115,3 +115,13 @@ Langfuse は置き換えない。
 Grafana panel は sanitized reference を持ち、個別 trace の span tree、prompt / response、tool arguments / results、token usage、error は Langfuse trace viewer、raw store、sensitive bundle へ drilldown して調査する。
 
 Grafana Cloud、Azure Managed Grafana、self-host Grafana、Application Insights、Tempo、Loki、Mimir、Azure Monitor Exporter、OTel Collector の本番採用は Sprint4 M1 では決めない。
+
+## M2 Dataset Contract
+
+M2 では [dashboard-dataset-contract.md](milestones/M2-dashboard-dataset-contract/dashboard-dataset-contract.md) で、Grafana-first prototype と static report が共有する dashboard dataset contract を定義した。
+dataset は `dashboard_run_summary`、`dashboard_operation_summary`、`dashboard_candidate_summary`、`dashboard_collection_health` の 4 logical table とし、raw prompt / response / tool arguments / tool results、credential、secret、Base64 header、実 user identity は保存しない。
+
+TTFT は直接属性がある場合のみ使用し、ない場合は first generation event / span からの fallback 導出または null とする。
+estimated cost は token 数と model 別 unit price table による観測用概算であり、実課金額として扱わない。
+time bucket の既定粒度は `day`、long-running / stuck 判定は M2 contract の既定閾値を初期値とする。
+`client_kind=codex-app` は任意 source の予約値であり、M2 / M3 の必須 fixture 対象にはしない。
