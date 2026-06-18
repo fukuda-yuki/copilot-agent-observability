@@ -3,7 +3,7 @@
 ## Status
 
 - Started at: 2026-06-18 JST.
-- Current state: partial. GitHub Copilot CLI real-trace E2E completed through auto-decision generation. VS Code Copilot Chat trace input is still pending user-side Chat UI operation.
+- Current state: complete. GitHub Copilot CLI and VS Code Copilot Chat real-trace E2E both completed through auto-decision generation.
 - Repository input status: raw, redacted, generated, and sensitive E2E artifacts stayed under ignored local `tmp\` paths and were not committed.
 
 ## Environment
@@ -118,16 +118,93 @@ After manifest review, the generated `sensitive-bundle` directory was deleted. R
 
 ## VS Code Copilot Chat Handoff
 
-The VS Code Chat side still requires user-side Chat UI operation. The intended user-side check is:
+The agent prepared a temporary workspace under `tmp\sprint3-m6-real-trace-e2e\20260618-vscode\workspace\`, wrote VS Code file exporter settings there, copied the read-only prompt to the clipboard, and launched VS Code.
 
-1. Start VS Code with OTel content capture configured for the local validation path.
-2. Send a read-only Sprint3 M6 prompt to Copilot Chat.
-3. Export or provide a redacted VS Code Chat OTLP payload with `client.kind=vscode-copilot-chat`.
-4. Run the same `ingest-raw`, `normalize-raw`, `generate-diagnosis-candidates`, `generate-improvement-candidates`, and `generate-auto-decisions` path against the redacted payload.
-5. Record only anonymous trace identifiers, command results, confirmed fields, unconfirmed fields, and deletion status.
+The user performed the final Chat send action. This preserved the user consent point for the logged-in Copilot Chat UI while allowing the agent to handle setup and analysis.
 
-## Not Yet Verified
+VS Code Chat file exporter output was produced at `tmp\sprint3-m6-real-trace-e2e\20260618-vscode\copilot-chat-otel.jsonl`. The output shape was JSONL log records with `spanContext`, `_body`, attributes, and resource raw attributes. The agent converted these records into an anonymized and redacted OTLP `resourceSpans` envelope before running the pipeline.
 
-- VS Code Copilot Chat real-trace input has not yet been produced by the user-side Chat UI operation.
-- Therefore M6 is not complete, and Sprint3 README / repository sprint index were not advanced to completed.
+The redacted raw input scan returned no matches for the checked local identity, auth, secret, raw prompt phrase, local path, GitHub URL, or synthetic email strings.
 
+## VS Code Chat Pipeline Commands
+
+```powershell
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- ingest-raw tmp\sprint3-m6-real-trace-e2e\20260618-vscode\redacted-raw.json --db tmp\sprint3-m6-real-trace-e2e\20260618-vscode\raw-store.db
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- normalize-raw tmp\sprint3-m6-real-trace-e2e\20260618-vscode\raw-store.db --csv tmp\sprint3-m6-real-trace-e2e\20260618-vscode\measurements.csv --json tmp\sprint3-m6-real-trace-e2e\20260618-vscode\measurements.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-diagnosis-candidates tmp\sprint3-m6-real-trace-e2e\20260618-vscode\measurements.json --raw tmp\sprint3-m6-real-trace-e2e\20260618-vscode\redacted-raw.json --include-sensitive-content --sensitive-output-dir tmp\sprint3-m6-real-trace-e2e\20260618-vscode\sensitive-bundle --json tmp\sprint3-m6-real-trace-e2e\20260618-vscode\diagnosis-candidates.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-improvement-candidates tmp\sprint3-m6-real-trace-e2e\20260618-vscode\diagnosis-candidates.json --json tmp\sprint3-m6-real-trace-e2e\20260618-vscode\improvement-candidates.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-auto-decisions tmp\sprint3-m6-real-trace-e2e\20260618-vscode\improvement-candidates.json --json tmp\sprint3-m6-real-trace-e2e\20260618-vscode\auto-decisions.json
+```
+
+Results:
+
+- `ingest-raw`: `Ingested 1 raw telemetry record(s).`
+- `normalize-raw`: `Normalized 27 raw measurement row(s).`
+- `generate-diagnosis-candidates`: `Generated 27 diagnosis candidate record(s).`
+- `generate-improvement-candidates`: `Generated 26 improvement candidate record(s).`
+- `generate-auto-decisions`: `Generated 26 auto-decision record(s).`
+
+## Confirmed VS Code Chat Measurement
+
+Primary nonblank trace row:
+
+| Field | Value |
+| --- | --- |
+| `trace_id` | `000000000000000000000000000003e9` |
+| `client_kind` | `vscode-copilot-chat` |
+| `experiment_id` | `sprint3-m6` |
+| `task_id` | `sprint3-m6-vscode-real-trace` |
+| `input_tokens` | empty |
+| `output_tokens` | `1598` |
+| `total_tokens` | empty |
+| `turn_count` | `5` |
+| `tool_call_count` | `0` |
+| `duration_ms` | `12017` |
+| `error_count` | `0` |
+| `success_status` | `not-evaluated` |
+
+The VS Code Chat file exporter output also produced 26 normalized rows with missing trace context. Those rows were accepted by the Sprint3 candidate pipeline and produced `DIAG-METADATA-MISSING-TRACE-CONTEXT-V1` candidates.
+
+## VS Code Chat Candidate Output Summary
+
+Diagnosis candidates:
+
+| Rule | Count |
+| --- | ---: |
+| `DIAG-CONTENT-SENSITIVE-LEAK-V1` | 1 |
+| `DIAG-METADATA-MISSING-TRACE-CONTEXT-V1` | 26 |
+
+Candidate statuses:
+
+| Status | Count |
+| --- | ---: |
+| `auto-eligible` | 26 |
+| `blocked` | 1 |
+
+Auto-decision statuses:
+
+| Status | Count |
+| --- | ---: |
+| `auto-approved` | 26 |
+
+The blocked sensitive-leak candidate did not flow into improvement candidate generation. The 26 metadata candidates flowed to `auto-approved` records with Sprint3-local `record-for-sprint4-planning` next action only.
+
+## VS Code Chat Sensitive Bundle
+
+`--include-sensitive-content` generated `tmp\sprint3-m6-real-trace-e2e\20260618-vscode\sensitive-bundle\manifest.json`.
+
+Manifest review:
+
+- `content_included=true`
+- `evidence_index` count: `1`
+- `delete_target_paths` count: `1`
+- The delete target was the local ignored sensitive bundle root.
+
+After manifest review, the generated `sensitive-bundle` directory was deleted. The raw unredacted VS Code Chat OTel JSONL was also deleted.
+
+## Completion
+
+M6 is complete for both required client kinds:
+
+- `copilot-cli`
+- `vscode-copilot-chat`

@@ -15,7 +15,7 @@ M6 は実 trace 互換性の確認であり、実 prompt / response content、to
 ## 完了条件
 
 - [x] GitHub Copilot CLI 由来の redacted real-trace 入力で、`generate-diagnosis-candidates` まで実行できることを確認している。
-- [ ] GitHub Copilot Chat 由来の redacted real-trace 入力で、`generate-diagnosis-candidates` まで実行できることを確認している。
+- [x] GitHub Copilot Chat 由来の redacted real-trace 入力で、`generate-diagnosis-candidates` まで実行できることを確認している。
 - [x] 可能な場合は `generate-improvement-candidates` と `generate-auto-decisions` まで通し、通せない場合は未確認理由を記録している。
 - [x] sensitive bundle を生成した場合は `manifest.json` の `delete_target_paths` を確認し、削除状況または削除保留理由を記録している。
 - [x] repository に保存する evidence は redacted summary、実行 command、trace id の匿名化識別子、確認項目、未確認項目に限定している。
@@ -31,4 +31,6 @@ M6 は実 trace 互換性の確認であり、実 prompt / response content、to
 - 2026-06-18: GitHub Copilot CLI 1.0.63 の OTel file exporter で read-only prompt の実 trace を取得し、trace id / span id、prompt / response、tool schema、tool arguments / results、identity、repository identifiers を redaction した OTLP envelope を ignored `tmp\sprint3-m6-real-trace-e2e\20260618-cli\redacted-raw.json` に生成した。
 - 2026-06-18: CLI 由来 redacted input で `ingest-raw -> normalize-raw -> generate-diagnosis-candidates -> generate-improvement-candidates -> generate-auto-decisions` が成功した。`normalize-raw` は 11 measurement rows、candidate pipeline は 11 diagnosis candidates、10 improvement candidates、10 auto-decision records を生成した。
 - 2026-06-18: `--include-sensitive-content` により sensitive bundle を生成し、`manifest.json` の `delete_target_paths` を確認した。確認後、未加工 OTel JSONL、Copilot session output、sensitive bundle directory を削除した。
-- 2026-06-18: VS Code Copilot Chat 由来 redacted real-trace input はユーザー側 Chat UI 操作待ちで未確認。M6 は CLI 側 partial evidence までの進行中状態として扱う。
+- 2026-06-18: VS Code Copilot Chat の一時 workspace を起動し、ユーザー送信後に file exporter JSONL を取得した。log record 形式の出力を redacted OTLP envelope に変換し、ignored `tmp\sprint3-m6-real-trace-e2e\20260618-vscode\redacted-raw.json` に生成した。
+- 2026-06-18: VS Code Copilot Chat 由来 redacted input で `ingest-raw -> normalize-raw -> generate-diagnosis-candidates -> generate-improvement-candidates -> generate-auto-decisions` が成功した。`normalize-raw` は 27 measurement rows、candidate pipeline は 27 diagnosis candidates、26 improvement candidates、26 auto-decision records を生成した。
+- 2026-06-18: VS Code Chat 側の sensitive bundle manifest を確認後、未加工 OTel JSONL と sensitive bundle directory を削除した。これにより M6 の GitHub Copilot CLI / GitHub Copilot Chat 両方の redacted real-trace E2E 完了条件を満たした。

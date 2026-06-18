@@ -90,5 +90,9 @@
 - CLI-side `ingest-raw -> normalize-raw -> generate-diagnosis-candidates -> generate-improvement-candidates -> generate-auto-decisions` succeeded.
 - Generated 11 normalized measurement rows, 11 diagnosis candidates, 10 improvement candidates, and 10 auto-decision records from the CLI-side redacted real-trace input.
 - Checked the generated sensitive bundle manifest and then deleted the raw content-capturing JSONL files, Copilot session output, and sensitive bundle directory.
-- VS Code Copilot Chat real-trace input remains pending user-side Chat UI operation, so M6 is recorded as in progress rather than complete.
-- Validation passed on 2026-06-18: tracked documentation secret-oriented scan found no checked sensitive strings; `dotnet build CopilotAgentObservability.slnx`; `dotnet test CopilotAgentObservability.slnx` with 199 tests passed.
+- VS Code Copilot Chat real-trace input was collected through a temporary VS Code workspace with file exporter settings and user-side Chat send action.
+- Converted the VS Code Chat JSONL log records to a redacted OTLP `resourceSpans` envelope under ignored `tmp\sprint3-m6-real-trace-e2e\20260618-vscode\`.
+- VS Code Chat-side `ingest-raw -> normalize-raw -> generate-diagnosis-candidates -> generate-improvement-candidates -> generate-auto-decisions` succeeded.
+- Generated 27 normalized measurement rows, 27 diagnosis candidates, 26 improvement candidates, and 26 auto-decision records from the VS Code Chat-side redacted real-trace input.
+- Checked the VS Code Chat-side sensitive bundle manifest and then deleted the raw content-capturing JSONL file and sensitive bundle directory.
+- M6 is complete for both required client kinds. Validation passed on 2026-06-18: tracked documentation secret-oriented scan found no checked sensitive strings; `dotnet build CopilotAgentObservability.slnx`; `dotnet test CopilotAgentObservability.slnx` with 199 tests passed.
