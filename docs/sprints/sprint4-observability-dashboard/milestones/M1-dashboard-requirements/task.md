@@ -22,6 +22,7 @@ Agent workflow observability dashboard の目的、非目的、view set、metric
 - 各 view で必要になる metric / dimension / filter の初期 inventory が定義されている。
 - raw prompt / response / tool arguments / tool results を dashboard dataset に既定保存しない方針が明記されている。
 - normalized measurement、diagnosis candidate、improvement candidate、auto-decision record が dashboard data source として扱われている。
+- M4 prototype path では Grafana-first dashboard + Langfuse drilldown を第一候補として比較する方針が明記されている。
 - Outcome Linkage Candidate は将来候補に留め、本番 GitHub / Notion / HR system 連携は scope 外と明記されている。
 
 ## Verification

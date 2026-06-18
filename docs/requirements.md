@@ -360,6 +360,8 @@ Grafana 系は初期 PoC の第一候補にはしない。
 Sprint4 では、この将来候補を具体化し、Grafana 等に載せる前提で必要な dashboard dataset と panel 要件を定義する。
 ただし、Sprint4 要件定義時点では Grafana Cloud、Tempo、Loki、Mimir、Datadog、New Relic 等の採用を固定しない。
 dashboard は raw prompt / response / tool result の全文を一覧化する場所ではなく、trace viewer や sensitive bundle への最小参照を持つ集計ビューとして扱う。
+Sprint4 M4 の dashboard prototype path では、Microsoft Learn の AI coding agents 向け Grafana dashboard 構成を参考に、Grafana-first の集計 dashboard prototype を第一候補として比較する。
+この場合も Langfuse は置き換えず、個別 trace の span tree、prompt / response、tool arguments / results、token usage、error を調査する drilldown 先として維持する。
 
 ### 8.3 raw store と PostgreSQL の扱い
 
@@ -780,6 +782,9 @@ Sprint4 dashboard の初期ビューは以下に分ける。
 
 各 view では、集計 dashboard と trace detail を混在させない。
 dashboard は count、rate、percentile、sum、status distribution、sanitized reference を扱い、prompt / response / tool arguments / tool results の全文確認は Langfuse trace viewer、raw store、sensitive bundle 等への drilldown で行う。
+Sprint4 の prototype 方針は Grafana-first dashboard + Langfuse drilldown を第一候補とする。
+Grafana は Run Overview、Agent / Tool Behavior、Baseline vs Variant、Collection Health の集計表示に使い、Langfuse は個別 trace detail の調査に使う。
+Grafana Cloud / Azure Managed Grafana / Application Insights / Tempo / Loki / Mimir 等の本番採用は Sprint4 M1 では決めない。
 
 Run Overview は、日次・週次の実行傾向、duration、token、estimated cost、LLM call、tool call、TTFT、stuck session を俯瞰する。
 Agent / Tool Behavior は、tool count ranking だけでなく、tool total duration ranking、tool error ranking、timeout、retry、approval / permission、subagent / nested agent 待ちを分けて確認する。

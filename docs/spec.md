@@ -1456,13 +1456,36 @@ trace detail、prompt / response / tool arguments / tool results の全文、sen
 
 | レイヤー | 責務 |
 | --- | --- |
-| Dashboard | 異常値、傾向、比較差分、review backlog、collection health を俯瞰する |
+| Grafana-first dashboard prototype | 異常値、傾向、比較差分、review backlog、collection health を俯瞰する |
 | Langfuse trace viewer | 個別 trace の span tree、prompt / response、tool call、token usage、duration、error を調査する |
 | raw store / normalized measurement | dashboard dataset の再生成と検証に使う source data を保持する |
 | sensitive bundle | 明示 opt-in の content-aware evidence を repository 外で扱う |
 
 tool の改善優先度は call count だけで決めない。
 Top tools by count、Top tools by total duration、Top failing tools、Longest turns、Most expensive runs を分けて表示し、回数、時間、失敗、コストのどれが問題かを区別できることを求める。
+
+#### Prototype path policy
+
+Sprint4 M4 の prototype path では、Grafana-first dashboard を第一候補として比較する。
+理由は、Microsoft Learn の AI coding agents 向け Grafana dashboard 構成が、GitHub Copilot / Claude Code / Codex 等の OTel signals から cost、token、session、tool call、latency、TTFT、error、approval activity、stuck session を集計表示する方向と、Sprint4 の metric / panel 要件に整合するためである。
+
+ただし、Sprint4 M1 では以下を固定しない。
+
+- Grafana Cloud、Azure Managed Grafana、self-host Grafana のどれを使うか。
+- Application Insights、Tempo、Loki、Mimir、SQLite / CSV / JSON dataset、その他 data source のどれを使うか。
+- Azure Monitor Exporter、OTel Collector、Langfuse export、repository-local static report のどれを実装経路にするか。
+- 共有環境、社内サーバー、本番運用構成。
+
+M4 で比較する prototype 候補は以下とする。
+
+| 候補 | 位置づけ |
+| --- | --- |
+| Grafana JSON dashboard | 第一候補。Sprint4 dashboard dataset と panel 要件を最も直接検証する |
+| Static report | Grafana の data source 準備なしで、dataset と metric 計算を検証する代替候補 |
+| Repository-local preview | dashboard UI の最小確認用候補。独自 Web UI 実装に広げない |
+
+Grafana prototype を採用する場合も、Langfuse trace viewer を置き換えない。
+Grafana panel は trace id、candidate id、auto-decision id、evidence ref 等の sanitized reference を持ち、個別調査は Langfuse trace viewer、raw store、sensitive bundle へ drilldown する。
 
 #### Drilldown contract
 
@@ -1508,7 +1531,7 @@ Sprint4 の初期 milestone は以下とする。
 | M1 dashboard requirements | dashboard の目的、非目的、view set、metric inventory、dimension / filter、drilldown、data source 境界を確定する |
 | M2 dashboard dataset contract | normalized measurement / candidate outputs から dashboard dataset を生成するための CSV / JSON schema を定義する |
 | M3 synthetic dashboard data | synthetic fixture から dashboard dataset を生成し、metric の欠損や PII 非混入を確認する |
-| M4 dashboard prototype path | Grafana JSON dashboard、static report、または repository-local preview のどれを次実装候補にするかを比較し、実装方針を決める |
+| M4 dashboard prototype path | Grafana JSON dashboard を第一候補とし、static report、repository-local preview と比較して実装方針を決める |
 | M5 review and handoff | Sprint4 要件と prototype 方針を review し、Sprint5 以降の実装範囲を分離する |
 
 ## 6. セキュリティとデータ扱い

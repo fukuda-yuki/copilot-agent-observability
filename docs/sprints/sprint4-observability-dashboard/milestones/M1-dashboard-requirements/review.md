@@ -19,6 +19,8 @@
 - TTFT, trace duration, tool total duration, retry, subagent / nested agent, approval wait, and stuck session are now separated as dashboard requirements.
 - Panel candidates distinguish count, duration, error, retry, approval wait, cost, and candidate backlog so tool prioritization is not based on call count alone.
 - Organization usage / ROI, quality / safety evaluation, and external outcome linkage remain future candidates rather than Sprint4 initial dashboard scope.
+- Microsoft Learn's AI coding agents with Grafana guidance was reflected as the reason to make Grafana-first dashboard + Langfuse drilldown the M4 prototype path's first candidate.
+- Grafana product / hosting / backend choices remain undecided; M1 only sets the prototype comparison priority.
 
 ## Verification
 
