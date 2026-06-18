@@ -63,8 +63,8 @@ Decision targets:
 
 | Milestone | Status | Scope |
 | --- | --- | --- |
-| [M1: dashboard requirements](milestones/M1-dashboard-requirements/task.md) | in progress | dashboard の目的、非目的、view set、metric inventory、dimension / filter、drilldown、data source 境界を確定する |
-| M2: dashboard dataset contract | planned | normalized measurement / candidate outputs から dashboard dataset を生成する CSV / JSON schema を定義する |
+| [M1: dashboard requirements](milestones/M1-dashboard-requirements/task.md) | complete | dashboard の目的、非目的、view set、metric inventory、dimension / filter、drilldown、data source 境界を確定する |
+| [M2: dashboard dataset contract](milestones/M2-dashboard-dataset-contract/task.md) | in progress | normalized measurement / candidate outputs から dashboard dataset を生成する CSV / JSON schema を定義する |
 | M3: synthetic dashboard data | planned | synthetic fixture から dashboard dataset を生成し、metric 欠損と PII 非混入を確認する |
 | M4: dashboard prototype path | planned | Grafana JSON dashboard を第一候補とし、static report、repository-local preview と比較する |
 | M5: review and handoff | planned | Sprint4 の要件と prototype 方針を review し、Sprint5 以降の実装範囲を分離する |
