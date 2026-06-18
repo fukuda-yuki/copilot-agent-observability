@@ -81,21 +81,18 @@ internal static partial class RawEvidenceReader
                         ? $"{sourcePath}:span={spanId}"
                         : $"{sourcePath}:{recordRef}:span={spanId}";
 
-                    if (traceEvidence.SensitiveMatch is null)
+                    foreach (var attribute in resourceAttributes)
                     {
-                        foreach (var attribute in resourceAttributes)
+                        if (IsSensitive(attribute.Key, attribute.Value, out var contentKind))
                         {
-                            if (IsSensitive(attribute.Key, attribute.Value, out var contentKind))
-                            {
-                                traceEvidence.SensitiveMatch = CreateMatch(
-                                    traceId,
-                                    spanId,
-                                    spanLocator,
-                                    attribute.SourcePath,
-                                    contentKind,
-                                    attribute.Value);
-                                break;
-                            }
+                            AddSensitiveMatch(
+                                traceEvidence,
+                                traceId,
+                                spanId,
+                                spanLocator,
+                                attribute.SourcePath,
+                                contentKind,
+                                attribute.Value);
                         }
                     }
 
@@ -112,26 +109,23 @@ internal static partial class RawEvidenceReader
 
     private static void ReadSpanEvidence(JsonElement span, string traceId, string spanId, string spanLocator, string spanPath, MutableRawTraceEvidence traceEvidence)
     {
-        if (traceEvidence.ErrorMatch is null)
+        var spanName = ReadString(span, "name");
+        if (MatchesErrorText(spanName))
         {
-            var spanName = ReadString(span, "name");
-            if (MatchesErrorText(spanName))
-            {
-                traceEvidence.ErrorMatch = CreateMatch(traceId, spanId, spanLocator, $"{spanPath}.name", "tool_results", spanName!);
-            }
+            AddErrorMatch(traceEvidence, traceId, spanId, spanLocator, $"{spanPath}.name", "tool_results", spanName!);
         }
 
         if (span.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.Object)
         {
             var statusCode = ReadString(status, "code");
             var statusMessage = ReadString(status, "message");
-            if (traceEvidence.ErrorMatch is null && IsErrorStatusCode(statusCode))
+            if (IsErrorStatusCode(statusCode))
             {
-                traceEvidence.ErrorMatch = CreateMatch(traceId, spanId, spanLocator, $"{spanPath}.status.code", "tool_results", statusCode ?? string.Empty);
+                AddErrorMatch(traceEvidence, traceId, spanId, spanLocator, $"{spanPath}.status.code", "tool_results", statusCode ?? string.Empty);
             }
-            else if (traceEvidence.ErrorMatch is null && MatchesErrorText(statusMessage))
+            else if (MatchesErrorText(statusMessage))
             {
-                traceEvidence.ErrorMatch = CreateMatch(traceId, spanId, spanLocator, $"{spanPath}.status.message", "tool_results", statusMessage!);
+                AddErrorMatch(traceEvidence, traceId, spanId, spanLocator, $"{spanPath}.status.message", "tool_results", statusMessage!);
             }
         }
 
@@ -140,24 +134,18 @@ internal static partial class RawEvidenceReader
             : [];
         foreach (var attribute in spanAttributes)
         {
-            if (traceEvidence.ErrorMatch is null && IsErrorAttribute(attribute.Key, attribute.Value))
+            if (IsErrorAttribute(attribute.Key, attribute.Value))
             {
-                traceEvidence.ErrorMatch = CreateMatch(traceId, spanId, spanLocator, attribute.SourcePath, "tool_results", attribute.Value);
+                AddErrorMatch(traceEvidence, traceId, spanId, spanLocator, attribute.SourcePath, "tool_results", attribute.Value);
+            }
+            else if (MatchesErrorText(attribute.Value))
+            {
+                AddErrorMatch(traceEvidence, traceId, spanId, spanLocator, attribute.SourcePath, GuessContentKind(attribute.Key), attribute.Value);
             }
 
-            if (traceEvidence.ErrorMatch is null && MatchesErrorText(attribute.Value))
+            if (IsSensitive(attribute.Key, attribute.Value, out var contentKind))
             {
-                traceEvidence.ErrorMatch = CreateMatch(traceId, spanId, spanLocator, attribute.SourcePath, GuessContentKind(attribute.Key), attribute.Value);
-            }
-
-            if (traceEvidence.SensitiveMatch is null && IsSensitive(attribute.Key, attribute.Value, out var contentKind))
-            {
-                traceEvidence.SensitiveMatch = CreateMatch(traceId, spanId, spanLocator, attribute.SourcePath, contentKind, attribute.Value);
-            }
-
-            if (traceEvidence.ErrorMatch is not null && traceEvidence.SensitiveMatch is not null)
-            {
-                break;
+                AddSensitiveMatch(traceEvidence, traceId, spanId, spanLocator, attribute.SourcePath, contentKind, attribute.Value);
             }
         }
 
@@ -166,32 +154,25 @@ internal static partial class RawEvidenceReader
         {
             var eventPath = $"{spanPath}.events[{eventIndex}]";
             var eventName = ReadString(spanEvent, "name");
-            if (traceEvidence.ErrorMatch is null
-                && (ContainsErrorEventName(eventName) || MatchesErrorText(eventName)))
+            if (ContainsErrorEventName(eventName) || MatchesErrorText(eventName))
             {
-                traceEvidence.ErrorMatch = CreateMatch(traceId, spanId, spanLocator, $"{eventPath}.name", "tool_results", eventName ?? string.Empty);
+                AddErrorMatch(traceEvidence, traceId, spanId, spanLocator, $"{eventPath}.name", "tool_results", eventName ?? string.Empty);
             }
 
             foreach (var attribute in EnumerateAttributes(spanEvent, $"{eventPath}.attributes"))
             {
-                if (traceEvidence.ErrorMatch is null && IsErrorEventAttribute(attribute.Key, attribute.Value))
+                if (IsErrorEventAttribute(attribute.Key, attribute.Value))
                 {
-                    traceEvidence.ErrorMatch = CreateMatch(traceId, spanId, spanLocator, attribute.SourcePath, "tool_results", attribute.Value);
+                    AddErrorMatch(traceEvidence, traceId, spanId, spanLocator, attribute.SourcePath, "tool_results", attribute.Value);
+                }
+                else if (MatchesErrorText(attribute.Value))
+                {
+                    AddErrorMatch(traceEvidence, traceId, spanId, spanLocator, attribute.SourcePath, GuessContentKind(attribute.Key), attribute.Value);
                 }
 
-                if (traceEvidence.ErrorMatch is null && MatchesErrorText(attribute.Value))
+                if (IsSensitive(attribute.Key, attribute.Value, out var contentKind))
                 {
-                    traceEvidence.ErrorMatch = CreateMatch(traceId, spanId, spanLocator, attribute.SourcePath, GuessContentKind(attribute.Key), attribute.Value);
-                }
-
-                if (traceEvidence.SensitiveMatch is null && IsSensitive(attribute.Key, attribute.Value, out var contentKind))
-                {
-                    traceEvidence.SensitiveMatch = CreateMatch(traceId, spanId, spanLocator, attribute.SourcePath, contentKind, attribute.Value);
-                }
-
-                if (traceEvidence.ErrorMatch is not null && traceEvidence.SensitiveMatch is not null)
-                {
-                    break;
+                    AddSensitiveMatch(traceEvidence, traceId, spanId, spanLocator, attribute.SourcePath, contentKind, attribute.Value);
                 }
             }
 
@@ -199,13 +180,47 @@ internal static partial class RawEvidenceReader
         }
     }
 
-    private static RawEvidenceMatch CreateMatch(string traceId, string spanId, string sourceLocator, string sourcePath, string contentKind, string value)
+    private static void AddErrorMatch(
+        MutableRawTraceEvidence traceEvidence,
+        string traceId,
+        string spanId,
+        string sourceLocator,
+        string sourcePath,
+        string contentKind,
+        string value)
     {
+        traceEvidence.ErrorMatch = AppendMatch(traceEvidence.ErrorMatch, traceId, spanId, sourceLocator, sourcePath, contentKind, value);
+    }
+
+    private static void AddSensitiveMatch(
+        MutableRawTraceEvidence traceEvidence,
+        string traceId,
+        string spanId,
+        string sourceLocator,
+        string sourcePath,
+        string contentKind,
+        string value)
+    {
+        traceEvidence.SensitiveMatch = AppendMatch(traceEvidence.SensitiveMatch, traceId, spanId, sourceLocator, sourcePath, contentKind, value);
+    }
+
+    private static RawEvidenceMatch AppendMatch(
+        RawEvidenceMatch? existing,
+        string traceId,
+        string spanId,
+        string sourceLocator,
+        string sourcePath,
+        string contentKind,
+        string value)
+    {
+        var fragment = new RawEvidenceFragment(contentKind, sourceLocator, sourcePath, value);
+        if (existing is not null)
+        {
+            return existing with { Fragments = existing.Fragments.Concat([fragment]).ToArray() };
+        }
+
         var evidenceRef = $"raw:{traceId}:{spanId}:{sourcePath}";
-        return new RawEvidenceMatch(
-            evidenceRef,
-            sourceLocator,
-            [new RawEvidenceFragment(contentKind, sourceLocator, sourcePath, value)]);
+        return new RawEvidenceMatch(evidenceRef, sourceLocator, [fragment]);
     }
 
     private static MutableRawTraceEvidence GetOrAdd(Dictionary<string, MutableRawTraceEvidence> matches, string traceId)

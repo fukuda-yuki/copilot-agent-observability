@@ -149,8 +149,9 @@ public class DiagnosisCandidateGenerationTests
         Assert.Equal(1, evidence.GetProperty("schema_version").GetInt32());
         Assert.Equal("diagcand-0002", evidence.GetProperty("diagnosis_candidate_id").GetString());
         Assert.Equal("trace-raw", evidence.GetProperty("trace_id").GetString());
-        Assert.Equal(1, evidence.GetProperty("fragments").GetArrayLength());
+        Assert.Equal(2, evidence.GetProperty("fragments").GetArrayLength());
         Assert.Equal("synthetic-sensitive-value", evidence.GetProperty("fragments")[0].GetProperty("value").GetString());
+        Assert.Equal("synthetic prompt content should stay in bundle only", evidence.GetProperty("fragments")[1].GetProperty("value").GetString());
         Assert.Equal(64, evidence.GetProperty("fragments")[0].GetProperty("sha256").GetString()!.Length);
     }
 

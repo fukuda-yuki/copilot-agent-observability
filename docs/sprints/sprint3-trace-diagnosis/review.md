@@ -198,3 +198,28 @@ Validation:
 - `dotnet build CopilotAgentObservability.slnx` succeeded.
 - `dotnet test tests\CopilotAgentObservability.ConfigCli.Tests\CopilotAgentObservability.ConfigCli.Tests.csproj --no-build --filter FullyQualifiedName~DiagnosisCandidateAdapterTests` succeeded with 5 tests passed.
 - `dotnet test CopilotAgentObservability.slnx` succeeded with 199 tests passed.
+
+## 2026-06-18: M3 follow-up review after Sprint3 closeout
+
+Scope reviewed:
+
+- `docs/sprints/sprint3-trace-diagnosis/milestones/M2-deterministic-rule-and-evidence-contract/rule-and-evidence-contract.md`
+- `src/CopilotAgentObservability.ConfigCli/DiagnosisCandidates/RawEvidenceReader.cs`
+- `src/CopilotAgentObservability.ConfigCli/DiagnosisCandidates/SensitiveBundleWriter.cs`
+- `tests/CopilotAgentObservability.ConfigCli.Tests/DiagnosisCandidateGenerationTests.cs`
+
+Findings:
+
+- Accepted: M3 stored only the first raw fragment for each content-aware diagnosis candidate. The standard `evidence_ref` correctly used the first stable source locator, but M2 requires the opt-in sensitive bundle to retain the full supporting fragment list when multiple raw fragments support the same candidate.
+- Rejected as non-issues: limiting M3 to the five M2 `DIAG-*` rules, keeping raw values out of standard CSV / JSON output, and requiring `--raw` for `--include-sensitive-content` all match the M2 contract.
+
+Resolution:
+
+- Updated `RawEvidenceReader` so error and sensitive matches preserve the first `evidence_ref` / `source_locator` while accumulating all matching fragments for the sensitive bundle.
+- Updated the M3 generation test to assert that a sensitive candidate bundle evidence file contains both matching fragments from the synthetic raw OTLP fixture.
+
+Validation:
+
+- `dotnet test tests\CopilotAgentObservability.ConfigCli.Tests\CopilotAgentObservability.ConfigCli.Tests.csproj --filter FullyQualifiedName~DiagnosisCandidateGenerationTests` succeeded with 8 tests passed.
+- `dotnet build CopilotAgentObservability.slnx` succeeded.
+- `dotnet test CopilotAgentObservability.slnx` succeeded with 199 tests passed.
