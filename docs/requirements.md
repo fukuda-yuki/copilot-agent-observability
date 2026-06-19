@@ -363,6 +363,13 @@ dashboard は raw prompt / response / tool result の全文を一覧化する場
 Sprint4 M4 の dashboard prototype path では、Microsoft Learn の AI coding agents 向け Grafana dashboard 構成を参考に、Grafana-first の集計 dashboard prototype を第一候補として比較する。
 この場合も Langfuse は置き換えず、個別 trace の span tree、prompt / response、tool arguments / results、token usage、error を調査する drilldown 先として維持する。
 
+Sprint5 planning では、Enterprise Grafana の導入・運用負荷を避けるため、GitHub Pages 向け static HTML dashboard を Grafana 代替の常設 dashboard 第一候補に変更する。
+Grafana JSON dashboard は将来候補または fallback とし、Sprint5 初期実装の主経路にはしない。
+Static HTML dashboard は GitHub Actions で日次生成し、private repository / 明示的な Pages access control を前提に GitHub Pages へ公開する。
+Dashboard は実データ由来の集計値、参照 ID、分類属性を扱うが、raw prompt / response / tool arguments / tool results の全文は表示しない。
+Sprint5 static dashboard では `user.id` と `user.email` を表示・filter 対象に含める。
+`user.email` は実値をそのまま表示し、将来的に email と表示名の mapping による表示切替を可能にする。
+
 ### 8.3 raw store と PostgreSQL の扱い
 
 PostgreSQL は、生 OTel の主ストレージとしては扱わない。
@@ -815,6 +822,12 @@ dashboard は count、rate、percentile、sum、status distribution、sanitized 
 Sprint4 の prototype 方針は Grafana-first dashboard + Langfuse drilldown を第一候補とする。
 Grafana は Run Overview、Agent / Tool Behavior、Baseline vs Variant、Collection Health の集計表示に使い、Langfuse は個別 trace detail の調査に使う。
 Grafana Cloud / Azure Managed Grafana / Application Insights / Tempo / Loki / Mimir 等の本番採用は Sprint4 M1 では決めない。
+
+Sprint5 の可視化方針は GitHub Pages 向け static HTML dashboard + Langfuse drilldown を第一候補とする。
+Static HTML dashboard は Grafana 代替の常設 dashboard として扱い、GitHub Actions が raw store / normalized dataset から dashboard dataset を日次再生成して publish する。
+Publish 先には `/latest/` と `/YYYY-MM-DD/` の日次 snapshot を配置し、snapshot 履歴は自動削除しない。
+GitHub Pages に publish する HTML と JSON dataset は repository または Pages branch に保存してよい。
+初期 client-side 操作は filter、sort、search とし、filter 軸は date、user、client、experiment、variant、status から開始する。
 
 Run Overview は、日次・週次の実行傾向、duration、token、estimated cost、LLM call、tool call、TTFT、stuck session を俯瞰する。
 Agent / Tool Behavior は、tool count ranking だけでなく、tool total duration ranking、tool error ranking、timeout、retry、approval / permission、subagent / nested agent 待ちを分けて確認する。
