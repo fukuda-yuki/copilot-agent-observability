@@ -50,6 +50,8 @@ public class DashboardDatasetGenerationTests
         var firstRun = runRows.Single(row => row.GetProperty("trace_id").GetString() == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
         Assert.Equal("2024-03-09T00:00:00.0000000+00:00", firstRun.GetProperty("time_bucket_start_utc").GetString());
         Assert.Equal("copilot-cli", firstRun.GetProperty("client_kind").GetString());
+        Assert.Equal("example-user", firstRun.GetProperty("user_id").GetString());
+        Assert.Equal("user@example.com", firstRun.GetProperty("user_email").GetString());
         Assert.Equal("error", firstRun.GetProperty("status").GetString());
         Assert.Equal(750, firstRun.GetProperty("ttft_ms").GetInt32());
         Assert.Equal("derived-first-generation-event", firstRun.GetProperty("ttft_source").GetString());
@@ -142,7 +144,7 @@ public class DashboardDatasetGenerationTests
         Assert.DoesNotContain("synthetic tool arguments should not leak", output);
         Assert.DoesNotContain("synthetic auth token should not leak", output);
         Assert.DoesNotContain("Authorization=Basic", output);
-        Assert.DoesNotContain("user@example.com", output);
+        Assert.Contains("user@example.com", output);
         Assert.DoesNotContain("Synthetic User", output);
         Assert.DoesNotContain(tempDirectory.Path.Replace('\\', '/'), output.Replace('\\', '/'));
         Assert.DoesNotContain("sensitive-bundle", output);
@@ -433,6 +435,7 @@ public class DashboardDatasetGenerationTests
                   "resource": {
                     "attributes": [
                       { "key": "client.kind", "value": { "stringValue": "copilot-cli" } },
+                      { "key": "user.id", "value": { "stringValue": "example-user" } },
                       { "key": "user.email", "value": { "stringValue": "user@example.com" } },
                       { "key": "user.name", "value": { "stringValue": "Synthetic User" } },
                       { "key": "authorization.header", "value": { "stringValue": "Authorization=Basic synthetic auth token should not leak" } }

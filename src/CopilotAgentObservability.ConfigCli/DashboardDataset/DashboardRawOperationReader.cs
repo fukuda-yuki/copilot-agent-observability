@@ -2,6 +2,8 @@ namespace CopilotAgentObservability.ConfigCli;
 
 internal sealed record DashboardRawOperation(
     string? TraceId,
+    string? UserId,
+    string? UserEmail,
     string OperationKind,
     string? ToolName,
     string? Model,
@@ -57,11 +59,14 @@ internal static class DashboardRawOperationReader
         var operations = new List<DashboardRawOperation>();
         foreach (var resourceSpan in resourceSpans.EnumerateArray())
         {
+            var resourceAttributes = ReadResourceAttributes(resourceSpan);
+            var userId = ReadFirstString(resourceAttributes, ["user.id"]);
+            var userEmail = ReadFirstString(resourceAttributes, ["user.email"]);
             foreach (var scopeSpan in EnumerateArrayProperty(resourceSpan, "scopeSpans"))
             {
                 foreach (var span in EnumerateArrayProperty(scopeSpan, "spans"))
                 {
-                    operations.Add(CreateOperation(span));
+                    operations.Add(CreateOperation(span, userId, userEmail));
                 }
             }
         }
@@ -69,7 +74,19 @@ internal static class DashboardRawOperationReader
         return operations;
     }
 
-    private static DashboardRawOperation CreateOperation(JsonElement span)
+    private static JsonObject ReadResourceAttributes(JsonElement resourceSpan)
+    {
+        if (!resourceSpan.TryGetProperty("resource", out var resource)
+            || !resource.TryGetProperty("attributes", out var attributes)
+            || attributes.ValueKind != JsonValueKind.Array)
+        {
+            return new JsonObject();
+        }
+
+        return OtlpAttributeConverter.ConvertAttributesArray(attributes);
+    }
+
+    private static DashboardRawOperation CreateOperation(JsonElement span, string? userId, string? userEmail)
     {
         var attributes = span.TryGetProperty("attributes", out var attributesElement)
             && attributesElement.ValueKind == JsonValueKind.Array
@@ -92,6 +109,8 @@ internal static class DashboardRawOperationReader
 
         return new DashboardRawOperation(
             TraceId: traceId,
+            UserId: userId,
+            UserEmail: userEmail,
             OperationKind: operationKind,
             ToolName: toolName,
             Model: model,

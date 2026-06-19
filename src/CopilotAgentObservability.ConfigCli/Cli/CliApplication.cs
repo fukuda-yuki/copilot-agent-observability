@@ -119,6 +119,9 @@ internal static class CliApplication
             case "generate-dashboard-dataset":
                 return RunGenerateDashboardDataset(args, output, error);
 
+            case "generate-static-dashboard":
+                return RunGenerateStaticDashboard(args, output, error);
+
             case "generate-improvement-proposals":
                 return RunGenerateImprovementProposals(args, output, error);
 
@@ -583,6 +586,57 @@ internal static class CliApplication
         catch (SqliteException exception)
         {
             error.WriteLine($"error: failed to read raw store: {exception.Message}");
+            return 1;
+        }
+        catch (IOException exception)
+        {
+            error.WriteLine($"error: failed to read or write file: {exception.Message}");
+            return 1;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error.WriteLine($"error: failed to access file: {exception.Message}");
+            return 1;
+        }
+    }
+
+    private static int RunGenerateStaticDashboard(string[] args, TextWriter output, TextWriter error)
+    {
+        var parseResult = StaticDashboardOptions.Parse(args, DateTimeOffset.UtcNow);
+        if (parseResult.Error is not null)
+        {
+            error.WriteLine($"error: {parseResult.Error}");
+            return 1;
+        }
+
+        try
+        {
+            var options = parseResult.Options!;
+            if (!File.Exists(options.DatasetPath))
+            {
+                error.WriteLine($"error: dashboard dataset file not found: {options.DatasetPath}");
+                return 1;
+            }
+
+            var artifact = StaticDashboardGenerator.Generate(
+                File.ReadAllText(options.DatasetPath),
+                options.Title,
+                options.SnapshotDate);
+            Directory.CreateDirectory(options.OutputDirectory);
+            File.WriteAllText(Path.Combine(options.OutputDirectory, "index.html"), artifact.Html, Encoding.UTF8);
+            File.WriteAllText(Path.Combine(options.OutputDirectory, "dashboard-data.json"), artifact.DatasetJson, Encoding.UTF8);
+
+            output.WriteLine($"Generated static dashboard in {options.OutputDirectory}.");
+            return 0;
+        }
+        catch (JsonException exception)
+        {
+            error.WriteLine($"error: input JSON is invalid: {exception.Message}");
+            return 1;
+        }
+        catch (InvalidDataException exception)
+        {
+            error.WriteLine($"error: {exception.Message}");
             return 1;
         }
         catch (IOException exception)

@@ -90,6 +90,8 @@ internal static class DashboardDatasetGenerator
             row.TraceId,
             row.TraceId,
             measurement.SourceRecordRef,
+            FirstUserId(operations),
+            FirstUserEmail(operations),
             row.ClientKind,
             row.ExperimentId,
             row.ExperimentCondition,
@@ -155,6 +157,8 @@ internal static class DashboardDatasetGenerator
                     BucketStart(operations, timeBucketGranularity, fallbackTimestampUtc),
                     timeBucketGranularity,
                     row.TraceId,
+                    FirstUserId(operations),
+                    FirstUserEmail(operations),
                     row.ClientKind,
                     row.ExperimentId,
                     row.ExperimentCondition,
@@ -296,6 +300,8 @@ internal static class DashboardDatasetGenerator
             BucketStart(operations, timeBucketGranularity, fallbackTimestampUtc),
             timeBucketGranularity,
             traceId,
+            FirstUserId(operations),
+            FirstUserEmail(operations),
             row?.ClientKind,
             row?.ExperimentId,
             row?.ExperimentCondition,
@@ -400,6 +406,8 @@ internal static class DashboardDatasetGenerator
                 null,
                 null,
                 null,
+                null,
+                null,
                 "candidate-measurement-mapping",
                 "warning",
                 null,
@@ -437,6 +445,8 @@ internal static class DashboardDatasetGenerator
             timeBucketGranularity,
             measurement.SourceRecordRef,
             row.TraceId,
+            null,
+            null,
             row.ClientKind,
             row.ExperimentId,
             healthCheckKind,
@@ -516,6 +526,16 @@ internal static class DashboardDatasetGenerator
         return traceId is not null && contextByTrace.TryGetValue(traceId, out var context)
             ? context
             : null;
+    }
+
+    private static string? FirstUserId(IReadOnlyList<DashboardRawOperation> operations)
+    {
+        return operations.Select(operation => operation.UserId).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+    }
+
+    private static string? FirstUserEmail(IReadOnlyList<DashboardRawOperation> operations)
+    {
+        return operations.Select(operation => operation.UserEmail).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
     }
 
     private static ISet<string> CreateSensitiveTraceSet(
