@@ -22,13 +22,27 @@ internal static class DashboardRawOperationReader
 {
     public static IReadOnlyList<DashboardRawOperation> Read(string inputPath)
     {
-        if (string.Equals(Path.GetExtension(inputPath), ".db", StringComparison.OrdinalIgnoreCase))
+        if (IsRawStorePath(inputPath))
         {
             var store = new RawTelemetryStore(inputPath);
             return store.ListRecords().SelectMany(record => ReadRawJson(record.PayloadJson)).ToArray();
         }
 
         return ReadRawJson(File.ReadAllText(inputPath));
+    }
+
+    private static bool IsRawStorePath(string inputPath)
+    {
+        var extension = Path.GetExtension(inputPath);
+        if (extension is ".db" or ".sqlite" or ".sqlite3")
+        {
+            return true;
+        }
+
+        Span<byte> header = stackalloc byte[16];
+        using var stream = File.OpenRead(inputPath);
+        var bytesRead = stream.Read(header);
+        return bytesRead >= 16 && Encoding.ASCII.GetString(header) == "SQLite format 3\0";
     }
 
     private static IReadOnlyList<DashboardRawOperation> ReadRawJson(string payloadJson)
@@ -329,4 +343,3 @@ internal static class DashboardRawOperationReader
         }
     }
 }
-

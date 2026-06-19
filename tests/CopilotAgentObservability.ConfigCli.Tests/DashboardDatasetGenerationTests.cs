@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using CopilotAgentObservability.ConfigCli;
 
 namespace CopilotAgentObservability.ConfigCli.Tests;
@@ -158,6 +159,89 @@ public class DashboardDatasetGenerationTests
 
         Assert.Equal(1, exitCode);
         Assert.Contains("requires --csv-dir, --json, or both", error.ToString());
+    }
+
+    [Fact]
+    public void GenerateDashboardDataset_WithoutRawInputUsesGenerationBucketAndRetainsUnmappedCandidateTraceId()
+    {
+        using var tempDirectory = new TempDirectory();
+        var measurements = DiagnosisCandidateMeasurementReader.Read(
+            tempDirectory.WriteFile("measurements.json", MeasurementsJson()));
+        var diagnosisCandidates = new[]
+        {
+            new DiagnosisCandidateRow(
+                DiagnosisCandidateId: "diagcand-unmapped",
+                TraceId: "cccccccccccccccccccccccccccccccc",
+                SourceRecordRef: "measurements.json#row=3",
+                RuleId: "DIAG-METRIC-MAPPING-V1",
+                FailureCategoryId: "F-DATA",
+                AntiPatternId: null,
+                Severity: "major",
+                RecommendedImprovementTarget: "workflow",
+                EvidenceSummary: "Synthetic sanitized evidence summary.",
+                EvidenceRef: "measurement:measurements.json#row=3",
+                ContentIncluded: false,
+                SensitiveBundlePath: null,
+                Confidence: "medium",
+                RequiredHumanChecks: "Confirm mapping.",
+                CandidateStatus: "candidate"),
+        };
+        var generatedAt = DateTimeOffset.Parse("2026-06-19T12:34:56Z", CultureInfo.InvariantCulture);
+
+        var dataset = DashboardDatasetGenerator.Generate(
+            measurements,
+            rawOperations: [],
+            diagnosisCandidates,
+            improvementCandidates: [],
+            autoDecisions: [],
+            "day",
+            generatedAt);
+
+        Assert.All(dataset.RunSummary, row => Assert.Equal("2026-06-19T00:00:00.0000000+00:00", row.TimeBucketStartUtc));
+        var candidate = Assert.Single(dataset.CandidateSummary);
+        Assert.Equal("cccccccccccccccccccccccccccccccc", candidate.TraceId);
+        Assert.Null(candidate.ClientKind);
+        Assert.Contains(dataset.CollectionHealth, row =>
+            row.HealthCheckKind == "candidate-measurement-mapping"
+            && row.MappingFailureCount == 1
+            && row.AffectedRecordCount == 1);
+    }
+
+    [Fact]
+    public void GenerateDashboardDataset_ReadsRawStoreWithSqliteExtension()
+    {
+        using var tempDirectory = new TempDirectory();
+        var measurementsPath = tempDirectory.WriteFile("measurements.json", MeasurementsJson());
+        var rawStorePath = Path.Combine(tempDirectory.Path, "raw-store.sqlite");
+        var outputPath = Path.Combine(tempDirectory.Path, "dashboard.json");
+        var store = new RawTelemetryStore(rawStorePath);
+        store.CreateSchema();
+        store.Insert(new RawTelemetryRecord(
+            Id: null,
+            Source: RawTelemetrySources.RawOtlp,
+            TraceId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            ReceivedAt: DateTimeOffset.Parse("2026-06-19T00:00:00Z", CultureInfo.InvariantCulture),
+            ResourceAttributesJson: null,
+            PayloadJson: RawDashboardJson()));
+
+        var exitCode = CliApplication.Run(
+            [
+                "generate-dashboard-dataset",
+                measurementsPath,
+                "--raw",
+                rawStorePath,
+                "--json",
+                outputPath,
+            ],
+            new StringWriter(),
+            new StringWriter());
+
+        Assert.Equal(0, exitCode);
+        using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
+        var runRows = document.RootElement.GetProperty("dashboard_run_summary").EnumerateArray().ToArray();
+        var firstRun = runRows.Single(row => row.GetProperty("trace_id").GetString() == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        Assert.Equal(750, firstRun.GetProperty("ttft_ms").GetInt32());
+        Assert.Equal("derived-first-generation-event", firstRun.GetProperty("ttft_source").GetString());
     }
 
     private static string MeasurementsJson()

@@ -36,10 +36,10 @@ internal static class DashboardDatasetGenerator
         var sensitiveTraces = CreateSensitiveTraceSet(diagnosisCandidates, improvementCandidates, autoDecisions);
 
         var runRows = measurements
-            .Select(measurement => CreateRunRow(measurement, OperationsFor(measurement.Row.TraceId, operationsByTrace), sensitiveTraces, timeBucketGranularity))
+            .Select(measurement => CreateRunRow(measurement, OperationsFor(measurement.Row.TraceId, operationsByTrace), sensitiveTraces, timeBucketGranularity, generatedAtUtc))
             .ToArray();
         var operationRows = measurements
-            .SelectMany(measurement => CreateOperationRows(measurement, OperationsFor(measurement.Row.TraceId, operationsByTrace), sensitiveTraces, timeBucketGranularity))
+            .SelectMany(measurement => CreateOperationRows(measurement, OperationsFor(measurement.Row.TraceId, operationsByTrace), sensitiveTraces, timeBucketGranularity, generatedAtUtc))
             .ToArray();
         var candidateRows = CreateCandidateRows(
             diagnosisCandidates,
@@ -47,13 +47,15 @@ internal static class DashboardDatasetGenerator
             autoDecisions,
             contextByTrace,
             operationsByTrace,
-            timeBucketGranularity);
+            timeBucketGranularity,
+            generatedAtUtc);
         var healthRows = CreateCollectionHealthRows(
             measurements,
             diagnosisCandidates,
             improvementCandidates,
             autoDecisions,
-            timeBucketGranularity);
+            timeBucketGranularity,
+            generatedAtUtc);
 
         return new DashboardDataset(
             SchemaVersion,
@@ -70,7 +72,8 @@ internal static class DashboardDatasetGenerator
         MeasurementInputRow measurement,
         IReadOnlyList<DashboardRawOperation> operations,
         ISet<string> sensitiveTraces,
-        string timeBucketGranularity)
+        string timeBucketGranularity,
+        DateTimeOffset fallbackTimestampUtc)
     {
         var row = measurement.Row;
         var model = operations.Select(operation => operation.Model).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
@@ -82,7 +85,7 @@ internal static class DashboardDatasetGenerator
 
         return new DashboardRunSummaryRow(
             SchemaVersion,
-            BucketStart(row.TraceId, operations, timeBucketGranularity),
+            BucketStart(operations, timeBucketGranularity, fallbackTimestampUtc),
             timeBucketGranularity,
             row.TraceId,
             row.TraceId,
@@ -123,7 +126,8 @@ internal static class DashboardDatasetGenerator
         MeasurementInputRow measurement,
         IReadOnlyList<DashboardRawOperation> operations,
         ISet<string> sensitiveTraces,
-        string timeBucketGranularity)
+        string timeBucketGranularity,
+        DateTimeOffset fallbackTimestampUtc)
     {
         if (operations.Count == 0)
         {
@@ -148,7 +152,7 @@ internal static class DashboardDatasetGenerator
 
                 return new DashboardOperationSummaryRow(
                     SchemaVersion,
-                    BucketStart(row.TraceId, operations, timeBucketGranularity),
+                    BucketStart(operations, timeBucketGranularity, fallbackTimestampUtc),
                     timeBucketGranularity,
                     row.TraceId,
                     row.ClientKind,
@@ -184,7 +188,8 @@ internal static class DashboardDatasetGenerator
         IReadOnlyList<AutoDecisionRow> autoDecisions,
         IReadOnlyDictionary<string, MeasurementInputRow> contextByTrace,
         IReadOnlyDictionary<string, DashboardRawOperation[]> operationsByTrace,
-        string timeBucketGranularity)
+        string timeBucketGranularity,
+        DateTimeOffset fallbackTimestampUtc)
     {
         var rows = new List<DashboardCandidateSummaryRow>();
         rows.AddRange(diagnosisCandidates.Select(candidate =>
@@ -194,6 +199,8 @@ internal static class DashboardDatasetGenerator
                 context,
                 OperationsFor(candidate.TraceId, operationsByTrace),
                 timeBucketGranularity,
+                fallbackTimestampUtc,
+                candidate.TraceId,
                 candidateKind: "diagnosis",
                 diagnosisCandidateId: candidate.DiagnosisCandidateId,
                 improvementCandidateId: null,
@@ -216,6 +223,8 @@ internal static class DashboardDatasetGenerator
                 context,
                 OperationsFor(candidate.TraceId, operationsByTrace),
                 timeBucketGranularity,
+                fallbackTimestampUtc,
+                candidate.TraceId,
                 candidateKind: "improvement",
                 diagnosisCandidateId: candidate.SourceDiagnosisCandidateId,
                 improvementCandidateId: candidate.ImprovementCandidateId,
@@ -238,6 +247,8 @@ internal static class DashboardDatasetGenerator
                 context,
                 OperationsFor(decision.TraceId, operationsByTrace),
                 timeBucketGranularity,
+                fallbackTimestampUtc,
+                decision.TraceId,
                 candidateKind: "auto-decision",
                 diagnosisCandidateId: decision.SourceDiagnosisCandidateId,
                 improvementCandidateId: decision.SourceImprovementCandidateId,
@@ -261,6 +272,8 @@ internal static class DashboardDatasetGenerator
         MeasurementInputRow? context,
         IReadOnlyList<DashboardRawOperation> operations,
         string timeBucketGranularity,
+        DateTimeOffset fallbackTimestampUtc,
+        string? sourceTraceId,
         string candidateKind,
         string? diagnosisCandidateId,
         string? improvementCandidateId,
@@ -277,10 +290,10 @@ internal static class DashboardDatasetGenerator
         bool sensitiveBundlePresent)
     {
         var row = context?.Row;
-        var traceId = row?.TraceId;
+        var traceId = row?.TraceId ?? sourceTraceId;
         return new DashboardCandidateSummaryRow(
             SchemaVersion,
-            BucketStart(traceId, operations, timeBucketGranularity),
+            BucketStart(operations, timeBucketGranularity, fallbackTimestampUtc),
             timeBucketGranularity,
             traceId,
             row?.ClientKind,
@@ -320,7 +333,8 @@ internal static class DashboardDatasetGenerator
         IReadOnlyList<DiagnosisCandidateRow> diagnosisCandidates,
         IReadOnlyList<ImprovementCandidateRow> improvementCandidates,
         IReadOnlyList<AutoDecisionRow> autoDecisions,
-        string timeBucketGranularity)
+        string timeBucketGranularity,
+        DateTimeOffset fallbackTimestampUtc)
     {
         var rows = new List<DashboardCollectionHealthRow>();
         var candidateTraceIds = diagnosisCandidates.Select(candidate => candidate.TraceId)
@@ -342,6 +356,7 @@ internal static class DashboardDatasetGenerator
                 rows.Add(CreateHealthRow(
                     measurement,
                     timeBucketGranularity,
+                    fallbackTimestampUtc,
                     "missing-required-attribute",
                     "warning",
                     missingAttribute,
@@ -361,6 +376,7 @@ internal static class DashboardDatasetGenerator
                 rows.Add(CreateHealthRow(
                     measurement,
                     timeBucketGranularity,
+                    fallbackTimestampUtc,
                     "unknown-telemetry",
                     "warning",
                     null,
@@ -378,7 +394,7 @@ internal static class DashboardDatasetGenerator
         {
             rows.Add(new DashboardCollectionHealthRow(
                 SchemaVersion,
-                BucketStart(null, [], timeBucketGranularity),
+                BucketStart([], timeBucketGranularity, fallbackTimestampUtc),
                 timeBucketGranularity,
                 "candidate-inputs",
                 null,
@@ -402,6 +418,7 @@ internal static class DashboardDatasetGenerator
     private static DashboardCollectionHealthRow CreateHealthRow(
         MeasurementInputRow measurement,
         string timeBucketGranularity,
+        DateTimeOffset fallbackTimestampUtc,
         string healthCheckKind,
         string healthStatus,
         string? missingAttributeName,
@@ -416,7 +433,7 @@ internal static class DashboardDatasetGenerator
         var row = measurement.Row;
         return new DashboardCollectionHealthRow(
             SchemaVersion,
-            BucketStart(row.TraceId, [], timeBucketGranularity),
+            BucketStart([], timeBucketGranularity, fallbackTimestampUtc),
             timeBucketGranularity,
             measurement.SourceRecordRef,
             row.TraceId,
@@ -462,10 +479,13 @@ internal static class DashboardDatasetGenerator
         return (decimal.Round(cost, 8, MidpointRounding.AwayFromZero), "unit-price-table");
     }
 
-    private static string BucketStart(string? traceId, IReadOnlyList<DashboardRawOperation> operations, string timeBucketGranularity)
+    private static string BucketStart(
+        IReadOnlyList<DashboardRawOperation> operations,
+        string timeBucketGranularity,
+        DateTimeOffset fallbackTimestampUtc)
     {
         var timestamp = operations.Select(operation => operation.StartedAtUtc).FirstOrDefault(value => value.HasValue)
-            ?? DateTimeOffset.UnixEpoch;
+            ?? fallbackTimestampUtc;
         var utc = timestamp.ToUniversalTime();
 
         return timeBucketGranularity switch
