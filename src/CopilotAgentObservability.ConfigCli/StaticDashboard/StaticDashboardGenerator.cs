@@ -18,12 +18,23 @@ internal static class StaticDashboardGenerator
     private static readonly HashSet<string> RiskyPropertyNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "prompt",
+        "prompt.content",
+        "promptcontent",
         "response",
+        "response.content",
+        "responsecontent",
         "system_prompt",
+        "systemprompt",
         "tool_arguments",
+        "tool.arguments",
+        "toolarguments",
         "tool_results",
+        "tool.results",
+        "toolresults",
         "source_code",
+        "sourcecode",
         "file_contents",
+        "filecontents",
         "credential",
         "credentials",
         "secret",
@@ -31,11 +42,17 @@ internal static class StaticDashboardGenerator
         "api_key",
         "password",
         "authorization",
+        "authorization.header",
         "authorization_header",
+        "authorizationheader",
         "sensitive_bundle_path",
         "sensitive_bundle_content",
+        "sensitivebundlepath",
+        "sensitivebundlecontent",
         "sensitive_content",
+        "sensitivecontent",
         "raw_content",
+        "rawcontent",
     };
 
     private static readonly Regex RiskyStringPattern = new(
@@ -120,7 +137,22 @@ internal static class StaticDashboardGenerator
 
     private static bool IsRiskyProperty(string propertyName)
     {
-        return RiskyPropertyNames.Contains(propertyName);
+        return RiskyPropertyNames.Contains(propertyName)
+            || RiskyPropertyNames.Contains(NormalizePropertyName(propertyName));
+    }
+
+    private static string NormalizePropertyName(string propertyName)
+    {
+        var builder = new StringBuilder(propertyName.Length);
+        foreach (var character in propertyName)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToLowerInvariant(character));
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static string RenderHtml(string title, string snapshotDate)

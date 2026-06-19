@@ -27,7 +27,7 @@ Generator は `--out-dir` に以下を出力する。
 | `index.html` | self-contained static dashboard shell |
 | `dashboard-data.json` | input dashboard dataset の sanitized copy |
 
-GitHub Actions は publish root に以下を配置する。
+GitHub Actions は `gh-pages` branch と publish artifact root に以下を配置する。
 
 ```text
 public/
@@ -39,7 +39,7 @@ public/
     dashboard-data.json
 ```
 
-Daily snapshot は保持し、自動削除しない。
+Daily snapshot は `gh-pages` branch 上で保持し、自動削除しない。
 
 ## Client-side Interaction
 
@@ -93,6 +93,6 @@ Workflow は以下を満たす。
 - input がある場合は `generate-dashboard-dataset` を実行する。
 - input がない場合は synthetic fixture から preview dashboard dataset を生成する。
 - `generate-static-dashboard` を実行する。
+- `gh-pages` branch に `latest/` と日次 snapshot を commit / push する。
 - `actions/upload-pages-artifact` と `actions/deploy-pages` を使用する。
 - repository secret、Langfuse credential、OTLP authorization header を要求しない。
-

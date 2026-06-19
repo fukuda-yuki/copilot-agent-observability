@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -40,9 +40,21 @@ jobs:
           $snapshotDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
           $buildDir = "tmp/static-dashboard-build"
           $publicDir = "tmp/static-dashboard-public"
+          $artifactDir = "tmp/static-dashboard-pages-artifact"
           $inputDir = "artifacts/dashboard-input"
           New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
-          New-Item -ItemType Directory -Force -Path $publicDir | Out-Null
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git ls-remote --exit-code --heads origin gh-pages | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            git fetch origin gh-pages --depth=1
+            git worktree add -B gh-pages $publicDir origin/gh-pages
+          } else {
+            git worktree add --detach $publicDir HEAD
+            git -C $publicDir checkout --orphan gh-pages
+            git -C $publicDir rm -r --ignore-unmatch .
+          }
 
           $measurements = Join-Path $inputDir "measurements.json"
           $raw = Join-Path $inputDir "raw-otlp.json"
@@ -70,13 +82,27 @@ jobs:
           New-Item -ItemType Directory -Force -Path $snapshotDir | Out-Null
           Copy-Item -Path (Join-Path $latestDir "*") -Destination $snapshotDir -Recurse -Force
 
+          git -C $publicDir add latest $snapshotDate
+          git -C $publicDir diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "No dashboard snapshot changes to commit."
+          } else {
+            git -C $publicDir commit -m "Update static dashboard snapshot $snapshotDate"
+            git -C $publicDir push origin HEAD:gh-pages
+          }
+
+          New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
+          Get-ChildItem -Path $publicDir -Force |
+            Where-Object { $_.Name -ne ".git" } |
+            Copy-Item -Destination $artifactDir -Recurse -Force
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: tmp/static-dashboard-public
+          path: tmp/static-dashboard-pages-artifact
 
       - name: Deploy Pages
         id: deployment

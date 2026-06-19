@@ -47,7 +47,10 @@ public class StaticDashboardGenerationTests
         Assert.Contains("user@example.com", dataset);
         Assert.Contains("example-user", dataset);
         Assert.DoesNotContain("synthetic raw prompt should be removed", dataset);
+        Assert.DoesNotContain("synthetic dotted response should be removed", dataset);
+        Assert.DoesNotContain("synthetic dotted tool args should be removed", dataset);
         Assert.DoesNotContain("Authorization=Basic", dataset);
+        Assert.DoesNotContain("authorization.header", dataset);
         Assert.DoesNotContain("sensitive_bundle_path", dataset);
         Assert.DoesNotContain("C:/sensitive-bundle", dataset);
 
@@ -118,7 +121,9 @@ public class StaticDashboardGenerationTests
                   "tool_call_count": 2,
                   "error_count": 0,
                   "prompt": "synthetic raw prompt should be removed",
-                  "authorization": "Authorization=Basic abc123"
+                  "response.content": "synthetic dotted response should be removed",
+                  "tool.arguments": "synthetic dotted tool args should be removed",
+                  "authorization.header": "Authorization=Basic abc123"
                 }
               ],
               "dashboard_operation_summary": [],

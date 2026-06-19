@@ -110,7 +110,7 @@ Outcome Linkage Candidate は placeholder / future candidate とし、外部 API
 ## Open Questions
 
 - Actions が参照する raw store / normalized dataset の初期配置は `artifacts/dashboard-input/` とする。実データ配置の正式運用は M5 で検証する。
-- Published JSON dataset は GitHub Pages artifact に保持する。main branch には生成済み snapshot を commit しない。
+- Published JSON dataset は `gh-pages` branch と GitHub Pages artifact に保持する。main branch には生成済み snapshot を commit しない。
 - email / display name mapping の入力形式。
 - 日次 snapshot が長期蓄積した場合の repository size monitoring 方法。
 - GitHub Pages access control の具体設定と、実 repository 上での初回 workflow 実行結果。

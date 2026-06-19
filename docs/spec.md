@@ -1673,7 +1673,8 @@ YYYY-MM-DD/index.html
 YYYY-MM-DD/dashboard-data.json
 ```
 
-Daily snapshot は保持し、自動削除しない。
+Daily snapshot は `gh-pages` branch 上で保持し、自動削除しない。
+Actions は `gh-pages` branch に `/latest/` と `/YYYY-MM-DD/` を commit / push し、その内容を GitHub Pages artifact として deploy する。
 生成済み snapshot は初期実装では main branch に commit しない。
 
 Outcome Linkage Candidate は以下の Tier で扱う。
