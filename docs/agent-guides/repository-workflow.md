@@ -166,11 +166,11 @@ Weak success criteria such as "make it work" require clarification or an explici
 
 ## Fallbacks, Blockers, And Compatibility
 
-Use the specified path first.
-If the specified path is unavailable, stop and report the blocker instead of silently switching to a fallback.
+Use the path, command, schema, source, tool, and validation procedure specified by the user or the current source of truth.
+If the specified route is unavailable, stop and report the blocker instead of silently switching to a fallback.
 Name the missing condition precisely: missing tool, missing credential, unavailable service, failing command, unclear product decision, or absent spec.
 
-Do not add compatibility shims, dual behavior, migration layers, alternate parsers, default fallbacks, or silent retry paths unless one of these is true:
+Do not add compatibility shims, dual behavior, migration layers, alternate parsers, permissive parsing, default fallbacks, or silent retry paths unless one of these is true:
 
 - the current source of truth requires compatibility;
 - the user explicitly asks for compatibility behavior;

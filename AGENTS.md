@@ -70,7 +70,8 @@ Keep changes minimum, scoped, and traceable to the request.
 
 - Do not change product behavior, public interfaces, or security policy without updating the current specs first.
 - Do not add runtime or development dependencies, or update lockfiles, unless specs require it or the user explicitly asks.
-- Do not add fallback behavior, compatibility shims, dual paths, or migration layers unless the current specs require them or the user explicitly asks.
+- Do not silently switch commands, input sources, schemas, tools, or documentation sources when the specified path fails.
+- Do not add fallback behavior, compatibility shims, dual paths, migration layers, or permissive parsing unless current specs require it or the user explicitly asks.
 - Do not commit secrets, real user data, raw prompts/responses, tool arguments/results, sensitive bundle content/paths, or generated runtime artifacts.
 - Do not substitute a failed, skipped, or unavailable validation command with a different command.
 - Do not hide inability: if required context, tools, credentials, or validation are unavailable, say what is blocked and what exact evidence is missing.
@@ -91,9 +92,9 @@ Do not use network-dependent validation as the only proof of correctness.
 
 ## Fallbacks And Compatibility
 
-Default to the specified path.
-If it is unavailable, stop and report the blocker instead of silently switching paths.
-Preserve compatibility only where `docs/requirements.md`, `docs/spec.md`, or `docs/specifications/` require it.
+Use the path, command, schema, source, tool, and validation procedure specified by the user or the current source of truth.
+If it is unavailable, stop and report the blocker instead of silently switching.
+Preserve compatibility only where `docs/requirements.md`, `docs/spec.md`, or `docs/specifications/` require it, or the user explicitly asks for it.
 
 ## Codex Guidance Files
 
