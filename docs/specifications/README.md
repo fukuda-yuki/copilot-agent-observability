@@ -17,6 +17,9 @@
 | Interface | Spec |
 | --- | --- |
 | Config CLI | [interfaces/config-cli.md](interfaces/config-cli.md) |
+| Normalized measurement dataset | [interfaces/measurement-dataset.md](interfaces/measurement-dataset.md) |
+| Candidate records | [interfaces/candidate-records.md](interfaces/candidate-records.md) |
+| Human-review records | [interfaces/human-review-records.md](interfaces/human-review-records.md) |
 | Dashboard dataset | [interfaces/dashboard-dataset.md](interfaces/dashboard-dataset.md) |
 | Security and data boundaries | [security-data-boundaries.md](security-data-boundaries.md) |
 

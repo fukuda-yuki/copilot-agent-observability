@@ -50,6 +50,9 @@ GitHub Pages publish は private repository と明示的な access control を�
 | Dashboard publishing | [specifications/layers/dashboard-publishing.md](specifications/layers/dashboard-publishing.md) |
 | Security and data boundaries | [specifications/security-data-boundaries.md](specifications/security-data-boundaries.md) |
 | Config CLI interface | [specifications/interfaces/config-cli.md](specifications/interfaces/config-cli.md) |
+| Normalized measurement dataset interface | [specifications/interfaces/measurement-dataset.md](specifications/interfaces/measurement-dataset.md) |
+| Candidate record interfaces | [specifications/interfaces/candidate-records.md](specifications/interfaces/candidate-records.md) |
+| Human-review record interfaces | [specifications/interfaces/human-review-records.md](specifications/interfaces/human-review-records.md) |
 | Dashboard dataset interface | [specifications/interfaces/dashboard-dataset.md](specifications/interfaces/dashboard-dataset.md) |
 | Contributor workflow | [contributor-guide.md](contributor-guide.md) |
 

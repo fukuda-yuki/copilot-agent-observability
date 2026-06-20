@@ -53,6 +53,8 @@ Normalization must:
 - produce unknown span / attribute evidence for collection health.
 - avoid copying raw prompt / response / tool arguments / tool results into repository-safe outputs.
 
+The output contract is defined in [../interfaces/measurement-dataset.md](../interfaces/measurement-dataset.md).
+
 ## Validation
 
 Use synthetic fixtures for automated tests.

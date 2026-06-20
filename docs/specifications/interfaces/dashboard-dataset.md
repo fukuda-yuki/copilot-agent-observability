@@ -26,6 +26,10 @@ JSON output uses one object with four logical table arrays:
 
 CSV output uses one file per logical table.
 
+`schema_version` currently remains `sprint4-m2-v1` for wire compatibility with the existing CLI and static dashboard.
+Treat this as a schema identifier, not product positioning or active sprint planning.
+Do not rename it without a schema migration, fixture update, and dashboard compatibility check.
+
 ## Logical Tables
 
 | Logical table | Purpose |
@@ -39,11 +43,11 @@ CSV output uses one file per logical table.
 
 | Source | Directly usable fields |
 | --- | --- |
-| Normalized measurement | `trace_id`, `experiment_id`, `client_kind`, `task_id`, `task_category`, `task_run_index`, `experiment_condition`, `prompt_version`, `agent_variant`, `repo_snapshot`, token counts, `turn_count`, `tool_call_count`, `duration_ms`, `error_count`, `success_status`, `unknown_spans_json`, `unknown_attributes_json` |
-| Diagnosis candidate output | `diagnosis_candidate_id`, `trace_id`, `rule_id`, `failure_category_id`, `anti_pattern_id`, `severity`, `recommended_improvement_target`, `evidence_ref`, `content_included`, `confidence`, `candidate_status` |
-| Improvement candidate output | `improvement_candidate_id`, `source_diagnosis_candidate_id`, `trace_id`, `failure_category_id`, `anti_pattern_id`, `severity`, `improvement_target`, `proposed_change_kind`, `evidence_ref`, `candidate_status` |
-| Auto-decision output | `auto_decision_id`, `source_improvement_candidate_id`, `source_diagnosis_candidate_id`, `trace_id`, `decision_status`, `decision_rule_id`, `confidence`, `implementation_target`, `next_action` |
-| Human-review records | `proposal_id`, `proposal_evaluation_status`, `human_review_status`, `human_decision`, `approved_at`, context carried from proposal / evaluation records |
+| [Normalized measurement](measurement-dataset.md) | `trace_id`, `experiment_id`, `client_kind`, `task_id`, `task_category`, `task_run_index`, `experiment_condition`, `prompt_version`, `agent_variant`, `repo_snapshot`, token counts, `turn_count`, `tool_call_count`, `duration_ms`, `error_count`, `success_status`, `unknown_spans_json`, `unknown_attributes_json` |
+| [Diagnosis candidate output](candidate-records.md) | `diagnosis_candidate_id`, `trace_id`, `rule_id`, `failure_category_id`, `anti_pattern_id`, `severity`, `recommended_improvement_target`, `evidence_ref`, `content_included`, `confidence`, `candidate_status` |
+| [Improvement candidate output](candidate-records.md) | `improvement_candidate_id`, `source_diagnosis_candidate_id`, `trace_id`, `failure_category_id`, `anti_pattern_id`, `severity`, `improvement_target`, `proposed_change_kind`, `evidence_ref`, `candidate_status` |
+| [Auto-decision output](candidate-records.md) | `auto_decision_id`, `source_improvement_candidate_id`, `source_diagnosis_candidate_id`, `trace_id`, `decision_status`, `decision_rule_id`, `confidence`, `implementation_target`, `next_action` |
+| [Human-review records](human-review-records.md) | `proposal_id`, `proposal_evaluation_status`, `human_review_status`, `human_decision`, `approved_at`, context carried from proposal / evaluation records |
 
 ## Defaults
 

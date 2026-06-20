@@ -9,10 +9,10 @@ It does not modify repository files and does not create patches, commits, pushes
 
 The pipeline may produce:
 
-- diagnosis candidate。
-- improvement candidate。
-- auto-decision record。
-- adapter output for existing human-review records。
+- diagnosis candidate defined in [../interfaces/candidate-records.md](../interfaces/candidate-records.md)。
+- improvement candidate defined in [../interfaces/candidate-records.md](../interfaces/candidate-records.md)。
+- auto-decision record defined in [../interfaces/candidate-records.md](../interfaces/candidate-records.md)。
+- adapter output for existing [human-review records](../interfaces/human-review-records.md)。
 - sensitive bundle metadata。
 
 ## Commands
@@ -42,7 +42,8 @@ Sensitive content extraction requires both:
 - `--sensitive-output-dir <dir>`
 
 Sensitive bundles must not be committed.
-Repository-safe outputs may contain only sanitized references and `sensitive_bundle_present`.
+Candidate CSV / JSON files with `sensitive_bundle_path` are local runtime artifacts.
+Repository-safe dashboard outputs may contain only sanitized references and `sensitive_bundle_present`.
 
 ## Auto-decision Boundary
 
