@@ -22,6 +22,10 @@ Sprint4 では、既存の OTel 収集、Langfuse trace viewer、raw telemetry s
 Sprint4 の主成果物は dashboard の目的、非目的、view / panel / metric / dimension / filter / drilldown contract、data source 境界、検証方針、M5 handoff 境界である。
 Sprint4 要件定義では、独自 Web UI、Grafana Cloud 等の本番採用、組織全体の利用監視、個人別生産性評価、外部成果データとの本番連携は扱わない。
 
+Sprint5: Static HTML Observability Dashboard は完了済みである。
+Sprint5 では、Sprint4 dashboard 要件を GitHub Pages 向け static HTML dashboard として実装し、`generate-static-dashboard`、日次 GitHub Actions publish workflow、`artifacts/dashboard-input/` staging contract、real-data-shaped sanitization coverage、M6 review and handoff を完了した。
+Sprint5 完了時点では、GitHub Pages access control、初回 live workflow 実行、日次 snapshot の repository size monitoring、email / display name mapping、外部 outcome linkage は後続の環境確認または product / security decision 対象として残す。
+
 Phase 0: ローカル Aspire Dashboard 疎通確認は完了済み背景として扱う。
 Phase 0 では、VS Code GitHub Copilot Chat から Aspire Dashboard へ OTLP HTTP 送信できることを確認し、Node/Electron 側のローカル開発証明書問題を避けるため `http` launch profile を主手順とした。
 
