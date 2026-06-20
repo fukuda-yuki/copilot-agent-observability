@@ -1,6 +1,7 @@
 # AGENTS.md
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+These guidelines define how coding agents should work in this repository.
+They do not define product behavior.
 
 ## Language Rules
 
@@ -8,71 +9,72 @@
 - Write user-facing responses in Japanese.
 - Keep product deliverables in the language and tone already used by the target document unless the user asks otherwise.
 
-## Source of Truth
-
-`AGENTS.md` defines agent workflow. It is not the place to define product behavior.
+## Source Of Truth
 
 When instructions conflict, use this order:
 
 1. The user's latest explicit instruction.
 2. `docs/requirements.md`.
 3. `docs/spec.md`.
-4. The active sprint material in `docs/sprints/<sprint-slug>/`.
-5. `docs/task.md`.
-6. `README.md` and existing implementation.
+4. The relevant file under `docs/specifications/`.
+5. `docs/architecture.md` and `docs/decisions.md`.
+6. `docs/task.md`.
+7. `README.md`, user guides, contributor guides, and existing implementation.
 
-If `docs/requirements.md` and `docs/spec.md` conflict, do not choose silently. If intent is clear, update `docs/spec.md` before implementation; otherwise ask the user.
+`README.md` and `docs/user-guide*` are user-facing explanations derived from the product requirements and specifications.
+Do not infer product behavior from them unless it is also reflected in `docs/requirements.md`, `docs/spec.md`, or `docs/specifications/`.
 
-Do not infer product requirements from `README.md` or existing implementation unless they are reflected in `docs/spec.md`.
+`docs/sprints/` contains historical planning and evidence.
+Use it for context only. Do not treat sprint-local material as current product behavior unless it has been promoted into the current requirements or specifications.
+
+If `docs/requirements.md` and implementation details disagree, state the conflict before editing.
+If the intended behavior is clear, update the specification first; otherwise ask the user.
 
 ## Working Order
 
 Before changing code, repository guidance, or project documents, inspect context in this order:
 
-1. `docs/requirements.md` and `docs/spec.md` for requirements and implementation policy.
-2. `docs/task.md` to identify the active sprint or roadmap item.
-3. The active sprint files under `docs/sprints/<sprint-slug>/`.
-4. The target file to understand current structure, style, and local conventions.
-5. Sprint-local `knowledge/` only when shared prior findings or decisions may matter.
+1. `docs/requirements.md`.
+2. `docs/spec.md`.
+3. The relevant `docs/specifications/` file.
+4. `docs/architecture.md` and `docs/decisions.md` when architecture or policy may be affected.
+5. `docs/task.md` for roadmap and historical status.
+6. The target file to understand current structure, style, and local conventions.
+7. Historical sprint material only when a prior decision or evidence trail is needed.
 
-For Sprint1 / Phase 1 local Langfuse PoC work, always check `docs/requirements.md`, `docs/spec.md`, `docs/task.md`, and the Sprint1 reference material before deciding implementation details.
-Sprint1 material under `docs/sprints/sprint1-langfuse-poc/` is completed reference material.
-For Sprint2 raw data loop work, treat `docs/sprints/sprint2-raw-data-loop/README.md` as idea-level planning context only. It does not change product behavior by itself; update `docs/requirements.md` and `docs/spec.md` before implementing confirmed Sprint2 behavior.
-For Aspire AppHost usage decisions, refer to `docs/spec.md` § 9 (Aspire AppHost の役割と使い分け).
-
-If these sources disagree, state the conflict before editing.
+For Aspire AppHost usage decisions, refer to `docs/specifications/layers/telemetry-ingestion.md` and `docs/architecture.md`.
 
 ## Confirmation Policy
 
 Ask before proceeding when the task would:
 
-- make an irreversible change,
-- change product behavior, public interfaces, input/output formats, or security policy,
-- add runtime or development dependencies,
-- conflict with `docs/requirements.md` or `docs/spec.md`,
-- require a product/spec decision missing from `docs/spec.md`,
-- require creating a commit or review note when the active sprint or work item is unclear.
+- make an irreversible change;
+- change product behavior, public interfaces, input/output formats, or security policy;
+- add runtime or development dependencies;
+- conflict with `docs/requirements.md`, `docs/spec.md`, or `docs/specifications/`;
+- require a product/spec decision missing from the current specifications;
+- require creating a preserved review note when the active work item is unclear.
 
 Do not stop unnecessarily for minor, reversible, local edits.
 
 ## Think Before Coding
 
-**Do not assume. Do not hide confusion. Surface tradeoffs.**
+Do not assume. Do not hide confusion. Surface tradeoffs.
 
 Before implementing:
 
 - State assumptions explicitly when they affect the work.
 - If multiple interpretations exist, present them instead of choosing silently.
 - If a simpler approach exists, say so.
-- Push back when the request is risky, unclear, or inconsistent with the project source of truth.
+- Push back when the request is risky, unclear, or inconsistent with the source of truth.
 
 ## Simplicity First
 
-**Minimum code that solves the problem. Nothing speculative.**
+Minimum code that solves the problem. Nothing speculative.
 
 - No features beyond what was asked.
 - No abstractions for single-use code.
-- No flexibility, configurability, or new workflow unless requested or required by `docs/spec.md`.
+- No flexibility, configurability, or new workflow unless requested or required by the current specifications.
 - No error handling for impossible scenarios.
 - If a change is much larger than the problem, simplify it.
 
@@ -80,7 +82,7 @@ Ask: "Would a senior engineer say this is overcomplicated?" If yes, rewrite.
 
 ## Surgical Changes
 
-**Touch only what you must. Clean up only your own mess.**
+Touch only what you must. Clean up only your own mess.
 
 When editing:
 
@@ -98,7 +100,7 @@ Every changed line should trace directly to the user's request.
 
 ## Goal-Driven Execution
 
-**Define success criteria. Loop until verified.**
+Define success criteria. Loop until verified.
 
 Transform tasks into verifiable goals:
 
@@ -116,20 +118,34 @@ For multi-step tasks, state a brief plan when useful:
 
 Weak success criteria such as "make it work" require clarification or an explicit assumption.
 
-## Tests and Validation
+## Tests And Validation
 
-- Derive test scope from `docs/spec.md`, `docs/task.md`, and the active sprint material.
+- Derive test scope from `docs/requirements.md`, `docs/spec.md`, and the relevant `docs/specifications/` file.
 - Use small, synthetic or anonymized fixtures.
 - Do not commit secrets, real user data, confidential data, or generated runtime artifacts.
 - Check the changed behavior plus nearby edge cases and regression risks.
 - Keep automated tests deterministic; isolate external services, network, local machine state, and live services.
 - If behavior cannot be automatically verified, document the live check procedure and required evidence.
-- Use commands defined by `docs/spec.md`, project files, or existing repository scripts. Do not invent a mandatory workflow.
+- Use commands defined by the current specifications, project files, or existing repository scripts.
 - If required tools are missing, report the missing tool and the command that should have been run.
 
-## Dependencies and Environment
+Standard validation for code, project file, CLI behavior, or workflow changes:
 
-- Do not add runtime or development dependencies unless `docs/spec.md` requires it or the user explicitly asks.
+```powershell
+dotnet build CopilotAgentObservability.slnx
+dotnet test CopilotAgentObservability.slnx
+```
+
+Collector example validation:
+
+```powershell
+$env:LANGFUSE_AUTH="dummy"
+docker compose -f infra\otel-collector\docker-compose.example.yml config
+```
+
+## Dependencies And Environment
+
+- Do not add runtime or development dependencies unless the current specifications require it or the user explicitly asks.
 - Do not update lockfiles as a side effect when dependency changes are out of scope.
 - Do not use network-dependent validation as the only proof of correctness.
 - Do not substitute a different workflow if it changes what is being verified.
@@ -148,7 +164,8 @@ When the user asks to split work across reader and writer subagents, use the rep
 
 Before declaring implementation complete, review the change at a level proportional to its risk.
 
-Use multiple subagents when available for implementation changes, behavior changes, public interface changes, security-sensitive changes, or broad refactors. A recorded self-review is enough for documentation-only, typo-only, formatting-only, or other minor reversible changes.
+Use multiple subagents when available for implementation changes, behavior changes, public interface changes, security-sensitive changes, or broad refactors.
+A recorded self-review is enough for documentation-only, typo-only, formatting-only, or other minor reversible changes.
 
 Minimum review perspectives:
 
@@ -156,32 +173,34 @@ Minimum review perspectives:
 - Tests, edge cases, and regression risk.
 - Maintainability, readability, and extensibility.
 
-For preserved review records, use the active sprint's review location. If the active sprint or work item is unclear, ask before creating the review note.
+For preserved review records, use the active work item's review location.
+If the active work item is unclear, ask before creating the review note.
 
 ## Project Document Updates
 
 Before finishing, update project documents when the task requires it:
 
-- Update the active sprint task or planning document and, when needed, `docs/task.md`.
-- Record sprint-local assumptions, decisions, findings, and verification notes in the active sprint notes.
-- Record reusable cross-sprint findings in the relevant sprint `knowledge/` directory or a new shared docs location after updating `docs/spec.md` if needed.
-- Reflect confirmed product specifications in `docs/spec.md`; do not hide specs only in notes or knowledge files.
+- Update `docs/requirements.md`, `docs/spec.md`, and the relevant `docs/specifications/` file when product behavior or public interfaces change.
+- Update user-facing guides when the user workflow changes.
+- Update `docs/task.md` when roadmap or historical status changes.
+- Record reusable findings in the relevant specification or shared docs location.
+- Do not hide product specifications only in sprint notes or knowledge files.
 - If required documentation cannot be updated, do not claim completion. State the blocker and needed confirmation.
 
 ## Git Rules
 
 Create local commits in small, coherent steps after validation and review are complete.
 Do not wait for an explicit user request when a completed, verified step can be committed cleanly.
-If the active sprint or work item is unclear, or the change mixes unrelated concerns, ask before committing.
+If the active work item is unclear, or the change mixes unrelated concerns, ask before committing.
 
 Do not:
 
-- push branches or tags,
-- create, update, merge, or auto-merge pull requests,
+- push branches or tags;
+- create, update, merge, or auto-merge pull requests;
 - rewrite remote history.
 
-Commit messages must start with the active sprint or work item name and then follow Conventional Commits.
+Commit messages must start with the active work item name and then follow Conventional Commits.
 
 ---
 
-**These guidelines are working if:** diffs contain fewer unnecessary changes, implementations need fewer rewrites due to overcomplication, and clarifying questions happen before mistakes rather than after them.
+These guidelines are working if diffs contain fewer unnecessary changes, implementations need fewer rewrites due to overcomplication, and clarifying questions happen before mistakes rather than after them.

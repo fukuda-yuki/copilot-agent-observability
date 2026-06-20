@@ -1,174 +1,144 @@
-# copilot-agent-observability
+# Copilot Agent Observability
 
-GitHub Copilot Chat / GitHub Copilot CLI の OpenTelemetry (OTel) データをローカルの Langfuse に収集し、Agent / MCP / Skills / CLI の挙動を trace 単位で確認するための検証リポジトリです。
+Copilot Agent Observability は、GitHub Copilot Chat、GitHub Copilot CLI、Codex App から出力される OpenTelemetry data を収集し、Agent workflow の実行過程を trace、集計 dataset、診断候補、静的 dashboard として確認するための Local-first な観測基盤です。
 
-このリポジトリは、Copilot の利用回数や利用者数を集計するためのものではありません。Agent がどのように考え、どの tool を呼び、どのくらい token や時間を使い、どこで error が起きたかを確認し、今後の改善検討に使うための PoC です。
+利用者数や利用回数を見るための dashboard ではありません。Agent がどの client で動き、どの tool を呼び、どれだけ時間や token を使い、どこで失敗し、どの改善候補につながるかを確認するための製品です。
 
-## まず読むもの
+## 動作モード
 
-初めて使う人は、次の順で読んでください。
+| Mode | 目的 | 入力 | 主な出力 |
+| --- | --- | --- | --- |
+| Live Trace Review | 個別 trace を人間が調査する | VS Code Copilot Chat / Copilot CLI / Codex App の OTLP | Langfuse trace viewer |
+| Raw Data Loop | Langfuse UI に依存せず再現可能に集計する | saved raw OTLP JSON | SQLite raw store, normalized measurements |
+| Static Dashboard | Agent workflow の傾向を俯瞰する | dashboard dataset JSON | `index.html`, `dashboard-data.json`, GitHub Pages snapshot |
+| Diagnosis / Improvement Support | 失敗傾向と改善候補を deterministic に整理する | normalized measurements, candidate inputs | diagnosis candidate, improvement candidate, auto-decision, human decision records |
 
-1. [docs/getting-started.md](docs/getting-started.md): 利用者向けの準備、起動、設定、確認手順
-2. [docs/spec.md](docs/spec.md): 確定仕様、実装判断、検証方針
-3. [docs/task.md](docs/task.md): repository 全体の sprint / roadmap index
-4. [docs/requirements.md](docs/requirements.md): 上位要件
+## Dashboard Overview
 
-## このリポジトリでできること
+静的 dashboard は synthetic fixture だけで生成でき、server-side API や外部 network dependency を要求しません。
 
-- VS Code GitHub Copilot Chat の OTel trace を Langfuse に送る
-- GitHub Copilot CLI の OTel trace / metrics を Langfuse に送る
-- Codex App / app-server の OTel trace / logs / metrics を Langfuse または Collector に送る
-- Langfuse 上で prompt、response、tool call、token usage、duration、error を確認する
-- `client.kind` で VS Code Chat と CLI を区別する
-- `experiment.id` や `task.id` などで baseline / variant / task を分類する
-- sanitized した Langfuse export から研究用 CSV / JSON を生成する
-- saved raw OTLP JSON を SQLite raw store に取り込み、Langfuse なしで normalized dataset を生成する
-- trace 由来の診断、改善提案、人間承認記録を deterministic な CLI で扱う
+<p align="center">
+  <img width="900" alt="Static dashboard overview" src="./docs/assets/screenshots/static-dashboard-overview.png">
+</p>
 
-## 対象範囲
+filter、search、sort は browser 上で完結します。
 
-| 対象 | 扱い |
+<p align="center">
+  <img width="900" alt="Static dashboard filters" src="./docs/assets/screenshots/static-dashboard-filters.png">
+</p>
+
+## できること
+
+- VS Code GitHub Copilot Chat、GitHub Copilot CLI、Codex App の OTel trace / metrics / logs を収集する。
+- Langfuse で prompt、response、tool call、token usage、duration、error を trace 単位で確認する。
+- saved raw OTLP JSON を SQLite raw store に取り込み、normalized measurement dataset を生成する。
+- trace 由来の diagnosis candidate、improvement candidate、auto-decision、human decision record を生成・検証する。
+- normalized dataset と candidate outputs から dashboard dataset を作り、静的 HTML dashboard と GitHub Pages snapshot を生成する。
+
+## しないこと
+
+- 個人別の生産性評価、勤務監視、ランキング。
+- Copilot の利用者数、利用回数、課金、コスト配賦の管理。
+- DLP、機密情報検査、監査ログ基盤の代替。
+- VS Code Agent Debug / Chat Debug View の再実装。
+- trace から repository patch / diff を生成すること。
+- repository file の自動修正、commit、push、pull request 作成。
+- 改善効果の自動合否判定。
+
+## 必要なもの
+
+| 項目 | 用途 |
 | --- | --- |
-| VS Code GitHub Copilot Chat | 必須 |
-| GitHub Copilot CLI | 必須 |
-| Codex App | 任意 |
-| Claude Code | 参考のみ |
-| Visual Studio 2026 | 対象外 |
+| GitHub Copilot を利用できるアカウント | Copilot Chat / CLI の実行 |
+| VS Code + GitHub Copilot Chat extension | VS Code 側 telemetry source |
+| GitHub Copilot CLI | CLI 側 telemetry source |
+| Docker Desktop | Langfuse self-host と任意の OTel Collector |
+| .NET SDK | Config CLI、build、test |
+| PowerShell | Windows 向け設定例の実行 |
 
-## 現在の既定構成
+共有環境、実データ公開、GitHub Pages 公開、社内サーバー運用を行う場合は、access control、retention、削除方法、masking / redaction、利用者周知を先に決めてください。
 
-Sprint1: ローカル Langfuse PoC は完了済みです。
-Sprint1 baseline は、Langfuse self-host への直接 OTLP 送信です。
+## 最短手順
 
-```text
-VS Code GitHub Copilot Chat
-GitHub Copilot CLI
-Codex App
-        |
-        | OTLP HTTP
-        v
-Langfuse self-host on Docker Desktop
-```
+1. Docker Desktop を起動し、Langfuse self-host をローカルで起動する。
+2. Langfuse で project と API key を作成する。
+3. Config CLI で client 向け OTel 設定サンプルを出力する。
+4. VS Code Copilot Chat または Copilot CLI を OTel 設定付きで起動する。
+5. 検証用または synthetic data だけを使って Copilot を実行する。
+6. Langfuse UI で trace を確認する。
+7. saved raw OTLP JSON がある場合は raw data loop と static dashboard を生成する。
 
-| 用途 | URL |
-| --- | --- |
-| Langfuse UI | `http://localhost:3000` |
-| Langfuse OTLP endpoint | `http://localhost:3000/api/public/otel` |
-| Langfuse OTLP traces endpoint | `http://localhost:3000/api/public/otel/v1/traces` |
-
-M9 では、直接送信が不安定な場合や後続の組織展開候補に備えて、ローカル OTel Collector 経由送信の最小サンプルも追加しています。ただし、Sprint1 baseline は Langfuse への直接送信です。
-
-Sprint2: Raw Data Loop も完了済みです。Sprint2 では、Langfuse が起動していなくても saved raw OTLP JSON を SQLite raw store に取り込み、normalized dataset と改善支援 CLI に接続できる最小 loop を追加しています。Langfuse UI は raw data の source of truth ではなく、人間が trace を確認する dashboard / trace viewer の optional side path として扱います。
-
-```text
-saved raw OTLP JSON
-        |
-        | ingest-raw
-        v
-SQLite raw store (data/raw-store.db)
-        |
-        | normalize-raw
-        v
-normalized dataset
-        |
-        v
-diagnosis / proposal / evaluation / human decision workflow
-```
-
-## 利用前に必要なもの
-
-申請や契約が必要になり得るもの:
-
-- GitHub Copilot を利用できる GitHub アカウントまたは組織契約
-- GitHub Copilot CLI を利用できる認証状態
-- Docker Desktop の利用許可。組織利用では Docker Desktop のライセンス条件も確認してください。
-
-ローカルに準備するもの:
-
-- VS Code
-- GitHub Copilot Chat extension
-- GitHub Copilot CLI
-- Docker Desktop
-- .NET SDK
-- PowerShell
-
-Langfuse Cloud、Grafana、社内サーバー、SSO、TLS 終端は、現在のローカル PoC では必須ではありません。
-
-## 最短の利用手順
-
-詳細は [docs/getting-started.md](docs/getting-started.md) を参照してください。
-
-1. GitHub Copilot Chat と GitHub Copilot CLI が利用できることを確認する。
-2. Docker Desktop を起動する。
-3. Langfuse self-host Docker Compose を起動する。
-4. `http://localhost:3000` で Langfuse の初期ユーザー、organization、project、API key を作成する。
-5. Config CLI で VS Code / CLI 向けの OTel 設定サンプルを出力する。
-6. VS Code または Copilot CLI を OTel 環境変数付きで起動する。
-7. Copilot に合成データまたは検証用データだけを使った依頼を実行する。
-8. Langfuse UI で trace、prompt、response、tool call、token usage、duration、error を確認する。
-
-Config CLI の代表コマンド:
+代表コマンド:
 
 ```powershell
-dotnet run --project src\CopilotAgentObservability.ConfigCli -- langfuse-vscode-settings
 dotnet run --project src\CopilotAgentObservability.ConfigCli -- langfuse-vscode-env
 dotnet run --project src\CopilotAgentObservability.ConfigCli -- langfuse-copilot-cli-env
-dotnet run --project src\CopilotAgentObservability.ConfigCli -- langfuse-codex-app-config
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- ingest-raw <raw.json> --db data\raw-store.db
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- normalize-raw data\raw-store.db --json tmp\measurements.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-dashboard-dataset tmp\measurements.json --json tmp\dashboard.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-static-dashboard tmp\dashboard.json --out-dir tmp\site
 ```
 
-Codex App の `[otel]` は user-level の `$HOME\.codex\config.toml` に設定します。project-local `.codex/config.toml` は Codex App / app-server の OTel routing 設定としては使わないでください。
-
-Langfuse 非依存 raw data loop の代表コマンド:
+Synthetic fixture だけで dashboard を試す例:
 
 ```powershell
-dotnet run --project src\CopilotAgentObservability.ConfigCli -- ingest-raw <raw.json> --db data\raw-store.db
-dotnet run --project src\CopilotAgentObservability.ConfigCli -- normalize-raw data\raw-store.db --csv <measurements.csv> --json <measurements.json>
+New-Item -ItemType Directory -Force tmp\dashboard-demo | Out-Null
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- normalize-raw tests\CopilotAgentObservability.ConfigCli.Tests\TestData\raw-otlp.synthetic.json --json tmp\dashboard-demo\measurements.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-dashboard-dataset tmp\dashboard-demo\measurements.json --raw tests\CopilotAgentObservability.ConfigCli.Tests\TestData\raw-otlp.synthetic.json --json tmp\dashboard-demo\dashboard.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-static-dashboard tmp\dashboard-demo\dashboard.json --out-dir tmp\dashboard-demo\site
 ```
 
-この loop の入力には synthetic raw OTLP JSON だけを使ってください。詳細な手順は [docs/getting-started.md](docs/getting-started.md) を参照してください。
+## データ安全境界
 
-## データ扱いの注意
+Repository に保存してよいもの:
 
-Phase 1 では content capture を有効にします。そのため、prompt、response、source code、file contents、tool arguments、tool results、system prompt、tool schema、path information が Langfuse に保存され得ます。
+- synthetic fixture
+- redacted summary
+- normalized aggregate dataset
+- sanitized dashboard dataset
+- trace id、candidate id、evidence ref などの参照 ID
+- 実データ由来の aggregate metrics
 
-ローカル PoC では、合成データまたは検証用データだけを投入してください。実データ、顧客データ、秘密情報、credential、secret、Base64 header、実 trace content、実 user identity を repository に保存しないでください。
+Repository に保存してはいけないもの:
 
-Sprint2 の raw store 既定 path は `data/raw-store.db` です。`data/`、一時 CSV / JSON output、raw payload file は local runtime data であり、repository に commit しないでください。不要になったら削除してください。
+- raw prompt / raw response
+- system prompt の全文
+- tool arguments / tool results の全文
+- observed session 由来の source code fragment / file contents
+- credential、secret、token、API key、password
+- Base64 authorization header
+- sensitive bundle content
+- sensitive bundle local path
 
-## このリポジトリがしないこと
+`user.id` と `user.email` は dashboard dataset と static dashboard の表示・filter 対象にできます。ただし、共有または公開する前に repository / Pages access control と利用者周知を確認してください。
 
-- Copilot の利用状況ダッシュボードを作る
-- 利用者数、利用回数、日次アクティブユーザーを集計する
-- 経営向けの課金・コスト配賦をする
-- DLP や機密情報検査を実装する
-- VS Code Agent Debug / Chat Debug View 相当の UI を作る
-- VS Code 内部ログや workspaceStorage を主方式として解析する
-- trace から failure category / anti-pattern 候補を自動抽出する
-- 改善案を自動採用する
-- repository を自動修正する
-- patch / diff / commit / push / pull request を自動作成する
+## ドキュメント
+
+- [利用者向け詳細ガイド](docs/user-guide.md)
+- [要件定義](docs/requirements.md)
+- [技術仕様索引](docs/spec.md)
+- [実装仕様](docs/specifications/README.md)
+- [Contributor Guide](docs/contributor-guide.md)
+- [Architecture](docs/architecture.md)
+- [Decisions](docs/decisions.md)
+- [Roadmap / History](docs/task.md)
 
 ## 開発者向け検証
 
-Config CLI、AppHost、プロジェクトファイル、依存関係を変更した場合は、次を実行します。
+Code、project file、CLI behavior、workflow を変更した場合は以下を実行します。
 
 ```powershell
 dotnet build CopilotAgentObservability.slnx
 dotnet test CopilotAgentObservability.slnx
 ```
 
-Collector example を変更した場合は、実 credential ではなく dummy の `LANGFUSE_AUTH` を使って Compose 構文を確認します。
+Collector example を変更した場合は、実 credential ではなく dummy value で Compose 構文を確認します。
 
 ```powershell
 $env:LANGFUSE_AUTH="dummy"
 docker compose -f infra\otel-collector\docker-compose.example.yml config
 ```
 
-## ドキュメント
+## 参考にした構成
 
-- [docs/getting-started.md](docs/getting-started.md): 利用者向けガイド
-- [docs/requirements.md](docs/requirements.md): 上位要件
-- [docs/spec.md](docs/spec.md): 確定仕様・実装判断の主 source of truth
-- [docs/task.md](docs/task.md): repository 全体の sprint / roadmap index
-- [docs/sprints/sprint1-langfuse-poc/](docs/sprints/sprint1-langfuse-poc/): Sprint1 の完了済み PoC 資料
-- [docs/sprints/sprint2-raw-data-loop/](docs/sprints/sprint2-raw-data-loop/): Sprint2 の完了済み raw data loop 資料
+README の構成は、画像付きで利用者に機能を説明している [github-copilot-resources/copilot-metrics-viewer](https://github.com/github-copilot-resources/copilot-metrics-viewer) を参考にしています。
