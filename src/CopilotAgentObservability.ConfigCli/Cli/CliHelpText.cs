@@ -4,6 +4,10 @@ internal static class CliHelpText
 {
     public const string Text = """
         Usage:
+          config-cli list-collection-profiles
+          config-cli profile-vscode-env [--profile <collection-profile>]
+          config-cli profile-copilot-cli-env [--profile <collection-profile>]
+          config-cli profile-codex-app-config [--profile <collection-profile>]
           config-cli vscode-settings
           config-cli langfuse-vscode-settings
           config-cli collector-vscode-settings

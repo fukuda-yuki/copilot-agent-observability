@@ -29,7 +29,7 @@ filter、search、sort は browser 上で完結します。
 
 ## できること
 
-- VS Code GitHub Copilot Chat、GitHub Copilot CLI、Codex App の OTel trace / metrics / logs を収集する。
+- VS Code GitHub Copilot Chat、GitHub Copilot CLI の OTel trace / metrics / events を収集し、任意で Codex App / app-server の OTel 出力も扱う。
 - collection profile で telemetry routing mode を切り替える。
 - Langfuse で prompt、response、tool call、token usage、duration、error を trace 単位で確認する。
 - saved raw OTLP JSON を SQLite raw store に取り込み、normalized measurement dataset を生成する。

@@ -5,6 +5,93 @@ namespace CopilotAgentObservability.ConfigCli.Tests;
 public class CliApplicationTests
 {
     [Fact]
+    public void Run_ListCollectionProfiles_WritesSupportedProfiles()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["list-collection-profiles"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("raw-only", output.ToString());
+        Assert.Contains("docker-desktop-langfuse", output.ToString());
+        Assert.Contains("raw-local-receiver", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_ProfileVsCodeEnv_UsesProfileArgument()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["profile-vscode-env", "--profile", "wsl2-docker-langfuse"], output, error);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("$env:CAO_COLLECTION_PROFILE=\"wsl2-docker-langfuse\"", output.ToString());
+        Assert.Contains("http://<wsl2-host-ip>:3000/api/public/otel", output.ToString());
+        Assert.Equal(string.Empty, error.ToString());
+    }
+
+    [Fact]
+    public void Run_ProfileCopilotCliEnv_ReadsEnvironmentProfile()
+    {
+        var previous = Environment.GetEnvironmentVariable(CollectionProfileOptions.EnvironmentVariableName);
+        try
+        {
+            Environment.SetEnvironmentVariable(CollectionProfileOptions.EnvironmentVariableName, "docker-desktop-collector-langfuse");
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            var exitCode = CliApplication.Run(["profile-copilot-cli-env"], output, error);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("$env:CAO_COLLECTION_PROFILE=\"docker-desktop-collector-langfuse\"", output.ToString());
+            Assert.Contains("http://localhost:4318", output.ToString());
+            Assert.Equal(string.Empty, error.ToString());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(CollectionProfileOptions.EnvironmentVariableName, previous);
+        }
+    }
+
+    [Fact]
+    public void Run_ProfileCommand_ReturnsNonZeroWithoutProfile()
+    {
+        var previous = Environment.GetEnvironmentVariable(CollectionProfileOptions.EnvironmentVariableName);
+        try
+        {
+            Environment.SetEnvironmentVariable(CollectionProfileOptions.EnvironmentVariableName, null);
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+
+            var exitCode = CliApplication.Run(["profile-vscode-env"], output, error);
+
+            Assert.Equal(1, exitCode);
+            Assert.Contains("collection profile is required", error.ToString());
+            Assert.Equal(string.Empty, output.ToString());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(CollectionProfileOptions.EnvironmentVariableName, previous);
+        }
+    }
+
+    [Fact]
+    public void Run_ProfileCommand_ReturnsNonZeroForRawLocalReceiver()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = CliApplication.Run(["profile-codex-app-config", "--profile", "raw-local-receiver"], output, error);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("raw-local-receiver is reserved for Sprint7", error.ToString());
+        Assert.Equal(string.Empty, output.ToString());
+    }
+
+    [Fact]
     public void Run_VsCodeSettings_WritesSettingsToOutput()
     {
         using var output = new StringWriter();

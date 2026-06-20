@@ -195,4 +195,52 @@ public class ConfigSamplesTests
         Assert.DoesNotContain("Authorization = \"Basic", config);
         Assert.DoesNotContain("x-langfuse-ingestion-version", config);
     }
+
+    [Theory]
+    [InlineData(CollectionProfileOptions.RawOnly, "raw-only uses saved raw OTLP JSON")]
+    [InlineData(CollectionProfileOptions.DockerDesktopLangfuse, "http://localhost:3000/api/public/otel")]
+    [InlineData(CollectionProfileOptions.DockerDesktopCollectorLangfuse, "http://localhost:4318")]
+    [InlineData(CollectionProfileOptions.Wsl2DockerLangfuse, "http://<wsl2-host-ip>:3000/api/public/otel")]
+    [InlineData(CollectionProfileOptions.Wsl2DockerCollectorLangfuse, "http://<wsl2-host-ip>:4318")]
+    [InlineData(CollectionProfileOptions.RemoteManagedLangfuse, "https://<langfuse-host>/api/public/otel")]
+    [InlineData(CollectionProfileOptions.RemoteManagedCollector, "https://<collector-host>")]
+    public void CreateProfileVsCodePowerShellScript_GeneratesProfileOutput(string profile, string expected)
+    {
+        var script = ConfigSamples.CreateProfileVsCodePowerShellScript(profile);
+
+        Assert.Contains($"$env:CAO_COLLECTION_PROFILE=\"{profile}\"", script);
+        Assert.Contains(expected, script);
+    }
+
+    [Theory]
+    [InlineData(CollectionProfileOptions.RawOnly, "raw-only uses saved raw OTLP JSON")]
+    [InlineData(CollectionProfileOptions.DockerDesktopLangfuse, "http://localhost:3000/api/public/otel")]
+    [InlineData(CollectionProfileOptions.DockerDesktopCollectorLangfuse, "http://localhost:4318")]
+    [InlineData(CollectionProfileOptions.Wsl2DockerLangfuse, "http://<wsl2-host-ip>:3000/api/public/otel")]
+    [InlineData(CollectionProfileOptions.Wsl2DockerCollectorLangfuse, "http://<wsl2-host-ip>:4318")]
+    [InlineData(CollectionProfileOptions.RemoteManagedLangfuse, "https://<langfuse-host>/api/public/otel")]
+    [InlineData(CollectionProfileOptions.RemoteManagedCollector, "https://<collector-host>")]
+    public void CreateProfileCopilotCliPowerShellScript_GeneratesProfileOutput(string profile, string expected)
+    {
+        var script = ConfigSamples.CreateProfileCopilotCliPowerShellScript(profile);
+
+        Assert.Contains($"$env:CAO_COLLECTION_PROFILE=\"{profile}\"", script);
+        Assert.Contains(expected, script);
+    }
+
+    [Theory]
+    [InlineData(CollectionProfileOptions.RawOnly, "raw-only uses saved raw OTLP JSON")]
+    [InlineData(CollectionProfileOptions.DockerDesktopLangfuse, "http://localhost:3000/api/public/otel/v1/traces")]
+    [InlineData(CollectionProfileOptions.DockerDesktopCollectorLangfuse, "http://localhost:4318/v1/traces")]
+    [InlineData(CollectionProfileOptions.Wsl2DockerLangfuse, "http://<wsl2-host-ip>:3000/api/public/otel/v1/traces")]
+    [InlineData(CollectionProfileOptions.Wsl2DockerCollectorLangfuse, "http://<wsl2-host-ip>:4318/v1/traces")]
+    [InlineData(CollectionProfileOptions.RemoteManagedLangfuse, "https://<langfuse-host>/api/public/otel/v1/traces")]
+    [InlineData(CollectionProfileOptions.RemoteManagedCollector, "https://<collector-host>/v1/traces")]
+    public void CreateProfileCodexAppConfigToml_GeneratesProfileOutput(string profile, string expected)
+    {
+        var config = ConfigSamples.CreateProfileCodexAppConfigToml(profile);
+
+        Assert.Contains($"CAO_COLLECTION_PROFILE={profile}", config);
+        Assert.Contains(expected, config);
+    }
 }

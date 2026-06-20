@@ -12,6 +12,19 @@ internal static class CliApplication
 
         switch (args[0])
         {
+            case "list-collection-profiles":
+                output.WriteLine(string.Join(Environment.NewLine, CollectionProfileOptions.SupportedValues));
+                return 0;
+
+            case "profile-vscode-env":
+                return RunProfileCommand(args, output, error, ConfigSamples.CreateProfileVsCodePowerShellScript);
+
+            case "profile-copilot-cli-env":
+                return RunProfileCommand(args, output, error, ConfigSamples.CreateProfileCopilotCliPowerShellScript);
+
+            case "profile-codex-app-config":
+                return RunProfileCommand(args, output, error, ConfigSamples.CreateProfileCodexAppConfigToml);
+
             case "vscode-settings":
                 output.WriteLine(ConfigSamples.CreateVsCodeSettingsJson());
                 return 0;
@@ -139,6 +152,25 @@ internal static class CliApplication
                 error.WriteLine(CliHelpText.Text);
                 return 1;
         }
+    }
+
+    private static int RunProfileCommand(string[] args, TextWriter output, TextWriter error, Func<string, string> createOutput)
+    {
+        var parseResult = CollectionProfileOptions.Parse(args);
+        if (parseResult.Error is not null)
+        {
+            error.WriteLine($"error: {parseResult.Error}");
+            return 1;
+        }
+
+        if (parseResult.Options!.Profile == CollectionProfileOptions.RawLocalReceiver)
+        {
+            error.WriteLine("error: raw-local-receiver is reserved for Sprint7 and is not implemented by Sprint6 profile commands.");
+            return 1;
+        }
+
+        output.WriteLine(createOutput(parseResult.Options.Profile));
+        return 0;
     }
 
     private static int RunIngestRaw(string[] args, TextWriter output, TextWriter error)
