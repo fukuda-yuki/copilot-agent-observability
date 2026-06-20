@@ -7,11 +7,15 @@ VS Code GitHub Copilot Chat
 GitHub Copilot CLI
 Codex App / app-server
         |
-        | OTLP HTTP
+        | OTLP HTTP or saved raw OTLP JSON
         v
-Langfuse self-host
+Selected collection profile
         |
-        | export / saved raw OTLP JSON
+        +--> Langfuse self-host when available
+        +--> Collector relay when selected
+        +--> Raw-only file input when no local runtime is allowed
+        |
+        | saved raw OTLP JSON
         v
 Config CLI
         |
@@ -26,7 +30,7 @@ Static HTML dashboard
 GitHub Pages / gh-pages snapshots
 ```
 
-Langfuse は個別 trace の viewer として使う。
+Langfuse は利用可能な profile では個別 trace の viewer として使う。
 改善支援 loop と dashboard は Langfuse UI に必須依存せず、saved raw OTLP JSON、SQLite raw store、normalized dataset を主入力にできる。
 
 ## 2. Primary Components
@@ -51,6 +55,17 @@ Langfuse は個別 trace の viewer として使う。
 - Collector は Langfuse 認証を集約し、client 側には Langfuse credential を置かない構成を取れる。
 - 初期 example は trace pipeline のみを扱う。
 - masking、sampling、TLS、SSO、共有環境運用は事前決定が必要。
+
+### Collection Profiles
+
+Collection profile は、利用者の local runtime 制約に合わせて収集経路を明示する境界である。
+
+- `raw-only`: 追加 software、Docker Desktop、WSL2 Docker Engine、Langfuse、Collector、local receiver、daemon を要求しない。Saved raw OTLP JSON から raw data loop と static dashboard を実行する。
+- `docker-desktop`: Docker Desktop 上の Langfuse self-host と任意の Collector を使う標準 live trace review path。
+- `wsl2-docker-engine`: Docker Desktop なしで WSL2 Docker Engine を使う候補。Windows host / WSL2 間の endpoint、volume、credential の扱いを決めるまで実装しない。
+- `collector-only`: client は Collector receiver を向き、下流 backend は profile または運用環境で選ぶ。
+
+Profile は明示選択とし、前提条件が満たせない場合に別 profile へ暗黙 fallback しない。
 
 ### Config CLI
 
