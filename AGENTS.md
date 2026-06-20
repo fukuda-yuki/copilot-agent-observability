@@ -13,14 +13,12 @@ They do not define product behavior.
 
 Run these commands from the repository root.
 
-Standard validation for code, project file, CLI behavior, or workflow changes:
-
 ```powershell
 dotnet build CopilotAgentObservability.slnx
 dotnet test CopilotAgentObservability.slnx
 ```
 
-Targeted test example while iterating:
+Targeted test while iterating:
 
 ```powershell
 dotnet test tests\CopilotAgentObservability.ConfigCli.Tests\CopilotAgentObservability.ConfigCli.Tests.csproj --filter FullyQualifiedName~<test-or-class>
@@ -33,15 +31,7 @@ $env:LANGFUSE_AUTH="dummy"
 docker compose -f infra\otel-collector\docker-compose.example.yml config
 ```
 
-Representative CLI smoke checks may use synthetic fixtures, for example:
-
-```powershell
-dotnet run --project src\CopilotAgentObservability.ConfigCli -- normalize-raw tests\CopilotAgentObservability.ConfigCli.Tests\TestData\raw-otlp.synthetic.json --json tmp\dashboard-demo\measurements.json
-dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-dashboard-dataset tmp\dashboard-demo\measurements.json --raw tests\CopilotAgentObservability.ConfigCli.Tests\TestData\raw-otlp.synthetic.json --json tmp\dashboard-demo\dashboard.json
-dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-static-dashboard tmp\dashboard-demo\dashboard.json --out-dir tmp\dashboard-demo\site
-```
-
-For the complete Config CLI surface, use `docs/specifications/interfaces/config-cli.md` and the user guides.
+For CLI smoke examples and the complete command surface, use `docs/agent-guides/repository-workflow.md` and `docs/specifications/interfaces/config-cli.md`.
 Do not add `npm test`, `pytest -v`, or other ecosystem commands unless a matching project manifest or specification is added.
 
 ## Source Of Truth
@@ -66,112 +56,25 @@ For detailed sprint-history handling, use `docs/agent-guides/sprint-history.md`.
 If `docs/requirements.md` and implementation details disagree, state the conflict before editing.
 If the intended behavior is clear, update the specification first; otherwise ask the user.
 
-## Working Order
+## Working Defaults
 
-Before changing code, repository guidance, or project documents, inspect context in this order:
+Use `docs/agent-guides/repository-workflow.md` for detailed working order, confirmation policy, simplicity, surgical change rules, goal-driven execution, validation, failure policy, document updates, and git rules.
 
-1. `docs/requirements.md`.
-2. `docs/spec.md`.
-3. The relevant `docs/specifications/` file.
-4. `docs/architecture.md` and `docs/decisions.md` when architecture or policy may be affected.
-5. `docs/task.md` for roadmap and historical status.
-6. The target file to understand current structure, style, and local conventions.
-7. Historical sprint material only when a prior decision or evidence trail is needed.
-
+Before changing code, repository guidance, or project documents, inspect `docs/requirements.md`, `docs/spec.md`, the relevant `docs/specifications/` file, architecture/decision/task docs when applicable, and then the target file.
 For Aspire AppHost usage decisions, refer to `docs/specifications/layers/telemetry-ingestion.md` and `docs/architecture.md`.
 
-## Confirmation Policy
-
-Ask before proceeding when the task would:
-
-- make an irreversible change;
-- change product behavior, public interfaces, input/output formats, or security policy;
-- add runtime or development dependencies;
-- conflict with `docs/requirements.md`, `docs/spec.md`, or `docs/specifications/`;
-- require a product/spec decision missing from the current specifications;
-- require creating a preserved review note when the active work item is unclear.
-
-Do not stop unnecessarily for minor, reversible, local edits.
-
-## Think Before Coding
-
-Do not assume. Do not hide confusion. Surface tradeoffs.
-
-Before implementing:
-
-- State assumptions explicitly when they affect the work.
-- If multiple interpretations exist, present them instead of choosing silently.
-- If a simpler approach exists, say so.
-- Push back when the request is risky, unclear, or inconsistent with the source of truth.
-
-## Simplicity First
-
-Minimum code that solves the problem. Nothing speculative.
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No flexibility, configurability, or new workflow unless requested or required by the current specifications.
-- No error handling for impossible scenarios.
-- If a change is much larger than the problem, simplify it.
-
-Ask: "Would a senior engineer say this is overcomplicated?" If yes, rewrite.
-
-## Surgical Changes
-
-Touch only what you must. Clean up only your own mess.
-
-When editing:
-
-- Do not improve adjacent code, comments, formatting, or structure outside the task.
-- Do not refactor things that are not broken.
-- Match existing style, even if you would choose a different one.
-- If you notice unrelated dead code, mention it; do not delete it unless asked.
-
-When your changes create orphans:
-
-- Remove imports, variables, functions, docs, or tests made unused by your change.
-- Do not remove pre-existing dead code unless asked.
-
-Every changed line should trace directly to the user's request.
-
-## Goal-Driven Execution
-
-Define success criteria. Loop until verified.
-
-Transform tasks into verifiable goals:
-
-- "Add validation" -> "Write or identify checks for invalid inputs, then make them pass."
-- "Fix the bug" -> "Reproduce the bug, then verify the fix."
-- "Refactor X" -> "Confirm behavior before and after using the relevant tests or checks."
-
-For multi-step tasks, state a brief plan when useful:
-
-```text
-1. [Step] -> verify: [check]
-2. [Step] -> verify: [check]
-3. [Step] -> verify: [check]
-```
-
-Weak success criteria such as "make it work" require clarification or an explicit assumption.
+Ask before irreversible changes, product behavior or public interface changes, security policy changes, dependency additions, source-of-truth conflicts, missing spec decisions, or unclear preserved review records.
+Keep changes minimum, scoped, and traceable to the request.
 
 ## Tests And Validation
 
-- Derive test scope from `docs/requirements.md`, `docs/spec.md`, and the relevant `docs/specifications/` file.
-- Use small, synthetic or anonymized fixtures.
-- Do not commit secrets, real user data, confidential data, or generated runtime artifacts.
-- Check the changed behavior plus nearby edge cases and regression risks.
-- Keep automated tests deterministic; isolate external services, network, local machine state, and live services.
-- If behavior cannot be automatically verified, document the live check procedure and required evidence.
-- Use commands defined by the current specifications, project files, or existing repository scripts.
-- If required tools are missing, report the missing tool and the command that should have been run.
-- Use the command set in `Repository Commands` early when planning, iterating, and reporting validation.
+Derive test scope from `docs/requirements.md`, `docs/spec.md`, and the relevant `docs/specifications/` file.
+Use small synthetic or anonymized fixtures.
+Do not commit secrets, real user data, confidential data, or generated runtime artifacts.
 
-## Failure And Non-Substitution Policy
-
-- If a required command fails, is skipped, or cannot run because a tool is missing, do not treat a different command as an equivalent success.
-- Diagnostic commands may be useful follow-up evidence, but they do not replace the required validation command.
-- Do not substitute a different workflow when it changes what is being verified.
-- In the final report, state the commands run, their result, any unverified scope, and the exact command still needed.
+If a required command fails, is skipped, or cannot run because a tool is missing, do not treat a different command as an equivalent success.
+Diagnostic commands may be useful follow-up evidence, but they do not replace required validation.
+In the final report, state commands run, results, unverified scope, and exact commands still needed.
 
 ## Dependencies And Environment
 
@@ -179,33 +82,31 @@ Weak success criteria such as "make it work" require clarification or an explici
 - Do not update lockfiles as a side effect when dependency changes are out of scope.
 - Do not use network-dependent validation as the only proof of correctness.
 
+## Codex Guidance Files
+
+`AGENTS.md` is the natural-language repository guidance Codex loads automatically.
+Keep it short and practical; put detailed procedures in `docs/agent-guides/` and read them when relevant.
+
+`.codex/rules/*.rules` is for command execution policy outside the sandbox, not for natural-language workflow guidance.
+Do not use `.codex/rules` as a replacement for `AGENTS.md`.
+
 ## Subagent Requests
 
-Codex cannot assume autonomous access to subagents in every surface.
 Use subagents only when the user explicitly asks for subagent delegation and the active surface provides that capability.
-
-- When subagents are available, use the repository-local Mission Card guidance in `.agents/skills/codex-subagent-dispatch/SKILL.md`.
-- Do not pretend that delegation happened when no subagent capability is available.
-- If subagents are unavailable, continue in the main chat or provide a mission card the user can run elsewhere.
-- The main chat remains responsible for integration, validation, and final decisions.
+When subagents are available, use `.agents/skills/codex-subagent-dispatch/SKILL.md`.
+Otherwise continue in the main chat or provide a mission card the user can run elsewhere.
 
 ## Review Workflow
-
-Before declaring implementation complete, review the change at a level proportional to its risk.
 
 Use `docs/agent-guides/review-workflow.md` for review depth, self-review expectations, preserved review records, and subagent-independent review practice.
 Documentation-only, typo-only, formatting-only, or other minor reversible changes can use a recorded self-review.
 
 ## Project Document Updates
 
-Before finishing, update project documents when the task requires it:
-
-- Update `docs/requirements.md`, `docs/spec.md`, and the relevant `docs/specifications/` file when product behavior or public interfaces change.
-- Update user-facing guides when the user workflow changes.
-- Update `docs/task.md` when roadmap or historical status changes.
-- Record reusable findings in the relevant specification or shared docs location.
-- Do not hide product specifications only in sprint notes or knowledge files.
-- If required documentation cannot be updated, do not claim completion. State the blocker and needed confirmation.
+Update `docs/requirements.md`, `docs/spec.md`, and the relevant `docs/specifications/` file when product behavior or public interfaces change.
+Update user-facing guides when the user workflow changes.
+Update `docs/task.md` when roadmap or historical status changes.
+Do not hide product specifications only in sprint notes or knowledge files.
 
 ## Git Rules
 
@@ -213,12 +114,7 @@ Create local commits in small, coherent steps after validation and review are co
 Do not wait for an explicit user request when a completed, verified step can be committed cleanly.
 If the active work item is unclear, or the change mixes unrelated concerns, ask before committing.
 
-Do not:
-
-- push branches or tags;
-- create, update, merge, or auto-merge pull requests;
-- rewrite remote history.
-
+Do not push branches or tags, create/update/merge/auto-merge pull requests, or rewrite remote history.
 Commit messages must start with the active work item name and then follow Conventional Commits.
 
 ---
