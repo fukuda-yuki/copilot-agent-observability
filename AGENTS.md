@@ -9,6 +9,41 @@ They do not define product behavior.
 - Write user-facing responses in Japanese.
 - Keep product deliverables in the language and tone already used by the target document unless the user asks otherwise.
 
+## Repository Commands
+
+Run these commands from the repository root.
+
+Standard validation for code, project file, CLI behavior, or workflow changes:
+
+```powershell
+dotnet build CopilotAgentObservability.slnx
+dotnet test CopilotAgentObservability.slnx
+```
+
+Targeted test example while iterating:
+
+```powershell
+dotnet test tests\CopilotAgentObservability.ConfigCli.Tests\CopilotAgentObservability.ConfigCli.Tests.csproj --filter FullyQualifiedName~<test-or-class>
+```
+
+Collector example validation:
+
+```powershell
+$env:LANGFUSE_AUTH="dummy"
+docker compose -f infra\otel-collector\docker-compose.example.yml config
+```
+
+Representative CLI smoke checks may use synthetic fixtures, for example:
+
+```powershell
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- normalize-raw tests\CopilotAgentObservability.ConfigCli.Tests\TestData\raw-otlp.synthetic.json --json tmp\dashboard-demo\measurements.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-dashboard-dataset tmp\dashboard-demo\measurements.json --raw tests\CopilotAgentObservability.ConfigCli.Tests\TestData\raw-otlp.synthetic.json --json tmp\dashboard-demo\dashboard.json
+dotnet run --project src\CopilotAgentObservability.ConfigCli -- generate-static-dashboard tmp\dashboard-demo\dashboard.json --out-dir tmp\dashboard-demo\site
+```
+
+For the complete Config CLI surface, use `docs/specifications/interfaces/config-cli.md` and the user guides.
+Do not add `npm test`, `pytest -v`, or other ecosystem commands unless a matching project manifest or specification is added.
+
 ## Source Of Truth
 
 When instructions conflict, use this order:
@@ -26,6 +61,7 @@ Do not infer product behavior from them unless it is also reflected in `docs/req
 
 `docs/sprints/` contains historical planning and evidence.
 Use it for context only. Do not treat sprint-local material as current product behavior unless it has been promoted into the current requirements or specifications.
+For detailed sprint-history handling, use `docs/agent-guides/sprint-history.md`.
 
 If `docs/requirements.md` and implementation details disagree, state the conflict before editing.
 If the intended behavior is clear, update the specification first; otherwise ask the user.
@@ -128,53 +164,37 @@ Weak success criteria such as "make it work" require clarification or an explici
 - If behavior cannot be automatically verified, document the live check procedure and required evidence.
 - Use commands defined by the current specifications, project files, or existing repository scripts.
 - If required tools are missing, report the missing tool and the command that should have been run.
+- Use the command set in `Repository Commands` early when planning, iterating, and reporting validation.
 
-Standard validation for code, project file, CLI behavior, or workflow changes:
+## Failure And Non-Substitution Policy
 
-```powershell
-dotnet build CopilotAgentObservability.slnx
-dotnet test CopilotAgentObservability.slnx
-```
-
-Collector example validation:
-
-```powershell
-$env:LANGFUSE_AUTH="dummy"
-docker compose -f infra\otel-collector\docker-compose.example.yml config
-```
+- If a required command fails, is skipped, or cannot run because a tool is missing, do not treat a different command as an equivalent success.
+- Diagnostic commands may be useful follow-up evidence, but they do not replace the required validation command.
+- Do not substitute a different workflow when it changes what is being verified.
+- In the final report, state the commands run, their result, any unverified scope, and the exact command still needed.
 
 ## Dependencies And Environment
 
 - Do not add runtime or development dependencies unless the current specifications require it or the user explicitly asks.
 - Do not update lockfiles as a side effect when dependency changes are out of scope.
 - Do not use network-dependent validation as the only proof of correctness.
-- Do not substitute a different workflow if it changes what is being verified.
 
-## Subagent Delegation
+## Subagent Requests
 
-When the user asks to split work across reader and writer subagents, use the repository-local Mission Card guidance in `.agents/skills/codex-subagent-dispatch/SKILL.md`.
+Codex cannot assume autonomous access to subagents in every surface.
+Use subagents only when the user explicitly asks for subagent delegation and the active surface provides that capability.
 
-- Treat the main Codex chat as the coordinator and subagents as bounded workers.
-- If the active Codex surface does not auto-discover the repo-local skill, explicitly read and follow `.agents/skills/codex-subagent-dispatch/SKILL.md`.
-- Do not delegate vague work. Define the mission, scope, permissions, expected output, and stop condition before assigning work.
-- Prefer reader agents before writer agents when implementation scope is unclear.
-- The main chat integrates results and makes final decisions.
+- When subagents are available, use the repository-local Mission Card guidance in `.agents/skills/codex-subagent-dispatch/SKILL.md`.
+- Do not pretend that delegation happened when no subagent capability is available.
+- If subagents are unavailable, continue in the main chat or provide a mission card the user can run elsewhere.
+- The main chat remains responsible for integration, validation, and final decisions.
 
 ## Review Workflow
 
 Before declaring implementation complete, review the change at a level proportional to its risk.
 
-Use multiple subagents when available for implementation changes, behavior changes, public interface changes, security-sensitive changes, or broad refactors.
-A recorded self-review is enough for documentation-only, typo-only, formatting-only, or other minor reversible changes.
-
-Minimum review perspectives:
-
-- Spec compliance and functional correctness.
-- Tests, edge cases, and regression risk.
-- Maintainability, readability, and extensibility.
-
-For preserved review records, use the active work item's review location.
-If the active work item is unclear, ask before creating the review note.
+Use `docs/agent-guides/review-workflow.md` for review depth, self-review expectations, preserved review records, and subagent-independent review practice.
+Documentation-only, typo-only, formatting-only, or other minor reversible changes can use a recorded self-review.
 
 ## Project Document Updates
 
