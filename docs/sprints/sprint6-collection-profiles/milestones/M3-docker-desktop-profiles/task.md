@@ -32,7 +32,9 @@ docker compose -f infra\otel-collector\docker-compose.example.yml config
 ## Validation Notes
 
 2026-06-20 local validation covered profile output, Docker Desktop endpoint
-reachability, Collector startup, and synthetic OTLP receiver behavior.
+reachability, Collector startup, and synthetic OTLP receiver behavior. The
+initial run used dummy `LANGFUSE_AUTH` only, so Langfuse export returned
+`401 Unauthorized` as expected.
 
 - `docker-desktop-langfuse` profile output targets local Langfuse OTLP HTTP.
 - `docker-desktop-collector-langfuse` profile output targets local Collector
@@ -44,11 +46,13 @@ reachability, Collector startup, and synthetic OTLP receiver behavior.
 - Collector attempted to export to Langfuse and received `401 Unauthorized`
   because validation used dummy `LANGFUSE_AUTH`.
 
-Remaining live evidence:
+2026-06-21 collaborative live validation used a local Langfuse project named
+`local-validation` and real project credentials supplied by the user in their
+local PowerShell session only. No credential value was recorded in the
+repository.
 
-- Re-run with a real local Langfuse project credential supplied outside the
-  repository, then record the resulting trace id or raw record identifier for
-  `docker-desktop-langfuse`.
-- Re-run the Collector path with a real local Langfuse project credential
-  supplied outside the repository, then record the resulting trace id or raw
-  record identifier for `docker-desktop-collector-langfuse`.
+- `docker-desktop-langfuse` direct path was seen in Langfuse with trace id
+  `33333333333333333333333333333333`.
+- `docker-desktop-collector-langfuse` Collector relay path was seen in Langfuse
+  with trace id `55555555555555555555555555555555`.
+- Unverified or error items: none reported by the user.
