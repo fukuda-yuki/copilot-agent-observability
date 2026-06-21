@@ -8,7 +8,7 @@ public class RawLocalReceiverIntegrationTests
     [Fact]
     public void HandleProtobufTrace_NormalizeRawWritesExpectedMeasurementRow()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
         var measurementsPath = Path.Combine(tempDirectory.Path, "measurements.json");
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
@@ -43,23 +43,5 @@ public class RawLocalReceiverIntegrationTests
         Assert.Equal(15, row.GetProperty("total_tokens").GetInt32());
         Assert.Equal(500, row.GetProperty("duration_ms").GetInt32());
     }
-
-    private sealed class TempDirectory : IDisposable
-    {
-        public TempDirectory()
-        {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"m5-raw-receiver-integration-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(Path);
-            DatabasePath = System.IO.Path.Combine(Path, "raw-store.db");
-        }
-
-        public string Path { get; }
-
-        public string DatabasePath { get; }
-
-        public void Dispose()
-        {
-            Directory.Delete(Path, recursive: true);
-        }
-    }
 }
+

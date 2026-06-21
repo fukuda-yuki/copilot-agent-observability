@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using CopilotAgentObservability.ConfigCli;
 
@@ -11,30 +10,30 @@ public class OtlpProtobufTraceConverterTests
     {
         var traceId = Convert.FromHexString("11111111111111111111111111111111");
         var spanId = Convert.FromHexString("2222222222222222");
-        var resource = Message(
-            LengthDelimited(1, KeyValue("client.kind", StringValue("vscode-copilot-chat"))),
-            LengthDelimited(1, KeyValue("experiment.id", StringValue("baseline"))));
-        var spanMessage = Message(
-            LengthDelimited(1, traceId),
-            LengthDelimited(2, spanId),
-            StringField(5, "chat gpt-4o"),
-            VarintField(6, 1),
-            Fixed64Field(7, 1_000_000_000),
-            Fixed64Field(8, 1_500_000_000),
-            LengthDelimited(9, KeyValue("gen_ai.operation.name", StringValue("chat"))),
-            LengthDelimited(9, KeyValue("gen_ai.usage.input_tokens", IntValue(10))),
-            LengthDelimited(9, KeyValue("gen_ai.usage.output_tokens", IntValue(5))),
-            LengthDelimited(9, KeyValue("synthetic.signed", IntValue(unchecked((ulong)-7L)))),
-            LengthDelimited(11, Message(
-                Fixed64Field(1, 1_100_000_000),
-                StringField(2, "gen_ai.first_token"),
-                LengthDelimited(3, KeyValue("event.kind", StringValue("first-token"))))),
-            LengthDelimited(15, Message(
-                StringField(2, "synthetic error"),
-                VarintField(3, 2))));
-        var scopeSpans = Message(LengthDelimited(2, spanMessage));
-        var resourceSpans = Message(LengthDelimited(1, resource), LengthDelimited(2, scopeSpans));
-        var request = Message(LengthDelimited(1, resourceSpans));
+        var resource = OtlpProtobufTestPayload.Message(
+            OtlpProtobufTestPayload.LengthDelimited(1, OtlpProtobufTestPayload.KeyValue("client.kind", OtlpProtobufTestPayload.StringValue("vscode-copilot-chat"))),
+            OtlpProtobufTestPayload.LengthDelimited(1, OtlpProtobufTestPayload.KeyValue("experiment.id", OtlpProtobufTestPayload.StringValue("baseline"))));
+        var spanMessage = OtlpProtobufTestPayload.Message(
+            OtlpProtobufTestPayload.LengthDelimited(1, traceId),
+            OtlpProtobufTestPayload.LengthDelimited(2, spanId),
+            OtlpProtobufTestPayload.StringField(5, "chat gpt-4o"),
+            OtlpProtobufTestPayload.VarintField(6, 1),
+            OtlpProtobufTestPayload.Fixed64Field(7, 1_000_000_000),
+            OtlpProtobufTestPayload.Fixed64Field(8, 1_500_000_000),
+            OtlpProtobufTestPayload.LengthDelimited(9, OtlpProtobufTestPayload.KeyValue("gen_ai.operation.name", OtlpProtobufTestPayload.StringValue("chat"))),
+            OtlpProtobufTestPayload.LengthDelimited(9, OtlpProtobufTestPayload.KeyValue("gen_ai.usage.input_tokens", OtlpProtobufTestPayload.IntValue(10))),
+            OtlpProtobufTestPayload.LengthDelimited(9, OtlpProtobufTestPayload.KeyValue("gen_ai.usage.output_tokens", OtlpProtobufTestPayload.IntValue(5))),
+            OtlpProtobufTestPayload.LengthDelimited(9, OtlpProtobufTestPayload.KeyValue("synthetic.signed", OtlpProtobufTestPayload.IntValue(unchecked((ulong)-7L)))),
+            OtlpProtobufTestPayload.LengthDelimited(11, OtlpProtobufTestPayload.Message(
+                OtlpProtobufTestPayload.Fixed64Field(1, 1_100_000_000),
+                OtlpProtobufTestPayload.StringField(2, "gen_ai.first_token"),
+                OtlpProtobufTestPayload.LengthDelimited(3, OtlpProtobufTestPayload.KeyValue("event.kind", OtlpProtobufTestPayload.StringValue("first-token"))))),
+            OtlpProtobufTestPayload.LengthDelimited(15, OtlpProtobufTestPayload.Message(
+                OtlpProtobufTestPayload.StringField(2, "synthetic error"),
+                OtlpProtobufTestPayload.VarintField(3, 2))));
+        var scopeSpans = OtlpProtobufTestPayload.Message(OtlpProtobufTestPayload.LengthDelimited(2, spanMessage));
+        var resourceSpans = OtlpProtobufTestPayload.Message(OtlpProtobufTestPayload.LengthDelimited(1, resource), OtlpProtobufTestPayload.LengthDelimited(2, scopeSpans));
+        var request = OtlpProtobufTestPayload.Message(OtlpProtobufTestPayload.LengthDelimited(1, resourceSpans));
 
         var json = OtlpProtobufTraceConverter.ConvertTraceRequestToRawOtlpJson(request);
 
@@ -90,73 +89,5 @@ public class OtlpProtobufTraceConverterTests
         yield return [new byte[] { 0x0A, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F }];
         yield return [new byte[] { 0x0F }];
     }
-
-    private static byte[] KeyValue(string key, byte[] value)
-    {
-        return Message(StringField(1, key), LengthDelimited(2, value));
-    }
-
-    private static byte[] StringValue(string value)
-    {
-        return Message(StringField(1, value));
-    }
-
-    private static byte[] IntValue(ulong value)
-    {
-        return Message(VarintField(3, value));
-    }
-
-    private static byte[] Message(params byte[][] fields)
-    {
-        using var stream = new MemoryStream();
-        foreach (var field in fields)
-        {
-            stream.Write(field);
-        }
-
-        return stream.ToArray();
-    }
-
-    private static byte[] StringField(int fieldNumber, string value)
-    {
-        return LengthDelimited(fieldNumber, Encoding.UTF8.GetBytes(value));
-    }
-
-    private static byte[] LengthDelimited(int fieldNumber, byte[] value)
-    {
-        using var stream = new MemoryStream();
-        WriteVarint(stream, ((ulong)fieldNumber << 3) | 2);
-        WriteVarint(stream, (ulong)value.Length);
-        stream.Write(value);
-        return stream.ToArray();
-    }
-
-    private static byte[] VarintField(int fieldNumber, ulong value)
-    {
-        using var stream = new MemoryStream();
-        WriteVarint(stream, (ulong)fieldNumber << 3);
-        WriteVarint(stream, value);
-        return stream.ToArray();
-    }
-
-    private static byte[] Fixed64Field(int fieldNumber, ulong value)
-    {
-        using var stream = new MemoryStream();
-        WriteVarint(stream, ((ulong)fieldNumber << 3) | 1);
-        Span<byte> bytes = stackalloc byte[8];
-        BitConverter.TryWriteBytes(bytes, value);
-        stream.Write(bytes);
-        return stream.ToArray();
-    }
-
-    private static void WriteVarint(Stream stream, ulong value)
-    {
-        while (value >= 0x80)
-        {
-            stream.WriteByte((byte)(value | 0x80));
-            value >>= 7;
-        }
-
-        stream.WriteByte((byte)value);
-    }
 }
+

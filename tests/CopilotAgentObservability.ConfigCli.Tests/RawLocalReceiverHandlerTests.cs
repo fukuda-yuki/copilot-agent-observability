@@ -9,7 +9,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_PersistsJsonTraceRequest()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
         var receivedAt = new DateTimeOffset(2026, 6, 21, 1, 2, 3, TimeSpan.Zero);
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
@@ -39,7 +39,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_PersistsProtobufTraceRequestAfterConversion()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "POST",
@@ -69,7 +69,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_RejectsInvalidJsonTraceRequestWithoutPersisting()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "POST",
@@ -90,7 +90,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_RejectsJsonTraceRequestWithoutSpansWithoutPersisting()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "POST",
@@ -108,7 +108,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_RejectsEmptyProtobufTraceRequestWithoutPersisting()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "POST",
@@ -126,7 +126,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_RejectsMalformedProtobufTraceRequestWithoutPersisting()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "POST",
@@ -144,7 +144,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_ReturnsPersistenceFailureWhenDatabaseCannotBeWritten()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "POST",
@@ -165,7 +165,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_RejectsGetTraceRequestWithoutPersisting()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "GET",
@@ -183,7 +183,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_RejectsUnsupportedSignalWithoutPersisting()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "POST",
@@ -201,7 +201,7 @@ public class RawLocalReceiverHandlerTests
     [Fact]
     public void Handle_RejectsUnsupportedContentTypeWithoutPersisting()
     {
-        using var tempDirectory = new TempDirectory();
+        using var tempDirectory = new ReceiverTempDirectory();
 
         var response = RawLocalReceiverHandler.Handle(new RawLocalReceiverRequest(
             Method: "POST",
@@ -250,23 +250,5 @@ public class RawLocalReceiverHandlerTests
             }
             """;
     }
-
-    private sealed class TempDirectory : IDisposable
-    {
-        public TempDirectory()
-        {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"m5-raw-receiver-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(Path);
-            DatabasePath = System.IO.Path.Combine(Path, "raw-store.db");
-        }
-
-        public string Path { get; }
-
-        public string DatabasePath { get; }
-
-        public void Dispose()
-        {
-            Directory.Delete(Path, recursive: true);
-        }
-    }
 }
+

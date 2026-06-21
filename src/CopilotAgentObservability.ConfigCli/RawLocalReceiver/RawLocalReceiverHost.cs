@@ -11,12 +11,31 @@ internal static class RawLocalReceiverHost
         listener.Start();
         output.WriteLine($"Raw local receiver listening on {options.Url}.");
         output.WriteLine($"Raw store: {options.DatabasePath}");
+        output.WriteLine("Press Ctrl+C to stop.");
 
-        while (true)
+        var stopping = false;
+        Console.CancelKeyPress += (_, eventArgs) =>
         {
-            var context = listener.GetContext();
-            HandleContext(context, options.DatabasePath);
+            eventArgs.Cancel = true;
+            stopping = true;
+            listener.Stop();
+        };
+
+        try
+        {
+            while (!stopping)
+            {
+                var context = listener.GetContext();
+                HandleContext(context, options.DatabasePath);
+            }
         }
+        catch (HttpListenerException) when (stopping)
+        {
+            // Expected when listener.Stop() is called during GetContext().
+        }
+
+        output.WriteLine("Raw local receiver stopped.");
+        return 0;
     }
 
     private static void HandleContext(HttpListenerContext context, string databasePath)
