@@ -26,7 +26,7 @@
 | Observability Dashboard | 完了 | [docs/sprints/sprint4-observability-dashboard/](sprints/sprint4-observability-dashboard/) で dashboard view、metric、dimension、drilldown、dataset contract を定義した |
 | Static Dashboard | 完了 | [docs/sprints/sprint5-static-dashboard/](sprints/sprint5-static-dashboard/) で static HTML dashboard、GitHub Actions publish workflow、dashboard input staging contract を実装した |
 | Collection Profiles | レビュー完了 | [docs/sprints/sprint6-collection-profiles/](sprints/sprint6-collection-profiles/) で `CAO_COLLECTION_PROFILE`、raw-only minimum、Docker Desktop / WSL2 / remote managed routing profiles の code / docs を実装し M6 review で accept した。`raw-local-receiver` は Sprint7 へ handoff 済み。remote managed live validation のみ外部 access-control / consent 判断待ち |
-| Local Raw Receiver | 未着手 | [docs/sprints/sprint7-local-raw-receiver/](sprints/sprint7-local-raw-receiver/) で `raw-local-receiver`、repository-hosted receiver、VS Code direct telemetry validation を実装する |
+| Local Raw Receiver | 着手中 | [docs/sprints/sprint7-local-raw-receiver/](sprints/sprint7-local-raw-receiver/) で `raw-local-receiver`、repository-hosted receiver、VS Code direct telemetry validation を実装する。Sprint7 M1 で receiver requirements、safety boundary、validation evidence を確定する |
 
 ## Open Follow-ups
 

@@ -7,7 +7,10 @@ Implement the local OTLP HTTP receiver for `raw-local-receiver`.
 ## Scope
 
 - Receive OTLP HTTP telemetry from local clients.
-- Accept at least trace payloads needed for VS Code Copilot Chat validation.
+- Bind only to loopback local development endpoints unless a later security
+  decision allows broader exposure.
+- Accept at least trace payloads on the standard OTLP HTTP `/v1/traces` path
+  needed for VS Code Copilot Chat validation.
 - Return deterministic errors for unsupported payloads.
 - Avoid storing secrets in repository files.
 

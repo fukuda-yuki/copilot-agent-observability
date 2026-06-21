@@ -55,6 +55,10 @@ Raw receiver output is local runtime data and must not be committed.
 Repository-safe outputs must continue to use normalized / sanitized datasets.
 The receiver must bind only to local development endpoints unless a later
 security decision allows broader exposure.
+The receiver must not expose raw telemetry through dashboard output, generated
+static artifacts, GitHub Pages snapshots, or repository-safe review records.
+Live validation evidence must use trace ids, raw record identifiers, redacted
+summaries, and non-secret endpoint shapes instead of raw payload content.
 
 ## Shared Use Preconditions
 

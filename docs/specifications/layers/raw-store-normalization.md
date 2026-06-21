@@ -48,6 +48,9 @@ At least one output option must be provided by commands that require output.
 The local receiver may write directly to the SQLite raw store or produce a raw
 OTLP file that can be passed to `ingest-raw`.
 Either path must preserve the same normalization output contract.
+Receiver-created raw stores and raw OTLP files are local runtime data. They
+must remain outside repository-safe outputs, and tests must use synthetic
+fixtures rather than captured raw Copilot payloads.
 
 ## Normalized Measurement Responsibilities
 

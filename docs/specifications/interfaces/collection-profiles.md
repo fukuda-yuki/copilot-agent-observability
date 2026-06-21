@@ -80,6 +80,7 @@ Live validation is required for environment-dependent profiles:
 - Remote managed profiles must record only non-secret endpoint shape, profile
   value, client kind, access-control confirmation, and trace or raw record
   evidence.
-- `raw-local-receiver` validation belongs to the local receiver specification
-  and must prove that VS Code can send telemetry directly to the repository
-  receiver without Langfuse.
+- `raw-local-receiver` validation belongs to the Raw Local Receiver Path in
+  [../layers/telemetry-ingestion.md](../layers/telemetry-ingestion.md) and must
+  prove that VS Code can send telemetry directly to the repository receiver
+  without Langfuse.

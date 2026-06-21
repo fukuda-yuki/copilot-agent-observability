@@ -55,3 +55,8 @@ Therefore:
 | M4 raw store integration | Connect receiver output to SQLite raw store / `normalize-raw` without schema changes. |
 | M5 VS Code direct telemetry validation | Validate VS Code Copilot Chat sends telemetry directly to the repository receiver without Langfuse. |
 | M6 review and release boundary | Review safety, validation, docs, and remaining packaging options. |
+
+## Current Status
+
+Sprint7 has started with M1, which defines the local receiver requirements,
+data safety boundary, and validation evidence before implementation work begins.

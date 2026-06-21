@@ -17,6 +17,11 @@ repository-hosted receiver without Langfuse.
 - Date and machine environment.
 - `CAO_COLLECTION_PROFILE=raw-local-receiver`.
 - VS Code / extension version where available.
-- Receiver endpoint.
+- Receiver command and local bind address.
+- Non-secret receiver endpoint shape.
+- Client kind.
+- Raw store path or raw OTLP file path, recorded as local runtime output.
 - Trace id or raw record identifier.
+- Confirmation that Langfuse was not required.
 - Confirmed items and unconfirmed items.
+- Confirmed and unconfirmed telemetry signals.

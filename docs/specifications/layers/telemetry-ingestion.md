@@ -109,13 +109,38 @@ local receiver instead of Langfuse.
 
 Initial receiver requirements:
 
-- bind to a local endpoint unless a later security decision allows broader exposure.
-- accept OTLP HTTP telemetry from supported clients.
+- bind to loopback-only local development endpoints unless a later security
+  decision allows broader exposure.
+- accept OTLP HTTP telemetry from supported clients through the standard OTLP
+  HTTP signal paths, including `/v1/traces`.
+- accept trace telemetry as the first required signal; metrics and event-like
+  telemetry may be accepted when supported by the receiver implementation, but
+  unsupported signals must fail clearly and must not be treated as successful
+  ingestion.
 - persist raw telemetry as local runtime data for the raw data loop.
-- avoid changing normalized measurement, candidate, or dashboard dataset contracts.
+- write either to the SQLite raw store or to a raw OTLP file that can be passed
+  to `ingest-raw`.
+- avoid changing normalized measurement, candidate, or dashboard dataset
+  contracts.
 - avoid committing raw receiver output.
 
 The local receiver is not implemented through Aspire AppHost by default.
+
+Generated `raw-local-receiver` configuration must point clients at the local
+receiver endpoint and must not include Langfuse credentials, Collector headers,
+remote endpoints, or repository-stored secrets.
+
+Live validation for this profile must record:
+
+- date and environment.
+- receiver command and local bind address.
+- collection profile value.
+- client kind.
+- non-secret endpoint shape.
+- raw store path or raw OTLP file path, recorded as local runtime output.
+- trace id or raw record identifier.
+- confirmation that Langfuse was not required.
+- confirmed and unconfirmed telemetry signals.
 
 ## Resource Attributes
 
