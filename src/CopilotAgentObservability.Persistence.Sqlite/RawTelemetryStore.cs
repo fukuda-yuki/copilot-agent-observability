@@ -1,4 +1,4 @@
-namespace CopilotAgentObservability.ConfigCli;
+namespace CopilotAgentObservability.Persistence.Sqlite;
 
 internal sealed class RawTelemetryStore
 {
