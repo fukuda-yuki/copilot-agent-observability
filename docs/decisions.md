@@ -278,3 +278,22 @@ Consequences:
 - Sprint7 は `raw-local-receiver` の receiver、host model、raw store integration、VS Code direct telemetry validation を扱う。
 - Tray app、packaged exe installer、Windows Service は初期 required path ではない。
 - IIS / IIS Express は practical な常駐候補として Sprint7 で評価する。
+
+## D019: 共有テレメトリ／永続化コンポーネントを別 project に抽出する
+
+Status: Accepted
+
+Sprint8 (issue #25) の Local Ingestion Monitor を ConfigCli と独立に構築できるよう、Sprint8 M1 で共有コンポーネントを 2 つの class library に抽出する。
+
+- `CopilotAgentObservability.Telemetry`: OTLP decode / attribute 変換 / raw ingest / raw record model / measurement normalization / sanitization。
+- `CopilotAgentObservability.Persistence.Sqlite`: SQLite raw store access。
+- 依存方向は `Telemetry <- Persistence.Sqlite <- {ConfigCli, (将来) LocalMonitor}` の単方向とする。
+
+Consequences:
+
+- 抽出した型は internal のままとし、`InternalsVisibleTo` で friend assembly にのみ可視とする。M1 では public な共有 API を定義しない（unsafe / 未確定な型を solution 全体の契約にしないため）。
+- NU1903 high-severity 警告を解消する。`MessagePack` を 2.5.302（AppHost）、`SQLitePCLRaw.bundle_e_sqlite3` を 3.0.3（Persistence.Sqlite、`lib.e_sqlite3` 3.50.3 を同梱）に明示 pin する。0 警告を M1 の exit criterion とする。
+- B1 / B2 / B3（receiver host の堅牢性）は HttpListener host では修正せず、ASP.NET Core host（M2/M3）で吸収する既存決定を維持する。
+- `RawTelemetryStore` は挙動を変えずに移設する。T5（schema-once / single writer）と T6（projection query）は behavior change のため M3/M4 で扱う。
+- monitor summary sanitization 用の `Monitoring/` 区分は monitor projection が存在する M4 で作る。
+- ConfigCli の外部動作・CLI 表面・既存テストは M1 で変更しない（291 tests green を維持）。
