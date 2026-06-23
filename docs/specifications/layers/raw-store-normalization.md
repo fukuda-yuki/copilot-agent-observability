@@ -65,6 +65,58 @@ Normalization must:
 
 The output contract is defined in [../interfaces/measurement-dataset.md](../interfaces/measurement-dataset.md).
 
+## Local Ingestion Monitor Storage And Projection
+
+The Local Ingestion Monitor reuses this raw store. It adds sanitized projection
+tables and concurrency requirements on top of the existing `raw_records` store
+without changing the normalization output contract.
+
+Schema and migration:
+
+- a `schema_version` table plus an idempotent, additive migration that adds the
+  `monitor_ingestions` and `monitor_traces` projection tables to an existing
+  `raw_records`-only database.
+- migration failure ⇒ `/health/ready` reports not-ready.
+- `normalize-raw` and the existing raw-store / raw-OTLP-file contracts remain
+  compatible; the projection tables are additive.
+
+Concurrency (single writer, concurrent external readers):
+
+- a single ingestion writer worker owns all writes; HTTP `2xx` is returned only
+  after the writer commits.
+- WAL mode, `busy_timeout`, and read transactions allow `normalize-raw`,
+  dashboard generation, and diagnosis (the prompt self-improvement loop) to read
+  the same database while the monitor runs.
+- the projection worker retries on `SQLITE_BUSY`.
+
+Sanitized projections:
+
+- `monitor_ingestions` / `monitor_traces` use a per-table allowlist schema and
+  carry sanitized metadata only.
+- raw prompt / response / tool content is never copied into the projection
+  tables, list responses, or the SSE stream.
+- PII attributes (`user.id` / `user.email`) are excluded from the default
+  projections.
+- a projection worker processes unprocessed `raw_records`, catches up on
+  startup, and does not lose raw on projection failure (retry / recorded failure
+  state).
+- projection lag (the age in seconds of the oldest unprocessed `raw_records`
+  row) ≥ `projection-lag-threshold-seconds` (default `60`) ⇒ `/health/ready`
+  returns `503`; lag above zero but under the threshold ⇒ a `degraded` `2xx`. The
+  readiness body schema and the full threshold / configuration surface are
+  defined in [telemetry-ingestion.md](telemetry-ingestion.md).
+
+Opt-in raw access:
+
+- when the monitor is launched with `--enable-raw-view`, the server-rendered
+  raw-detail route `GET /traces/{rawRecordId}/raw` fetches one raw payload on
+  demand by id from `raw_records`. There is no JSON raw API.
+- this path is off by default (route absent ⇒ `404`), loopback-only, same-origin
+  enforced, and is never part of the default projections, list responses, SSE
+  notifications, or logs.
+- the full raw / PII trust boundary and the route contract are defined in
+  [../security-data-boundaries.md](../security-data-boundaries.md).
+
 ## Validation
 
 Use synthetic fixtures for automated tests.

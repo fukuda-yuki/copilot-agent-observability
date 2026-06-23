@@ -4,18 +4,23 @@ Sprint8 (issue #25) builds a **Local Ingestion Monitor**: a single ASP.NET Core
 process that receives OTLP HTTP/protobuf telemetry directly from VS Code GitHub
 Copilot Chat, persists it to the SQLite raw store, produces sanitized monitor
 projections, and surfaces a local browser UI for confirming that ingestion is
-healthy — without exposing raw prompt / response / tool data.
+healthy. By default it shows **sanitized metadata only**; under an explicit
+`--enable-raw-view` opt-in it also lets the local user view their own raw
+prompt / response / tool content (and PII attributes) for self-debugging,
+loopback-only.
 
-It is **not** a Langfuse replacement or a raw trace viewer. It confirms:
-receiver started, telemetry received, raw store persisted, trace projection
-succeeded, and no ingestion / projection errors.
+It is **not** a Langfuse replacement. By default it confirms: receiver started,
+telemetry received, raw store persisted, trace projection succeeded, and no
+ingestion / projection errors. Raw / prompt / response / tool content is shown
+only under the explicit opt-in described in the Safety Boundary below.
 
 ## Decision
 
 Initial shape is a **local modular monolith** (`CopilotAgentObservability.LocalMonitor`,
 ASP.NET Core / Kestrel, loopback-only bind), reusing shared modules extracted
 from the existing Config CLI. See [`../../decisions.md`](../../decisions.md)
-D019 and issue #25 for the architecture decision and safety boundary.
+D019 (shared extraction) and D020 (monitor scope, opt-in raw view, DR6 trust
+model) and issue #25 for the architecture decisions and safety boundary.
 
 ## Scope
 
@@ -32,7 +37,9 @@ D019 and issue #25 for the architecture decision and safety boundary.
 
 ## Non-goals
 
-- Replacing Langfuse; raw JSON / prompt / response / tool viewers.
+- Replacing Langfuse. (Raw / prompt / response / tool content is not shown in
+  default views; it is available solely as a loopback-only, off-by-default
+  `--enable-raw-view` opt-in for the local user — see Safety Boundary.)
 - Remote / shared deployment, multi-user auth.
 - IIS as the initial required host, Windows Service, packaged exe, tray app.
 - Aspire AppHost orchestration; PostgreSQL migration.
@@ -42,10 +49,36 @@ D019 and issue #25 for the architecture decision and safety boundary.
 
 The receiver may receive raw prompt, response, system prompt, tool
 arguments/results, source paths, identity attributes, and credential-like
-strings. Therefore: loopback-only bind, CORS disabled, request body size limit,
-no raw body in logs, no raw payload returned through UI / API / SSE, no DB full
-path or Windows user name in the UI, and a Content Security Policy. The
-repository-safe output boundary is unchanged.
+strings. The monitor follows an explicit **single-trusted-local-user** threat
+model (D020 / DR6): the local user viewing their own data on the loopback UI is
+intended, not a threat.
+
+Always-on controls (cross-machine / other-origin): loopback-only bind,
+`Host`-header validation (anti DNS-rebinding), CORS disabled, request body size
+limit, no raw body / path / query / exception detail in logs, no DB full path or
+Windows user name in responses. Default views / API / SSE carry sanitized
+metadata only and PII is excluded by default. Captured content (raw view and
+default UI) is rendered as escaped, inert text via the UI framework's default
+output encoding (never `Html.Raw` / live markup), so stored markup displays as
+text and does not execute; this local single-user tool does not add a heavier
+CSP / anti-XSS apparatus on top of that.
+
+Opt-in raw / PII view: off unless launched with `--enable-raw-view`. The only
+raw surface is the server-rendered route `GET /traces/{rawRecordId}/raw` (no JSON
+raw API; `/api/monitor/*` and SSE stay sanitized). Without the flag the route is
+absent (`404`); with it, the route is loopback-only and same-origin enforced
+(cross-site ⇒ `403`, `Cache-Control: no-store`), blocking browser-mediated
+exfiltration, and raw / PII is still never logged or written to repository-safe
+outputs. There is no bearer-token mechanism.
+
+Accepted risk: `--enable-raw-view` is permitted in any launch mode (including
+unattended / background), so raw / PII is reachable on loopback for the full
+process lifetime — a product-owner-accepted risk on this single-user machine.
+Same-local-user-process loopback reads are out of scope, as is any display-side
+defense-in-depth beyond the required inert text rendering (no CSP / sanitizer
+backstop). The repository-safe output boundary (`docs/requirements.md` §8) and
+static-dashboard non-exposure (§9) are unchanged. Full model:
+[`../../specifications/security-data-boundaries.md`](../../specifications/security-data-boundaries.md).
 
 ## Milestones
 
@@ -54,9 +87,9 @@ repository-safe output boundary is unchanged.
 | M1 Shared Component Extraction | Extract `Telemetry` + `Persistence.Sqlite` projects; keep Config CLI behavior and tests green. | **Implemented** |
 | M2 ASP.NET Core Receiver Host | LocalMonitor project, Kestrel loopback, `POST /v1/traces`, request size limit, deterministic HTTP errors. | Pending |
 | M3 Ingestion Queue + SQLite Concurrency | Bounded channel, single writer worker, WAL, schema versioning, cursor query, graceful shutdown. | Pending |
-| M4 Monitor Projection | `monitor_ingestions` / `monitor_traces`, ProjectionWorker, startup catch-up, retry/failure state, raw non-exposure. | Pending |
+| M4 Monitor Projection | `monitor_ingestions` / `monitor_traces`, ProjectionWorker, startup catch-up, retry/failure state, sanitized default projections + opt-in raw access. | Pending |
 | M5 Web UI + SSE | Overview / Live Ingestions / Traces / Diagnostics; SSE event stream with reconnect/gap recovery. | Pending |
-| M6 Security + Live Validation | Non-loopback rejection, raw non-display/non-logging, CSP, oversized rejection, restart recovery, real VS Code validation. | Pending |
+| M6 Security + Live Validation | DR6 threat-model negative tests (non-loopback, Host validation, cross-origin raw read, opt-in gating, CSRF), readiness non-2xx under saturation, raw non-logging, restart recovery, real VS Code validation. | Pending |
 
 ## Current Status
 

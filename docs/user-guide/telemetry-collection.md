@@ -99,6 +99,30 @@ dotnet run --project src\CopilotAgentObservability.ConfigCli -- normalize-raw da
 Live VS Code direct telemetry は Sprint7 の未確認項目です。
 検証時は VS Code version、GitHub Copilot Chat extension version、receiver command、raw store path、trace id または raw record id、confirmed / unconfirmed signals を記録してください。
 
+## Local Ingestion Monitor（Sprint8 で実装予定 / 現在は未実装）
+
+> **未実装の予告です。** Local Ingestion Monitor（`src\CopilotAgentObservability.LocalMonitor`）と
+> `profile-vscode-env --target monitor` / `--endpoint` は Sprint8 M2–M6 で実装予定であり、
+> 現在の作業ツリーには存在しません。以下のコマンドはまだ実行できません。
+> 現時点で VS Code から直接受信するには、上記 **Raw Local Receiver（`4319`）** を使ってください。
+
+仕様（正本）は次を参照してください。
+
+- [docs/spec.md](../spec.md) Public Interfaces。
+- [docs/specifications/layers/telemetry-ingestion.md](../specifications/layers/telemetry-ingestion.md)（receiver / port / health）。
+- [docs/specifications/security-data-boundaries.md](../specifications/security-data-boundaries.md)（raw / PII 境界）。
+- [docs/decisions.md](../decisions.md) D020。
+
+実装後の想定手順（参考。現在は動作しません）:
+
+- monitor 起動（既定 loopback `127.0.0.1:4320`、Collector `4318` / CLI receiver `4319` を回避）:
+  `dotnet run --project src\CopilotAgentObservability.LocalMonitor -- --db data\raw-store.db --url http://127.0.0.1:4320`
+- VS Code を monitor へ向ける env 生成（既定 `--target receiver` は `4319` のまま）:
+  `config-cli profile-vscode-env --profile raw-local-receiver --target monitor`
+- raw 本文を自分でローカル確認する場合のみ `--enable-raw-view` を付与（既定 off、loopback-only、自分のデータの自己デバッグ用途。raw は server-rendered の `GET /traces/{rawRecordId}/raw` のみ、log / repository へは出力しない）。
+
+実装完了後、本 section を通常手順へ更新し、live VS Code direct telemetry（monitor 経由）を Sprint8 の hard gate として検証します。
+
 ## GitHub Copilot CLI
 
 環境変数の例:

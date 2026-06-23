@@ -167,6 +167,118 @@ Live validation for this profile must record:
 - confirmation that Langfuse was not required.
 - confirmed and unconfirmed telemetry signals.
 
+## Local Ingestion Monitor Receiver
+
+The Local Ingestion Monitor is a separate long-running ASP.NET Core (Kestrel)
+process that receives `raw-local-receiver` telemetry and surfaces a local
+ingestion-health UI. It is distinct from the Config CLI
+`serve-raw-local-receiver` foreground receiver and runs **side-by-side** with
+it: the Config CLI receiver keeps `http://127.0.0.1:4319`, and the monitor
+defaults to `http://127.0.0.1:4320` with `--port` / `--url` override. The Config
+CLI receiver is not removed or deprecated. The monitor default avoids `4317` /
+`4318` (the Collector profile's OTLP gRPC / HTTP ports — see Collector Relay
+Path and the `ConfigSamples` constants) and `4319` (the Sprint7 CLI receiver),
+so all three can coexist on loopback; `4320` is the next free port. The
+`raw-local-receiver` profile output defaults to the CLI-receiver endpoint
+(`4319`); to send VS Code telemetry to the monitor instead, generate the
+environment with `config-cli profile-vscode-env --profile raw-local-receiver
+--target monitor`, which emits
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4320` (use `--endpoint` for a
+non-default monitor port). The monitor must fail with a deterministic error if
+its port is already bound rather than silently sharing it.
+
+Run model (initial required path):
+
+```powershell
+dotnet run --project src\CopilotAgentObservability.LocalMonitor -- --db data\raw-store.db --url http://127.0.0.1:4320
+```
+
+Receiver requirements:
+
+- bind to loopback only; reject non-loopback bind URLs; validate the `Host`
+  header on every request (anti DNS-rebinding).
+- accept OTLP HTTP protobuf trace payloads on `POST /v1/traces`; JSON OTLP trace
+  payloads may be accepted for synthetic local validation.
+- accept only `/v1/traces`. `/v1/metrics`, `/v1/logs`, other paths, and
+  non-`POST` methods fail with a deterministic HTTP status and write no raw
+  record.
+- enforce a request body size limit; oversized requests fail with `413` and
+  write no raw record.
+- isolate each request; one failed or malformed request must not stop the host.
+- return HTTP `2xx` only after the raw record is committed (the queue / single
+  writer model is specified in
+  [raw-store-normalization.md](raw-store-normalization.md)). Fixed ingestion
+  errors: queue full `503`, commit timeout `504`, shutdown `503`, DB busy after
+  retry `503`.
+- never write raw payloads, request bodies, paths, query strings, or exception
+  detail to logs; error responses exclude the DB full path, the Windows user
+  name, and raw exception messages.
+
+Health endpoints:
+
+- `GET /health/live` — the process is responsive.
+- `GET /health/ready` — loopback bind, DB open, migration complete, writer and
+  projection worker running, no fatal error, the writer can accept/commit, and
+  projection lag within a bounded threshold.
+- **Sustained** queue-full / commit failure / projection-lag-exceeded ⇒
+  `/health/ready` returns a **non-2xx HTTP status** (`503`), not merely a body
+  flag, because many readiness probes read only the status. Momentary
+  backpressure ⇒ a `2xx` "degraded" response.
+
+Readiness thresholds (concrete defaults, all configurable):
+
+- **ingestion stall**: the writer unable to accept/commit (queue full or commit
+  failing) **continuously for ≥ `ingestion-stall-threshold-seconds`** (default
+  `10`) ⇒ `not_ready` / `503`; shorter backpressure ⇒ `degraded` / `200`.
+- **commit failure / migration**: a non-busy commit error is retried; commits
+  failing past the stall window, or a failed migration, ⇒ `not_ready` / `503`.
+- **projection lag**: the age in seconds of the oldest unprocessed `raw_records`
+  row. Lag **≥ `projection-lag-threshold-seconds`** (default `60`) ⇒ `not_ready`
+  / `503`; lag above zero but under the threshold ⇒ `degraded` / `200`.
+- configuration surface: CLI flags `--ingestion-stall-threshold-seconds` and
+  `--projection-lag-threshold-seconds`, with env fallbacks
+  `CAO_MONITOR_INGESTION_STALL_THRESHOLD_SECONDS` and
+  `CAO_MONITOR_PROJECTION_LAG_THRESHOLD_SECONDS`.
+
+Readiness body (machine-readable, returned on both `200` and `503`):
+
+```json
+{
+  "status": "ready | degraded | not_ready",
+  "checks": {
+    "loopback_bound": true,
+    "db_open": true,
+    "migration_complete": true,
+    "writer_running": true,
+    "projection_worker_running": true,
+    "ingestion_accepting": true,
+    "projection_lag_seconds": 0,
+    "projection_backlog": 0
+  },
+  "degraded_reasons": []
+}
+```
+
+- `status` ⇒ HTTP mapping: `ready` and `degraded` ⇒ `200`; `not_ready` ⇒ `503`.
+- `degraded_reasons` enumerates active conditions, e.g. `ingestion_stalled`,
+  `projection_lag_exceeded`, `migration_failed`, `fatal_error`.
+- mandatory tests cover the default thresholds **and** a configured override,
+  asserting both the HTTP status and the body `status` / `degraded_reasons`.
+
+(This readiness contract is monitoring correctness, not display hardening; it is
+pinned here deliberately so external probes and the M3 / M6 tests have a stable
+contract.)
+
+Raw / PII exposure follows the Local Ingestion Monitor boundary in
+[../security-data-boundaries.md](../security-data-boundaries.md): default views
+expose sanitized metadata only; raw / PII is served only when the monitor is
+launched with `--enable-raw-view`, loopback-only, and is never logged or
+committed.
+
+Live validation for the monitor records the same evidence as the
+`raw-local-receiver` profile, plus the monitor port, the VS Code / GitHub
+Copilot extension version, and whether `--enable-raw-view` was set.
+
 ## Resource Attributes
 
 Required:
