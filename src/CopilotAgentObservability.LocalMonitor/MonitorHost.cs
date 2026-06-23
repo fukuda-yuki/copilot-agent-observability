@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using CopilotAgentObservability.LocalMonitor.Health;
 using CopilotAgentObservability.LocalMonitor.Ingestion;
 using CopilotAgentObservability.LocalMonitor.Projection;
@@ -161,6 +162,45 @@ internal static class MonitorHost
                 await WriteFailureAsync(context, StatusCodes.Status503ServiceUnavailable, "persistence_busy", "The local monitor raw store is busy.");
             }
         });
+        if (options.EnableRawView)
+        {
+            // The only raw / PII surface, and only with the explicit opt-in flag.
+            // Same-origin enforced (cross-site browser reads cannot exfiltrate),
+            // no-store, and the payload rendered as HTML-encoded inert text.
+            app.MapGet("/traces/{rawRecordId:long}/raw", async (long rawRecordId, HttpContext context) =>
+            {
+                if (IsCrossSiteRequest(context))
+                {
+                    await WriteFailureAsync(context, StatusCodes.Status403Forbidden, "cross_origin_forbidden", "The raw detail view is same-origin only.");
+                    return;
+                }
+
+                RawTelemetryRecord? record;
+                try
+                {
+                    record = projectionStore.GetRawRecordById(rawRecordId);
+                }
+                catch (PersistenceBusyException)
+                {
+                    await WriteFailureAsync(context, StatusCodes.Status503ServiceUnavailable, "persistence_busy", "The local monitor raw store is busy.");
+                    return;
+                }
+
+                if (record is null)
+                {
+                    await WriteFailureAsync(context, StatusCodes.Status404NotFound, "raw_record_not_found", "No raw record exists for that id.");
+                    return;
+                }
+
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                context.Response.Headers["Cache-Control"] = "no-store";
+                context.Response.ContentType = "text/html; charset=utf-8";
+                var encodedPayload = HtmlEncoder.Default.Encode(record.PayloadJson);
+                await context.Response.WriteAsync(
+                    $"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Raw record {rawRecordId}</title></head><body><pre>{encodedPayload}</pre></body></html>");
+            });
+        }
+
         app.MapPost(TracePath, async context =>
         {
             if (context.Request.ContentLength > options.MaxRequestBodyBytes)
@@ -323,6 +363,35 @@ internal static class MonitorHost
     private static bool IsValidHostHeader(string? host)
     {
         return !string.IsNullOrWhiteSpace(host) && MonitorOptions.IsAllowedLoopbackHost(host);
+    }
+
+    /// <summary>
+    /// Strict same-origin check for the opt-in raw-detail route: a browser
+    /// <c>Sec-Fetch-Site</c> other than <c>same-origin</c> / <c>none</c>, or an
+    /// <c>Origin</c> that does not match the request's own scheme/host/port, is a
+    /// cross-site request and is refused (blocks other-origin browser exfiltration).
+    /// </summary>
+    private static bool IsCrossSiteRequest(HttpContext context)
+    {
+        var secFetchSite = context.Request.Headers["Sec-Fetch-Site"].ToString();
+        if (!string.IsNullOrEmpty(secFetchSite)
+            && !string.Equals(secFetchSite, "same-origin", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(secFetchSite, "none", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var origin = context.Request.Headers["Origin"].ToString();
+        if (!string.IsNullOrEmpty(origin))
+        {
+            var expected = $"{context.Request.Scheme}://{context.Request.Host.Value}";
+            if (!string.Equals(origin, expected, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsAddressInUse(Exception exception)
