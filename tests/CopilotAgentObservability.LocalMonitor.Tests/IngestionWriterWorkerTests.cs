@@ -125,6 +125,44 @@ public class IngestionWriterWorkerTests
     }
 
     [Fact]
+    public async Task Worker_UnexpectedInsertException_CompletesRequestAndKeepsProcessing()
+    {
+        var queue = new IngestionQueue(capacity: 4);
+        var health = new MonitorHealthState();
+        var calls = 0;
+        var worker = new IngestionWriterWorker(
+            queue,
+            new FakeRawWriter(_ =>
+            {
+                calls++;
+                if (calls == 1)
+                {
+                    throw new InvalidOperationException("unexpected");
+                }
+
+                return calls;
+            }),
+            health);
+
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.True(queue.TryEnqueue(CreateRecord("first"), out var first));
+            var firstResult = await first.Completion;
+            Assert.Equal(IngestionCommitStatus.Failed, firstResult.Status);
+
+            // The worker must stay alive and keep processing later requests.
+            Assert.True(queue.TryEnqueue(CreateRecord("second"), out var second));
+            var secondResult = await second.Completion;
+            Assert.Equal(IngestionCommitStatus.Committed, secondResult.Status);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
     public async Task Worker_DrainsAlreadyAcceptedQueueItemsDuringShutdown()
     {
         using var temp = new MonitorTempDirectory();

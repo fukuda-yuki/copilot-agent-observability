@@ -163,5 +163,13 @@ internal sealed class IngestionWriterWorker : BackgroundService
             health.RecordBackpressure();
             request.Complete(IngestionCommitResult.Failed);
         }
+        catch (Exception)
+        {
+            // Isolate the request: an unexpected persistence error must not stop
+            // the worker or leave the awaiting HTTP ack hanging. Complete it as a
+            // non-busy failure and keep draining the queue.
+            health.RecordBackpressure();
+            request.Complete(IngestionCommitResult.Failed);
+        }
     }
 }
