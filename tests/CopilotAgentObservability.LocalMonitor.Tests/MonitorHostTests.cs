@@ -397,6 +397,90 @@ public class MonitorHostTests
         Assert.DoesNotContain("Sqlite", body);
     }
 
+    [Fact]
+    public async Task ProjectionWorker_CatchesUpRowsIngestedWhileProjectionWasNotRunning()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+
+        // Ingest with the projection worker OFF, so raw_records accrue unprojected.
+        await using (var ingestOnly = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions { StartProjectionWorker = false }))
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                var response = await ingestOnly.Client.PostAsync("/v1/traces", JsonContent(ValidTraceJson()));
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            }
+        }
+
+        // A fresh host on the same DB catches up the backlog via its projection worker.
+        await using var monitor = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions { ProjectionPollInterval = TimeSpan.FromMilliseconds(50) });
+
+        Assert.Equal(3, await WaitForIngestionProjectionCountAsync(monitor, expected: 3));
+    }
+
+    [Fact]
+    public async Task ProjectionWritesSucceedDuringConcurrentExternalReadTransaction()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        await using var monitor = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions { ProjectionPollInterval = TimeSpan.FromMilliseconds(50) });
+
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = tempDirectory.DatabasePath,
+            Pooling = false,
+        }.ToString());
+        connection.Open();
+        ExecuteSql(connection, "BEGIN;");
+        ExecuteSql(connection, "SELECT COUNT(*) FROM raw_records;");
+
+        for (var i = 0; i < 3; i++)
+        {
+            var response = await monitor.Client.PostAsync("/v1/traces", JsonContent(ValidTraceJson()));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        var count = await WaitForIngestionProjectionCountAsync(monitor, expected: 3);
+        ExecuteSql(connection, "ROLLBACK;");
+        Assert.Equal(3, count);
+    }
+
+    [Fact]
+    public async Task ReadinessBody_DoesNotLeakDbPathOrUserName()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        await using var host = await StartHostAsync(tempDirectory);
+
+        var body = await (await host.Client.GetAsync("/health/ready")).Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain(tempDirectory.DatabasePath, body);
+        Assert.DoesNotContain(Environment.UserName, body);
+    }
+
+    private static async Task<int> WaitForIngestionProjectionCountAsync(RunningMonitorForTest host, int expected)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            var body = await host.Client.GetStringAsync("/api/monitor/ingestions?limit=200");
+            using var document = JsonDocument.Parse(body);
+            var count = document.RootElement.GetProperty("items").GetArrayLength();
+            if (count >= expected)
+            {
+                return count;
+            }
+
+            await Task.Delay(25);
+        }
+
+        return -1;
+    }
+
     private static async Task<RunningMonitorForTest> StartHostAsync(
         MonitorTempDirectory tempDirectory,
         int? port = null,
