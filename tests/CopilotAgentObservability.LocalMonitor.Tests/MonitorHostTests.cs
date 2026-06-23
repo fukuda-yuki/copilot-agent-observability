@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using CopilotAgentObservability.LocalMonitor.Ingestion;
 using Microsoft.Data.Sqlite;
 
 namespace CopilotAgentObservability.LocalMonitor.Tests;
@@ -187,18 +188,141 @@ public class MonitorHostTests
         Assert.DoesNotContain(nameof(IOException), error.ToString());
     }
 
+    [Fact]
+    public async Task PostTraces_ResponseIsWithheldUntilCommitAck()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        var writer = new GatedRawWriter();
+        await using var host = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions { Writer = writer });
+
+        var postTask = host.Client.PostAsync("/v1/traces", JsonContent(ValidTraceJson()));
+        await writer.Entered;
+
+        Assert.False(postTask.IsCompleted);
+
+        writer.Release();
+        var response = await postTask;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"accepted\":true", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task PostTraces_FullQueueReturns503AndWritesNoRecord()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        var queue = new IngestionQueue(capacity: 1);
+        Assert.True(queue.TryEnqueue(SyntheticRecord(), out _));
+        await using var host = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions { Queue = queue, StartWriter = false });
+
+        var response = await host.Client.PostAsync("/v1/traces", JsonContent(ValidTraceJson()));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Contains("queue_full", await response.Content.ReadAsStringAsync());
+        AssertNoRecords(tempDirectory.DatabasePath);
+    }
+
+    [Fact]
+    public async Task PostTraces_DuringShutdownReturns503ShuttingDownAndWritesNoRecord()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        var queue = new IngestionQueue(capacity: 4);
+        queue.CompleteAdding();
+        await using var host = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions { Queue = queue, StartWriter = false });
+
+        var response = await host.Client.PostAsync("/v1/traces", JsonContent(ValidTraceJson()));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Contains("shutting_down", await response.Content.ReadAsStringAsync());
+        AssertNoRecords(tempDirectory.DatabasePath);
+    }
+
+    [Fact]
+    public async Task PostTraces_CommitTimeoutReturns504AndWritesNoRecord()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        await using var host = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions
+            {
+                StartWriter = false,
+                CommitTimeout = TimeSpan.FromMilliseconds(50),
+            });
+
+        var response = await host.Client.PostAsync("/v1/traces", JsonContent(ValidTraceJson()));
+
+        Assert.Equal(HttpStatusCode.GatewayTimeout, response.StatusCode);
+        Assert.Contains("commit_timeout", await response.Content.ReadAsStringAsync());
+        AssertNoRecords(tempDirectory.DatabasePath);
+    }
+
+    [Fact]
+    public async Task PostTraces_PersistenceBusyReturns503()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        await using var host = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions { Writer = new ThrowingRawWriter(busy: true) });
+
+        var response = await host.Client.PostAsync("/v1/traces", JsonContent(ValidTraceJson()));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Contains("persistence_busy", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task PostTraces_NonBusyPersistenceFailureReturns500()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        await using var host = await StartHostAsync(
+            tempDirectory,
+            testOptions: new MonitorHostTestOptions { Writer = new ThrowingRawWriter(busy: false) });
+
+        var response = await host.Client.PostAsync("/v1/traces", JsonContent(ValidTraceJson()));
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Contains("persistence_failed", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task RawDetailRoute_RemainsAbsent()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        await using var host = await StartHostAsync(tempDirectory);
+
+        var response = await host.Client.GetAsync("/traces/1/raw");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     private static async Task<RunningMonitorForTest> StartHostAsync(
         MonitorTempDirectory tempDirectory,
         int? port = null,
-        int maxRequestBodyBytes = 31_457_280)
+        int maxRequestBodyBytes = 31_457_280,
+        MonitorHostTestOptions? testOptions = null)
     {
         port ??= GetFreePort();
         var url = $"http://127.0.0.1:{port}";
         var options = new MonitorOptions(tempDirectory.DatabasePath, url, EnableRawView: false, maxRequestBodyBytes);
-        var app = MonitorHost.Build(options);
+        var app = testOptions is null ? MonitorHost.Build(options) : MonitorHost.Build(options, testOptions);
         await app.StartAsync();
         return new RunningMonitorForTest(app, new HttpClient { BaseAddress = new Uri(url) });
     }
+
+    private static RawTelemetryRecord SyntheticRecord() =>
+        new(
+            Id: null,
+            Source: RawTelemetrySources.RawOtlp,
+            TraceId: "trace",
+            ReceivedAt: DateTimeOffset.UnixEpoch,
+            ResourceAttributesJson: null,
+            PayloadJson: "{}");
 
     private static StringContent JsonContent(string json)
     {
@@ -253,6 +377,52 @@ public class MonitorHostTests
         {
             Client.Dispose();
             await app.DisposeAsync();
+        }
+    }
+
+    private sealed class ThrowingRawWriter : IRawTelemetryWriter
+    {
+        private readonly bool busy;
+
+        public ThrowingRawWriter(bool busy)
+        {
+            this.busy = busy;
+        }
+
+        public void EnsureSchema()
+        {
+        }
+
+        public long Insert(RawTelemetryRecord record)
+        {
+            if (busy)
+            {
+                throw new PersistenceBusyException();
+            }
+
+            throw new PersistenceFailedException();
+        }
+    }
+
+    private sealed class GatedRawWriter : IRawTelemetryWriter
+    {
+        private readonly TaskCompletionSource entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly ManualResetEventSlim gate = new(initialState: false);
+        private long nextId;
+
+        public Task Entered => entered.Task;
+
+        public void Release() => gate.Set();
+
+        public void EnsureSchema()
+        {
+        }
+
+        public long Insert(RawTelemetryRecord record)
+        {
+            entered.TrySetResult();
+            gate.Wait();
+            return Interlocked.Increment(ref nextId);
         }
     }
 }

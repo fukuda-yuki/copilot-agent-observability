@@ -1,6 +1,8 @@
+using CopilotAgentObservability.LocalMonitor.Health;
+using CopilotAgentObservability.LocalMonitor.Ingestion;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CopilotAgentObservability.LocalMonitor;
 
@@ -9,7 +11,14 @@ internal static class MonitorHost
     private const string JsonContentType = "application/json";
     private const string TracePath = "/v1/traces";
 
+    private static readonly TimeSpan DefaultCommitTimeout = TimeSpan.FromSeconds(5);
+
     public static WebApplication Build(MonitorOptions options)
+    {
+        return Build(options, testOptions: null);
+    }
+
+    internal static WebApplication Build(MonitorOptions options, MonitorHostTestOptions? testOptions)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
@@ -19,9 +28,19 @@ internal static class MonitorHost
             kestrelOptions.Limits.MaxRequestBodySize = options.MaxRequestBodyBytes;
         });
 
-        var store = new RawTelemetryStore(options.DatabasePath, RawTelemetryStoreConnectionOptions.MonitorWriter);
-        store.CreateSchema();
-        var writeGate = new SemaphoreSlim(1, 1);
+        var queue = testOptions?.Queue ?? new IngestionQueue();
+        var health = new MonitorHealthState();
+        health.SetLoopbackBound(true);
+        var commitTimeout = testOptions?.CommitTimeout ?? DefaultCommitTimeout;
+
+        if (testOptions?.StartWriter ?? true)
+        {
+            var writer = testOptions?.Writer
+                ?? new RawTelemetryStoreWriter(
+                    new RawTelemetryStore(options.DatabasePath, RawTelemetryStoreConnectionOptions.MonitorWriter));
+            var worker = new IngestionWriterWorker(queue, writer, health);
+            builder.Services.AddHostedService(_ => worker);
+        }
 
         var app = builder.Build();
         app.UseExceptionHandler(errorApp =>
@@ -97,9 +116,46 @@ internal static class MonitorHost
                 return;
             }
 
+            RawTelemetryRecord record;
             try
             {
-                await writeGate.WaitAsync(context.RequestAborted);
+                record = RawOtlpIngestor.CreateRecordFromPayloadJson(payloadJson, DateTimeOffset.UtcNow);
+            }
+            catch (JsonException)
+            {
+                await WriteFailureAsync(context, StatusCodes.Status400BadRequest, "invalid_payload", "Trace payload is not valid OTLP JSON.");
+                return;
+            }
+            catch (InvalidDataException)
+            {
+                await WriteFailureAsync(context, StatusCodes.Status400BadRequest, "invalid_payload", "Trace payload is not valid OTLP trace data.");
+                return;
+            }
+
+            if (!queue.TryEnqueue(record, out var request))
+            {
+                health.RecordBackpressure();
+                if (queue.IsClosed)
+                {
+                    await WriteFailureAsync(context, StatusCodes.Status503ServiceUnavailable, "shutting_down", "The local monitor is shutting down.");
+                }
+                else
+                {
+                    await WriteFailureAsync(context, StatusCodes.Status503ServiceUnavailable, "queue_full", "The local monitor ingestion queue is full.");
+                }
+
+                return;
+            }
+
+            IngestionCommitResult result;
+            try
+            {
+                result = await request.Completion.WaitAsync(commitTimeout, context.RequestAborted);
+            }
+            catch (TimeoutException)
+            {
+                await WriteFailureAsync(context, StatusCodes.Status504GatewayTimeout, "commit_timeout", "Trace payload was not committed within the allowed time.");
+                return;
             }
             catch (OperationCanceledException)
             {
@@ -107,41 +163,19 @@ internal static class MonitorHost
                 return;
             }
 
-            try
+            switch (result.Status)
             {
-                var record = RawOtlpIngestor.CreateRecordFromPayloadJson(payloadJson, DateTimeOffset.UtcNow);
-                var rawRecordId = store.Insert(record);
-                context.Response.StatusCode = StatusCodes.Status200OK;
-                context.Response.ContentType = JsonContentType;
-                await context.Response.WriteAsync($$"""{"accepted":true,"rawRecordId":{{rawRecordId}}}""");
-            }
-            catch (JsonException)
-            {
-                await WriteFailureAsync(context, StatusCodes.Status400BadRequest, "invalid_payload", "Trace payload is not valid OTLP JSON.");
-            }
-            catch (InvalidDataException)
-            {
-                await WriteFailureAsync(context, StatusCodes.Status400BadRequest, "invalid_payload", "Trace payload is not valid OTLP trace data.");
-            }
-            catch (SqliteException exception) when (IsSqliteBusy(exception))
-            {
-                await WriteFailureAsync(context, StatusCodes.Status503ServiceUnavailable, "persistence_busy", "Trace payload could not be persisted because the raw store is busy.");
-            }
-            catch (SqliteException)
-            {
-                await WriteFailureAsync(context, StatusCodes.Status500InternalServerError, "persistence_failed", "Trace payload could not be persisted.");
-            }
-            catch (IOException)
-            {
-                await WriteFailureAsync(context, StatusCodes.Status500InternalServerError, "persistence_failed", "Trace payload could not be persisted.");
-            }
-            catch (UnauthorizedAccessException)
-            {
-                await WriteFailureAsync(context, StatusCodes.Status500InternalServerError, "persistence_failed", "Trace payload could not be persisted.");
-            }
-            finally
-            {
-                writeGate.Release();
+                case IngestionCommitStatus.Committed:
+                    context.Response.StatusCode = StatusCodes.Status200OK;
+                    context.Response.ContentType = JsonContentType;
+                    await context.Response.WriteAsync($$"""{"accepted":true,"rawRecordId":{{result.RawRecordId}}}""");
+                    break;
+                case IngestionCommitStatus.Busy:
+                    await WriteFailureAsync(context, StatusCodes.Status503ServiceUnavailable, "persistence_busy", "Trace payload could not be persisted because the raw store is busy.");
+                    break;
+                default:
+                    await WriteFailureAsync(context, StatusCodes.Status500InternalServerError, "persistence_failed", "Trace payload could not be persisted.");
+                    break;
             }
         });
         app.MapMethods(TracePath, ["GET", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"], async context =>
@@ -194,11 +228,6 @@ internal static class MonitorHost
         return !string.IsNullOrWhiteSpace(host) && MonitorOptions.IsAllowedLoopbackHost(host);
     }
 
-    private static bool IsSqliteBusy(SqliteException exception)
-    {
-        return exception.SqliteErrorCode is 5 or 6;
-    }
-
     private static bool IsAddressInUse(Exception exception)
     {
         for (var current = exception; current is not null; current = current.InnerException!)
@@ -220,4 +249,15 @@ internal static class MonitorHost
         context.Response.ContentType = JsonContentType;
         await context.Response.WriteAsync($$"""{"accepted":false,"error":"{{error}}","message":"{{message}}"}""");
     }
+}
+
+internal sealed class MonitorHostTestOptions
+{
+    public IngestionQueue? Queue { get; init; }
+
+    public IRawTelemetryWriter? Writer { get; init; }
+
+    public TimeSpan? CommitTimeout { get; init; }
+
+    public bool StartWriter { get; init; } = true;
 }

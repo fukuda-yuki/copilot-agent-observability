@@ -75,6 +75,7 @@ internal sealed class IngestionWriterWorker : BackgroundService
     private readonly IngestionQueue queue;
     private readonly IRawTelemetryWriter writer;
     private readonly MonitorHealthState health;
+    private bool migrated;
 
     public IngestionWriterWorker(
         IngestionQueue queue,
@@ -86,19 +87,28 @@ internal sealed class IngestionWriterWorker : BackgroundService
         this.health = health;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public override async Task StartAsync(CancellationToken cancellationToken)
     {
-        var migrated = TryMigrate();
-        if (migrated)
+        // Migrate synchronously during host startup so the schema exists before
+        // the host accepts requests and before a concurrent external reader opens
+        // the database. Migration failure is surfaced as not-ready, not a crash.
+        if (TryMigrate())
         {
+            migrated = true;
             health.MarkMigrationComplete();
             health.SetWriterRunning(true);
         }
         else
         {
+            migrated = false;
             health.MarkMigrationFailed();
         }
 
+        await base.StartAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
         try
         {
             // Intentionally not cancelled by stoppingToken: shutdown completes the

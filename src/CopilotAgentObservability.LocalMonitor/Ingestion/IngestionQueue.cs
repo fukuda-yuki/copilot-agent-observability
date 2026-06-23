@@ -8,6 +8,7 @@ internal sealed class IngestionQueue
 
     private readonly Channel<IngestionWriteRequest> channel;
     private readonly TimeProvider timeProvider;
+    private volatile bool closed;
 
     public IngestionQueue(TimeProvider? timeProvider = null)
         : this(DefaultCapacity, timeProvider)
@@ -27,6 +28,9 @@ internal sealed class IngestionQueue
 
     public ChannelReader<IngestionWriteRequest> Reader => channel.Reader;
 
+    /// <summary>True once the queue has stopped accepting new work (shutdown).</summary>
+    public bool IsClosed => closed;
+
     public bool TryEnqueue(RawTelemetryRecord record, [NotNullWhen(true)] out IngestionWriteRequest? request)
     {
         var candidate = new IngestionWriteRequest(record, timeProvider.GetUtcNow());
@@ -40,5 +44,9 @@ internal sealed class IngestionQueue
         return false;
     }
 
-    public void CompleteAdding() => channel.Writer.TryComplete();
+    public void CompleteAdding()
+    {
+        closed = true;
+        channel.Writer.TryComplete();
+    }
 }
