@@ -145,7 +145,11 @@ Raw-detail interface (the only raw / PII surface):
 
 Additional monitor web-security requirements:
 
-- request body size limit; oversized requests rejected with `413`.
+- request body size limit (default 30 MiB, configurable via
+  `--max-request-body-bytes` / `CAO_MONITOR_MAX_REQUEST_BODY_BYTES`; the concrete
+  value and boundary are pinned in
+  [layers/telemetry-ingestion.md](layers/telemetry-ingestion.md)); a body larger
+  than the limit is rejected with `413` and writes no raw record.
 - request logging excludes the body, path, query string, and exception detail.
 - error responses exclude the DB full path, the Windows user name, and raw
   exception messages.

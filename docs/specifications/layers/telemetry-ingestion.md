@@ -202,8 +202,9 @@ Receiver requirements:
 - accept only `/v1/traces`. `/v1/metrics`, `/v1/logs`, other paths, and
   non-`POST` methods fail with a deterministic HTTP status and write no raw
   record.
-- enforce a request body size limit; oversized requests fail with `413` and
-  write no raw record.
+- enforce a request body size limit (default `31457280` bytes = 30 MiB,
+  configurable — see *Request body size limit* below); a request body larger than
+  the limit fails with `413` / `request_too_large` and writes no raw record.
 - isolate each request; one failed or malformed request must not stop the host.
 - return HTTP `2xx` only after the raw record is committed (the queue / single
   writer model is specified in
@@ -213,6 +214,24 @@ Receiver requirements:
 - never write raw payloads, request bodies, paths, query strings, or exception
   detail to logs; error responses exclude the DB full path, the Windows user
   name, and raw exception messages.
+
+Request body size limit:
+
+- default **`31457280` bytes (30 MiB)**, configurable via the CLI flag
+  `--max-request-body-bytes <bytes>` with env fallback
+  `CAO_MONITOR_MAX_REQUEST_BODY_BYTES`. A non-positive / non-numeric value is a
+  deterministic startup error.
+- a request body **up to and including** the limit is accepted; a body **larger
+  than** the limit fails with `413` / `request_too_large` and writes no raw
+  record.
+- the default is deliberately generous: the monitor targets a single local user
+  whose realistic risk is an accidental oversized payload, so the limit guards
+  against memory exhaustion without dropping real OTLP trace batches. The value
+  is a public accept/reject boundary, pinned here rather than chosen at
+  implementation time.
+- mandatory boundary tests cover an **at-limit** payload (accepted) and an
+  **over-limit** payload (`413`, no raw record), using an overridden small limit
+  so fixtures stay tiny.
 
 Health endpoints:
 

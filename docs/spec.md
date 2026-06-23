@@ -81,7 +81,7 @@ Publicly documented interfaces are:
 - Data safety boundary for repository-stored files。
 - Local Ingestion Monitor loopback endpoints: `POST /v1/traces`、`GET /api/monitor/ingestions`、`GET /api/monitor/traces`、`GET /health/live`、`GET /health/ready`、および SSE notification stream。`/api/monitor/*` と SSE は raw / PII を返さない（sanitized のみ）。`/health/ready` は飽和継続時に `503`（瞬間的 backpressure は `degraded` の `2xx`）を返し、`status` / `checks` / `degraded_reasons` を持つ機械可読 body を伴う。既定しきい値は ingestion-stall `10s` / projection-lag `60s`（設定可能）。
 - Local Ingestion Monitor raw-detail route（opt-in）: `GET /traces/{rawRecordId}/raw`。server-rendered HTML で、raw / PII を返す唯一の経路（JSON raw API は提供しない）。`--enable-raw-view` 起動時のみ存在し（無効時は `404`）、same-origin 強制（cross-site は `403`）、`Cache-Control: no-store`。
-- Local Ingestion Monitor run interface: loopback port（既定 `http://127.0.0.1:4320`）、`--port` / `--url`、`--enable-raw-view` opt-in flag。
+- Local Ingestion Monitor run interface: loopback port（既定 `http://127.0.0.1:4320`）、`--port` / `--url`、`--enable-raw-view` opt-in flag、リクエスト本文サイズ上限 `--max-request-body-bytes`（既定 `31457280` bytes = 30 MiB、env `CAO_MONITOR_MAX_REQUEST_BODY_BYTES`）。`POST /v1/traces` は本文が上限を超えると `413` / `request_too_large` を返し raw を書かない。
 - Local Ingestion Monitor client config: `config-cli profile-vscode-env --profile raw-local-receiver --target monitor`（または `--endpoint`）が monitor endpoint（既定 `http://127.0.0.1:4320`）向けの VS Code env を出力。`--target receiver` 既定は `4319` のまま。
 
 Changing these requires updating the relevant specification file and tests.
