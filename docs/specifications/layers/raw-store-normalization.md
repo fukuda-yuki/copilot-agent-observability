@@ -100,6 +100,16 @@ Sanitized projections:
 - a projection worker processes unprocessed `raw_records`, catches up on
   startup, and does not lose raw on projection failure (retry / recorded failure
   state).
+- a raw record with no non-empty `trace_id` is still projected into
+  `monitor_ingestions` (its `trace_id` column is nullable) but contributes **no**
+  `monitor_traces` row (consistent with "one row per `trace_id`"); it must not
+  remain unprocessed or inflate projection lag.
+- a single raw record whose payload carries multiple `trace_id`s fans out to one
+  `monitor_traces` row per `trace_id`; it is not collapsed to a primary trace.
+- the cursor read API (`GET /api/monitor/ingestions` / `GET /api/monitor/traces`)
+  reads the projection tables only — never `raw_records.payload_json` — and its
+  request / response / cursor shape is pinned in
+  [telemetry-ingestion.md](telemetry-ingestion.md).
 - projection lag (the age in seconds of the oldest unprocessed `raw_records`
   row) ≥ `projection-lag-threshold-seconds` (default `60`) ⇒ `/health/ready`
   returns `503`; lag above zero but under the threshold ⇒ a `degraded` `2xx`. The

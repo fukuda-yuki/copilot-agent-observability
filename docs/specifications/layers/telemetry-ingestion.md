@@ -279,17 +279,46 @@ Readiness body (machine-readable, returned on both `200` and `503`):
 ```
 
 - `status` ⇒ HTTP mapping: `ready` and `degraded` ⇒ `200`; `not_ready` ⇒ `503`.
-- `degraded_reasons` enumerates active conditions, e.g. `ingestion_stalled`,
-  `projection_lag_exceeded`, `migration_failed`, `fatal_error`, and
-  `projection_worker_missing` (emitted while no projection worker is running yet —
-  e.g. before the projection worker milestone adds it — so an ingestion-healthy
-  monitor still reports `not_ready` rather than falsely claiming `ready`).
+- `degraded_reasons` enumerates active conditions. **not_ready (`503`) tokens:**
+  `migration_failed`, `fatal_error`, `ingestion_stalled` (backpressure continuous
+  past the ingestion-stall threshold), `projection_lag_exceeded` (projection lag
+  `≥` the projection-lag threshold), and `projection_worker_missing` (emitted
+  while no projection worker is running yet — e.g. before the projection worker
+  milestone adds it — so an ingestion-healthy monitor still reports `not_ready`
+  rather than falsely claiming `ready`). **degraded (`200`) tokens:**
+  `ingestion_backpressure` (momentary sub-threshold backpressure) and
+  `projection_lag` (projection lag above zero but under the threshold).
+- the `ready` state (`200`, empty `degraded_reasons`) is active once a projection
+  worker is running, migration is complete, the writer can accept/commit, and
+  projection lag is `0`.
 - mandatory tests cover the default thresholds **and** a configured override,
   asserting both the HTTP status and the body `status` / `degraded_reasons`.
 
 (This readiness contract is monitoring correctness, not display hardening; it is
 pinned here deliberately so external probes and the M3 / M6 tests have a stable
 contract.)
+
+Monitor read API (sanitized, cursor pagination):
+
+- `GET /api/monitor/ingestions` and `GET /api/monitor/traces` return sanitized
+  projections only — the per-table allowlist columns defined in
+  [raw-store-normalization.md](raw-store-normalization.md). They read the
+  projection tables, never `raw_records.payload_json`, and never return raw
+  prompt / response / tool content or PII.
+- query parameters: `after` (exclusive cursor; omitted ⇒ from the start) and
+  `limit` (default `50`, maximum `200`). A non-numeric or out-of-range `limit`
+  fails with a deterministic `400`.
+- response body: `{ "items": [ ...sanitized rows... ], "next_cursor": <id|null> }`,
+  `items` ordered by ascending cursor key. `next_cursor` is non-null **only when
+  more rows exist beyond the page** (determined by probing one row past `limit`)
+  and is then the last returned item's cursor key; otherwise `null`. A final page
+  whose size is exactly `limit` therefore returns `next_cursor: null` and never
+  requires an extra empty fetch to discover the end.
+- cursor keys: `/api/monitor/ingestions` uses `raw_record_id` (the
+  `monitor_ingestions` cursor key); `/api/monitor/traces` uses the projection-row
+  id. Each endpoint's filter, ordering, and `next_cursor` use the one key, so a
+  divergence between a projection-row id and `raw_record_id` cannot skip or repeat
+  rows.
 
 Raw / PII exposure follows the Local Ingestion Monitor boundary in
 [../security-data-boundaries.md](../security-data-boundaries.md): default views
