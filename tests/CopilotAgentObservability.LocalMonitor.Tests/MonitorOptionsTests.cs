@@ -71,4 +71,125 @@ public class MonitorOptionsTests
 
         Assert.Equal("unknown local-monitor option '--unexpected'.", result.Error);
     }
+
+    [Fact]
+    public void Parse_DefaultsToReadinessThresholdSeconds()
+    {
+        var result = MonitorOptions.Parse([]);
+
+        Assert.Null(result.Error);
+        Assert.Equal(10, result.Options!.IngestionStallThresholdSeconds);
+        Assert.Equal(60, result.Options.ProjectionLagThresholdSeconds);
+    }
+
+    [Fact]
+    public void Parse_OverridesIngestionStallThresholdSeconds()
+    {
+        var result = MonitorOptions.Parse(["--ingestion-stall-threshold-seconds", "3"]);
+
+        Assert.Null(result.Error);
+        Assert.Equal(3, result.Options!.IngestionStallThresholdSeconds);
+    }
+
+    [Fact]
+    public void Parse_OverridesProjectionLagThresholdSeconds()
+    {
+        var result = MonitorOptions.Parse(["--projection-lag-threshold-seconds", "7"]);
+
+        Assert.Null(result.Error);
+        Assert.Equal(7, result.Options!.ProjectionLagThresholdSeconds);
+    }
+
+    [Fact]
+    public void Parse_UsesIngestionStallThresholdSecondsEnvironmentFallback()
+    {
+        var result = MonitorOptions.Parse(
+            [],
+            name => name == MonitorOptions.IngestionStallThresholdSecondsEnvironmentVariable ? "4" : null);
+
+        Assert.Null(result.Error);
+        Assert.Equal(4, result.Options!.IngestionStallThresholdSeconds);
+    }
+
+    [Fact]
+    public void Parse_UsesProjectionLagThresholdSecondsEnvironmentFallback()
+    {
+        var result = MonitorOptions.Parse(
+            [],
+            name => name == MonitorOptions.ProjectionLagThresholdSecondsEnvironmentVariable ? "8" : null);
+
+        Assert.Null(result.Error);
+        Assert.Equal(8, result.Options!.ProjectionLagThresholdSeconds);
+    }
+
+    [Fact]
+    public void Parse_CliIngestionStallThresholdSecondsOverridesEnvironmentFallback()
+    {
+        var result = MonitorOptions.Parse(
+            ["--ingestion-stall-threshold-seconds", "3"],
+            name => name == MonitorOptions.IngestionStallThresholdSecondsEnvironmentVariable ? "4" : null);
+
+        Assert.Null(result.Error);
+        Assert.Equal(3, result.Options!.IngestionStallThresholdSeconds);
+    }
+
+    [Theory]
+    [InlineData("--ingestion-stall-threshold-seconds", "0")]
+    [InlineData("--ingestion-stall-threshold-seconds", "-1")]
+    [InlineData("--ingestion-stall-threshold-seconds", "abc")]
+    public void Parse_RejectsInvalidIngestionStallThresholdSeconds(string option, string value)
+    {
+        var result = MonitorOptions.Parse([option, value]);
+
+        Assert.Equal("--ingestion-stall-threshold-seconds requires a positive integer.", result.Error);
+    }
+
+    [Theory]
+    [InlineData("--projection-lag-threshold-seconds", "0")]
+    [InlineData("--projection-lag-threshold-seconds", "-1")]
+    [InlineData("--projection-lag-threshold-seconds", "abc")]
+    public void Parse_RejectsInvalidProjectionLagThresholdSeconds(string option, string value)
+    {
+        var result = MonitorOptions.Parse([option, value]);
+
+        Assert.Equal("--projection-lag-threshold-seconds requires a positive integer.", result.Error);
+    }
+
+    [Fact]
+    public void Parse_RejectsInvalidIngestionStallThresholdSecondsEnvironment()
+    {
+        var result = MonitorOptions.Parse(
+            [],
+            name => name == MonitorOptions.IngestionStallThresholdSecondsEnvironmentVariable ? "0" : null);
+
+        Assert.Equal("CAO_MONITOR_INGESTION_STALL_THRESHOLD_SECONDS requires a positive integer.", result.Error);
+    }
+
+    [Fact]
+    public void Parse_RejectsInvalidProjectionLagThresholdSecondsEnvironment()
+    {
+        var result = MonitorOptions.Parse(
+            [],
+            name => name == MonitorOptions.ProjectionLagThresholdSecondsEnvironmentVariable ? "abc" : null);
+
+        Assert.Equal("CAO_MONITOR_PROJECTION_LAG_THRESHOLD_SECONDS requires a positive integer.", result.Error);
+    }
+
+    [Fact]
+    public void Parse_RejectsDuplicateIngestionStallThresholdSeconds()
+    {
+        var result = MonitorOptions.Parse(
+            ["--ingestion-stall-threshold-seconds", "3", "--ingestion-stall-threshold-seconds", "4"]);
+
+        Assert.Equal("local-monitor accepts --ingestion-stall-threshold-seconds only once.", result.Error);
+    }
+
+    [Fact]
+    public void Parse_RejectsDuplicateProjectionLagThresholdSeconds()
+    {
+        var result = MonitorOptions.Parse(
+            ["--projection-lag-threshold-seconds", "7", "--projection-lag-threshold-seconds", "8"]);
+
+        Assert.Equal("local-monitor accepts --projection-lag-threshold-seconds only once.", result.Error);
+    }
 }

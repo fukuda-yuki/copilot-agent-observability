@@ -4,10 +4,16 @@ internal sealed record MonitorOptions(
     string DatabasePath,
     string Url,
     bool EnableRawView,
-    int MaxRequestBodyBytes)
+    int MaxRequestBodyBytes,
+    int IngestionStallThresholdSeconds = MonitorOptions.DefaultIngestionStallThresholdSeconds,
+    int ProjectionLagThresholdSeconds = MonitorOptions.DefaultProjectionLagThresholdSeconds)
 {
     public const string MaxRequestBodyBytesEnvironmentVariable = "CAO_MONITOR_MAX_REQUEST_BODY_BYTES";
     public const int DefaultMaxRequestBodyBytes = 31_457_280;
+    public const string IngestionStallThresholdSecondsEnvironmentVariable = "CAO_MONITOR_INGESTION_STALL_THRESHOLD_SECONDS";
+    public const int DefaultIngestionStallThresholdSeconds = 10;
+    public const string ProjectionLagThresholdSecondsEnvironmentVariable = "CAO_MONITOR_PROJECTION_LAG_THRESHOLD_SECONDS";
+    public const int DefaultProjectionLagThresholdSeconds = 60;
 
     public static MonitorOptionsParseResult Parse(
         string[] args,
@@ -22,6 +28,8 @@ internal sealed record MonitorOptions(
         var portSet = false;
         var enableRawView = false;
         int? maxRequestBodyBytes = null;
+        int? ingestionStallThresholdSeconds = null;
+        int? projectionLagThresholdSeconds = null;
 
         for (var index = 0; index < args.Length; index++)
         {
@@ -122,6 +130,46 @@ internal sealed record MonitorOptions(
                     index++;
                     break;
 
+                case "--ingestion-stall-threshold-seconds":
+                    if (ingestionStallThresholdSeconds is not null)
+                    {
+                        return Failure("local-monitor accepts --ingestion-stall-threshold-seconds only once.");
+                    }
+
+                    if (!TryReadValue(args, index, out var stallValue))
+                    {
+                        return Failure("--ingestion-stall-threshold-seconds requires a value.");
+                    }
+
+                    if (!TryParsePositiveInt(stallValue, out var parsedStall))
+                    {
+                        return Failure("--ingestion-stall-threshold-seconds requires a positive integer.");
+                    }
+
+                    ingestionStallThresholdSeconds = parsedStall;
+                    index++;
+                    break;
+
+                case "--projection-lag-threshold-seconds":
+                    if (projectionLagThresholdSeconds is not null)
+                    {
+                        return Failure("local-monitor accepts --projection-lag-threshold-seconds only once.");
+                    }
+
+                    if (!TryReadValue(args, index, out var lagValue))
+                    {
+                        return Failure("--projection-lag-threshold-seconds requires a value.");
+                    }
+
+                    if (!TryParsePositiveInt(lagValue, out var parsedLag))
+                    {
+                        return Failure("--projection-lag-threshold-seconds requires a positive integer.");
+                    }
+
+                    projectionLagThresholdSeconds = parsedLag;
+                    index++;
+                    break;
+
                 default:
                     return Failure($"unknown local-monitor option '{args[index]}'.");
             }
@@ -141,8 +189,42 @@ internal sealed record MonitorOptions(
             }
         }
 
+        if (ingestionStallThresholdSeconds is null)
+        {
+            var envValue = getEnvironmentVariable(IngestionStallThresholdSecondsEnvironmentVariable);
+            if (!string.IsNullOrWhiteSpace(envValue))
+            {
+                if (!TryParsePositiveInt(envValue, out var parsedStall))
+                {
+                    return Failure($"{IngestionStallThresholdSecondsEnvironmentVariable} requires a positive integer.");
+                }
+
+                ingestionStallThresholdSeconds = parsedStall;
+            }
+        }
+
+        if (projectionLagThresholdSeconds is null)
+        {
+            var envValue = getEnvironmentVariable(ProjectionLagThresholdSecondsEnvironmentVariable);
+            if (!string.IsNullOrWhiteSpace(envValue))
+            {
+                if (!TryParsePositiveInt(envValue, out var parsedLag))
+                {
+                    return Failure($"{ProjectionLagThresholdSecondsEnvironmentVariable} requires a positive integer.");
+                }
+
+                projectionLagThresholdSeconds = parsedLag;
+            }
+        }
+
         return new MonitorOptionsParseResult(
-            new MonitorOptions(databasePath, url, enableRawView, maxRequestBodyBytes ?? DefaultMaxRequestBodyBytes),
+            new MonitorOptions(
+                databasePath,
+                url,
+                enableRawView,
+                maxRequestBodyBytes ?? DefaultMaxRequestBodyBytes,
+                ingestionStallThresholdSeconds ?? DefaultIngestionStallThresholdSeconds,
+                projectionLagThresholdSeconds ?? DefaultProjectionLagThresholdSeconds),
             null);
     }
 
