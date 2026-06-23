@@ -68,6 +68,21 @@ internal static class MonitorHost
 
             await next();
         });
+        app.MapGet("/health/live", async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = JsonContentType;
+            await context.Response.WriteAsync("""{"status":"live"}""");
+        });
+        app.MapGet("/health/ready", async context =>
+        {
+            var readiness = health.Evaluate(options.IngestionStallThresholdSeconds);
+            context.Response.StatusCode = readiness.IsReady
+                ? StatusCodes.Status200OK
+                : StatusCodes.Status503ServiceUnavailable;
+            context.Response.ContentType = JsonContentType;
+            await context.Response.WriteAsync(MonitorReadinessJson.Serialize(readiness));
+        });
         app.MapPost(TracePath, async context =>
         {
             if (context.Request.ContentLength > options.MaxRequestBodyBytes)

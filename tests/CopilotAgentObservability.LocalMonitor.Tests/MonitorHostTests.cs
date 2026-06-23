@@ -153,18 +153,33 @@ public class MonitorHostTests
         Assert.Single(new RawTelemetryStore(tempDirectory.DatabasePath).ListRecords());
     }
 
-    [Theory]
-    [InlineData("/traces/1/raw")]
-    [InlineData("/health/live")]
-    [InlineData("/health/ready")]
-    public async Task DeferredRoutesReturn404(string path)
+    [Fact]
+    public async Task HealthLive_Returns200()
     {
         using var tempDirectory = new MonitorTempDirectory();
         await using var host = await StartHostAsync(tempDirectory);
 
-        var response = await host.Client.GetAsync(path);
+        var response = await host.Client.GetAsync("/health/live");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"status\":\"live\"", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task HealthReady_Returns503NotReadyWhileProjectionWorkerAbsent()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        await using var host = await StartHostAsync(tempDirectory);
+
+        var response = await host.Client.GetAsync("/health/ready");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"status\":\"not_ready\"", body);
+        Assert.Contains("projection_worker_missing", body);
+        Assert.Contains("\"migration_complete\":true", body);
+        Assert.Contains("\"writer_running\":true", body);
+        Assert.Contains("\"projection_worker_running\":false", body);
     }
 
     [Fact]
