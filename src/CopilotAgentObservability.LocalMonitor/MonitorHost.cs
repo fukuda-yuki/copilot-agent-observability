@@ -76,7 +76,7 @@ internal static class MonitorHost
         });
         app.MapGet("/health/ready", async context =>
         {
-            var readiness = health.Evaluate(options.IngestionStallThresholdSeconds);
+            var readiness = health.Evaluate(options.IngestionStallThresholdSeconds, options.ProjectionLagThresholdSeconds);
             context.Response.StatusCode = readiness.IsReady
                 ? StatusCodes.Status200OK
                 : StatusCodes.Status503ServiceUnavailable;

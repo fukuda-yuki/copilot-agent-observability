@@ -148,57 +148,99 @@ internal sealed class MonitorHealthState
     }
 
     /// <summary>
-    /// Evaluates the readiness contract. In M3 the result is always
-    /// <c>not_ready</c> because the projection worker is deferred to M4; the
-    /// reasons explain why (projection_worker_missing when ingestion is otherwise
-    /// healthy, or migration_failed / fatal_error / ingestion_stalled).
+    /// Evaluates the readiness contract over both the ingestion-stall and
+    /// projection-lag thresholds. <c>not_ready</c> (HTTP 503) on any blocking
+    /// condition (migration_failed / fatal_error / ingestion_stalled /
+    /// projection_worker_missing / projection_lag_exceeded); <c>degraded</c>
+    /// (HTTP 200) on momentary backpressure or sub-threshold projection lag;
+    /// otherwise <c>ready</c> (HTTP 200, empty reasons).
     /// </summary>
-    public MonitorReadiness Evaluate(int ingestionStallThresholdSeconds)
+    public MonitorReadiness Evaluate(int ingestionStallThresholdSeconds, int projectionLagThresholdSeconds)
     {
         lock (gate)
         {
-            var reasons = new List<string>();
-            var blocking = false;
+            var blocking = new List<string>();
+            var degraded = new List<string>();
 
             if (!migrationComplete)
             {
-                reasons.Add("migration_failed");
-                blocking = true;
+                blocking.Add("migration_failed");
             }
 
             if (fatalError)
             {
-                reasons.Add("fatal_error");
-                blocking = true;
+                blocking.Add("fatal_error");
             }
 
-            if (unableToCommitSince is { } since
-                && (timeProvider.GetUtcNow() - since).TotalSeconds >= ingestionStallThresholdSeconds)
+            var ingestionAccepting = unableToCommitSince is null;
+            if (unableToCommitSince is { } since)
             {
-                reasons.Add("ingestion_stalled");
-                blocking = true;
+                if ((timeProvider.GetUtcNow() - since).TotalSeconds >= ingestionStallThresholdSeconds)
+                {
+                    blocking.Add("ingestion_stalled");
+                }
+                else
+                {
+                    degraded.Add("ingestion_backpressure");
+                }
             }
 
-            // M3 deliberately ships without a projection worker; surface that as
-            // the reason whenever ingestion itself is otherwise healthy.
-            const bool projectionWorkerRunning = false;
-            if (!blocking)
+            if (!projectionWorkerRunning)
             {
-                reasons.Add("projection_worker_missing");
+                blocking.Add("projection_worker_missing");
+            }
+
+            var lagSeconds = ComputeProjectionLagSeconds();
+            if (lagSeconds >= projectionLagThresholdSeconds)
+            {
+                blocking.Add("projection_lag_exceeded");
+            }
+            else if (lagSeconds > 0)
+            {
+                degraded.Add("projection_lag");
+            }
+
+            string status;
+            List<string> reasons;
+            if (blocking.Count > 0)
+            {
+                status = "not_ready";
+                reasons = blocking.Concat(degraded).ToList();
+            }
+            else if (degraded.Count > 0)
+            {
+                status = "degraded";
+                reasons = degraded;
+            }
+            else
+            {
+                status = "ready";
+                reasons = new List<string>();
             }
 
             return new MonitorReadiness(
-                Status: "not_ready",
+                Status: status,
                 LoopbackBound: loopbackBound,
                 DbOpen: dbOpen,
                 MigrationComplete: migrationComplete,
                 WriterRunning: writerRunning,
                 ProjectionWorkerRunning: projectionWorkerRunning,
-                IngestionAccepting: unableToCommitSince is null,
-                ProjectionLagSeconds: 0,
-                ProjectionBacklog: 0,
+                IngestionAccepting: ingestionAccepting,
+                ProjectionLagSeconds: lagSeconds,
+                ProjectionBacklog: projectionBacklog,
                 DegradedReasons: reasons);
         }
+    }
+
+    private int ComputeProjectionLagSeconds()
+    {
+        if (oldestUnprocessedReceivedAt is not { } oldest)
+        {
+            return 0;
+        }
+
+        var seconds = (timeProvider.GetUtcNow() - oldest).TotalSeconds;
+        return seconds <= 0 ? 0 : (int)Math.Floor(seconds);
     }
 }
 
