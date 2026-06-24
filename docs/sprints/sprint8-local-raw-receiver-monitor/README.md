@@ -87,17 +87,48 @@ static-dashboard non-exposure (§9) are unchanged. Full model:
 | M1 Shared Component Extraction | Extract `Telemetry` + `Persistence.Sqlite` projects; keep Config CLI behavior and tests green. | **Implemented** |
 | M2 ASP.NET Core Receiver Host | LocalMonitor project, Kestrel loopback, `POST /v1/traces`, request size limit, deterministic HTTP errors. | **Implemented** |
 | M3 Ingestion Queue + SQLite Concurrency | Bounded channel, single writer worker, WAL, schema-version additive migration (creates empty projection tables), first `/health/*` endpoints, graceful shutdown. | **Implemented** |
-| M4 Monitor Projection | `monitor_ingestions` / `monitor_traces`, ProjectionWorker, startup catch-up, retry/failure state, sanitized default projections + opt-in raw access. | Pending |
+| M4 Monitor Projection | `monitor_ingestions` / `monitor_traces`, ProjectionWorker, startup catch-up, retry/failure state, sanitized default projections + cursor API + opt-in raw access. | **Implemented** |
 | M5 Web UI + SSE | Overview / Live Ingestions / Traces / Diagnostics; SSE event stream with reconnect/gap recovery. | Pending |
 | M6 Security + Live Validation | DR6 threat-model negative tests (non-loopback, Host validation, cross-origin raw read, opt-in gating, CSRF), readiness non-2xx under saturation, raw non-logging, restart recovery, real VS Code validation. | Pending |
 
 ## Current Status
 
-M1 (Shared Component Extraction), M2 (ASP.NET Core Receiver Host), and M3
-(Ingestion Queue + SQLite Concurrency) are implemented. M3 is still **not** a
-shippable monitor: projection population, the `/api/monitor/*` cursor API, the
-Web UI / SSE, the opt-in raw-detail route, the full DR6 negative security matrix,
-and live VS Code evidence remain M4–M6.
+M1–M4 are implemented. M4 populates the sanitized projections, exposes the
+cursor read API, activates projection-lag readiness, and adds the opt-in
+raw-detail route. The monitor is still **not** fully shippable: the Razor Web UI
+and SSE stream (M5), the full DR6 negative security matrix and CSRF on
+state-changing actions, and live VS Code HTTP/protobuf evidence (M6) remain.
+
+Implemented in M4 (see
+[`milestones/M4-monitor-projection/plan.md`](milestones/M4-monitor-projection/plan.md)
+and `review.md` in the same folder):
+
+- `MonitorProjectionBuilder` (`Telemetry/Monitoring/`) turns one raw record into
+  sanitized projection values (allowlist only; no raw content or PII), fanning out
+  one `monitor_traces` contribution per non-blank `trace_id`; a trace-id-less
+  record is projected into `monitor_ingestions` only and never stalls projection.
+- Idempotent persistence projection: `INSERT OR IGNORE monitor_ingestions` plus a
+  guarded `monitor_traces` aggregate upsert (exactly-once per raw record),
+  projection backlog/oldest status, cursor-paginated sanitized reads (projection
+  tables only, `limit + 1` terminal probe, `raw_record_id` vs projection-id cursor
+  domains), and a by-id raw fetch.
+- `ProjectionWorker`: a second writer (projection tables only) with startup
+  catch-up, `SQLITE_BUSY` retry, non-busy failure isolation (raw retained), and
+  health updates; it waits for the ingestion writer's migration first.
+- `/health/ready` now returns `ready` (caught up), `degraded` (`200`; momentary
+  backpressure or sub-threshold projection lag), or `not_ready` (`503`; sustained
+  stall, `projection_lag_exceeded`, missing worker, migration failure, fatal).
+- `GET /api/monitor/ingestions` / `GET /api/monitor/traces`: sanitized,
+  cursor-paginated (`after`/`limit`, `next_cursor`), `400` on invalid query.
+- Opt-in `GET /traces/{rawRecordId}/raw`: present only with `--enable-raw-view`
+  (absent ⇒ `404`); same-origin enforced (cross-site ⇒ `403`),
+  `Cache-Control: no-store`, raw rendered as HTML-encoded inert text.
+
+Validation (M4):
+
+- `dotnet build CopilotAgentObservability.slnx`: 0 errors, 0 warnings.
+- `dotnet test CopilotAgentObservability.slnx`: 421 passing, 0 failing, 0 skipped
+  (300 Config CLI + 121 LocalMonitor; above the M3 baseline of 371).
 
 Implemented in M3 (see
 [`milestones/M3-ingestion-queue-sqlite-concurrency/plan.md`](milestones/M3-ingestion-queue-sqlite-concurrency/plan.md)
