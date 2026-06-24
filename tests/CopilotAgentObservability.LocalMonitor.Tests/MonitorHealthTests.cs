@@ -260,18 +260,4 @@ public class MonitorHealthTests
         Assert.Contains("\"projection_backlog\":0", json);
         Assert.Contains("\"degraded_reasons\":[]", json);
     }
-
-    private sealed class MutableTimeProvider : TimeProvider
-    {
-        private DateTimeOffset now;
-
-        public MutableTimeProvider(DateTimeOffset start)
-        {
-            now = start;
-        }
-
-        public override DateTimeOffset GetUtcNow() => now;
-
-        public void Advance(TimeSpan delta) => now += delta;
-    }
 }
