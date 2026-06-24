@@ -1,9 +1,15 @@
-# Sprint8 M6 Live Validation — BLOCKED
+# Sprint8 M6 Live Validation — BLOCKED (blocker accepted)
 
 Status: **BLOCKED**. The real VS Code GitHub Copilot Chat live validation has NOT
 been performed. Per the M6 plan (Task 5, Step 6), M6 and Sprint8 are therefore
 **not** marked complete. This file records the blocker and the exact missing
 evidence, not a completion.
+
+Product-owner decision (2026-06-25): the blocker is **accepted** and this work
+item is closed in its current state. The agent-achievable scope (M5 implementation,
+M6 verification tests, synthetic real-process validation, docs) is delivered;
+Sprint8 stays formally open until a human performs the live run using the steps
+below. No live evidence is fabricated.
 
 ## What Is Blocked
 

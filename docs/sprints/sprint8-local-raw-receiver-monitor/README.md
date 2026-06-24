@@ -97,6 +97,8 @@ M1–M5 are implemented and M6 verification is complete, but Sprint8 is **not**
 complete: the M6 real VS Code Copilot Chat live validation is **blocked**
 (human-gated) and recorded as a blocker in
 [`milestones/M6-security-live-validation/live-validation.md`](milestones/M6-security-live-validation/live-validation.md).
+The product owner accepted this blocker on 2026-06-25 and closed the work item in
+this state; Sprint8 stays formally open until a human runs the live validation.
 
 M6 added (tests only; no production change — the existing M3–M5 implementation
 satisfied every assertion):
