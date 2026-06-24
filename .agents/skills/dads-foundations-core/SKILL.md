@@ -3,29 +3,30 @@ name: dads-foundations-core
 description: >-
   DADS (Digital Agency Design System) foundation design reference for web UI.
   USE FOR: applying DADS color, typography, layout, spacing, icon, link, and
-  accessibility rules to HTML/CSS/Razor output. Checking contrast ratios, font
-  sizes, spacing tokens, grid systems, link states, icon placements, and
-  accessibility compliance against DADS specifications.
-  DO NOT USE FOR: React/Tailwind component implementation (use official DADS
-  React repo as reference), backend-only tasks, non-UI tasks.
+  accessibility rules to HTML/CSS output. Checking contrast ratios, font sizes,
+  spacing tokens, grid systems, link states, icon placements, and accessibility
+  compliance against DADS specifications.
+  DO NOT USE FOR: backend-only tasks, non-UI tasks.
   PRIORITY: DADS official site (design.digital.go.jp) and official
   implementations are the authoritative source. This skill is an LLM-oriented
   digest derived from the official documentation.
-license: CC-BY-4.0
+license: MIT
 metadata:
   author: 45deg (original distillation), adapted for this repository
-  version: "1.0.0"
+  version: "1.1.0"
   upstream: https://github.com/45deg/skills/tree/main/skills/dads-foundations-core
-  upstream-license: none specified
-  content-source: DADS (Digital Agency), governed by https://www.digital.go.jp/copyright-policy
-  dads-version: "2.14.0"
+  dads-version: "2.15.0"
+  verified-at: "2026-06-25"
 ---
 
 # DADS Design Foundations
 
-Use this skill to apply, check, and audit Japanese government-style web UI
-design decisions according to the Digital Agency Design System (DADS)
-foundations.
+Versioned values such as token names and HEX values may become stale. Before
+adding or changing tokens, verify them against the official DADS source at
+https://design.digital.go.jp/dads/.
+
+Use this skill to apply, check, and audit web UI design decisions according to
+the Digital Agency Design System (DADS) foundations.
 
 ## Read Order
 
@@ -54,22 +55,33 @@ tables, open the following files:
 
 ## Operating Rules
 
-- **Strict Contrast Constraints**: Text and text-images must maintain at least a
-  **4.5:1** contrast ratio against backgrounds. Non-text interactive boundaries
-  and icons must maintain at least **3:1** contrast.
-- **Minimum Font Sizes**: The standard body text size is **16px**. Under no
-  circumstances should text fall below **14px**. Avoid using 14px unless
-  strictly constrained by space (e.g., footer metadata).
-- **Spacing Units**: All margins and paddings must align with the **8px grid
-  scale** (e.g., 8px, 16px, 24px, 32px, 64px).
-- **No Color-Only Signaling**: Color must never be the sole indicator of state,
-  warning, meaning, or hierarchy. Pair it with text labels, icons, or underline
-  decorations.
-- **Link Integrity**: Link text must *always* use an underline in combination
-  with a distinct color (preferably traditional blue/visited-magenta).
-- **Icon Label Pairing**: Icons are decorative helpers and must be paired with
-  visible text labels. If a standalone icon is unavoidable, it must carry clear
-  alternative text and a target size of at least **44x44px**.
+Each rule is tagged with its authority level:
+
+- **[official-must]** — DADS conformance requirement.
+- **[official-guidance]** — DADS recommended practice; projects may adapt.
+
+Rules:
+
+- **[official-must] Strict Contrast Constraints**: Text and text-images must
+  maintain at least a **4.5:1** contrast ratio against backgrounds. DADS does
+  not use the WCAG large-text exception. Non-text interactive boundaries and
+  icons must maintain at least **3:1** contrast.
+- **[official-must] Minimum Font Sizes**: The standard body text size is
+  **16px**. Text must not fall below **14px**. Use 14px only when strictly
+  constrained by space (e.g., footer metadata).
+- **[official-guidance] Spacing Units**: DADS uses an **8px grid scale** (e.g.,
+  8px, 16px, 24px, 32px, 64px) as its standard spacing system. The important
+  principle is a consistent spacing scale; 8px is the standard example, not an
+  absolute conformance requirement.
+- **[official-must] No Color-Only Signaling**: Color must never be the sole
+  indicator of state, warning, meaning, or hierarchy. Pair it with text labels,
+  icons, or underline decorations.
+- **[official-must] Link Distinguishability**: Links must be visually
+  distinguishable from surrounding text by more than color alone. DADS
+  recommends underline + distinct color as the standard method.
+- **[official-must] Icon Label Pairing**: Icons are decorative helpers and must
+  be paired with visible text labels. If a standalone icon is unavoidable, it
+  must carry clear alternative text and a target size of at least **44x44px**.
 
 ---
 
@@ -129,12 +141,15 @@ When formatting text-based layouts:
 
 When structuring layout columns:
 
-1. **Choose Breakpoints**: Align layout designs to two viewports:
+1. **Choose Breakpoints**: DADS describes a two-viewport model as its standard
+   example:
    - **Desktop**: 768px and above.
    - **Mobile/Tablet**: Under 768px.
+   Services may define additional breakpoints or different thresholds as needed.
 2. **Structure Columns**:
-   - Use a **12-column grid system** for desktop layouts (1-column, 2-column,
-     3-column, or 4-column configurations).
+   - DADS describes both **1-column** and **12-column** grid systems. The
+     12-column grid supports 1-column, 2-column, 3-column, or 4-column
+     configurations for desktop layouts.
    - Position side navigation or menus as fixed or fluid panels, and define grid
      gutters on the right side of the menu.
 3. **Configure Spacing Gaps**:
@@ -164,9 +179,10 @@ When organizing elements within a container:
 
 When building navigation elements:
 
-1. **Verify Link Contrast & Underline**: Ensure all links are visibly
-   underlined. Validate that unvisited and visited links are easily
-   distinguished (especially under colorblindness simulations).
+1. **Verify Link Distinguishability**: Ensure all links are visually
+   distinguishable from surrounding text by more than color alone (underline is
+   the standard DADS method). Validate that unvisited and visited links are
+   easily distinguished (especially under colorblindness simulations).
 2. **Apply Focus/Hover Feedbacks**:
    - Focus: Must show a visible black outline and yellow background.
    - Hover: Change color slightly (brighter/darker) and make the underline
@@ -218,19 +234,16 @@ When building navigation elements:
 
 ---
 
-## Attribution and License
+## Attribution
 
 This skill is an **edited and distilled** derivative of the Digital Agency
 Design System (DADS), reorganized for LLM use. It is **not** an official
-Digital Agency publication, package, or endorsement, and it does **not**
-replace the official site or implementations.
+Digital Agency publication, package, or endorsement.
 
 - Official DADS: https://design.digital.go.jp/dads/
 - DADS usage notices: https://design.digital.go.jp/dads/introduction/notices/
 - Digital Agency copyright policy: https://www.digital.go.jp/copyright-policy
+- Upstream distillation: https://github.com/45deg/skills/tree/main/skills/dads-foundations-core
 
-DADS content is provided by the Digital Agency under CC BY 4.0 per its
-copyright policy; the official copyright policy is the authoritative source
-for current terms. The upstream skill repository (45deg/skills) specifies no
-license of its own. When this material conflicts with the official DADS site
-or implementations, the official source wins.
+When this material conflicts with the official DADS site or implementations,
+the official source wins.
