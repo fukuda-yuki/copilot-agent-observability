@@ -4,6 +4,13 @@ Use this reference to choose icon placements, set up link colors and states,
 structure file download links, and evaluate touch targets and screen-reader
 accessibility.
 
+## Contents
+
+1. Icon Placement & Sizing — classifications, pairing, alt text, contrast
+2. Link Design & States — colors, interactive states
+3. Link Text Quality & Target Sizes
+4. Special Link Configurations — new-tab and download links
+
 ---
 
 ## 1. Icon Placement & Sizing

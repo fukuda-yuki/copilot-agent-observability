@@ -11,11 +11,13 @@ description: >-
   PRIORITY: DADS official site (design.digital.go.jp) and official
   implementations are the authoritative source. This skill is an LLM-oriented
   digest derived from the official documentation.
-license: MIT
+license: CC-BY-4.0
 metadata:
-  author: 45deg (original), adapted for this repository
+  author: 45deg (original distillation), adapted for this repository
   version: "1.0.0"
   upstream: https://github.com/45deg/skills/tree/main/skills/dads-foundations-core
+  upstream-license: none specified
+  content-source: DADS (Digital Agency), governed by https://www.digital.go.jp/copyright-policy
   dads-version: "2.14.0"
 ---
 
@@ -213,3 +215,22 @@ When building navigation elements:
   standalone button or icon has a clickable region of at least **24x24px** (with
   4px surrounding padding to reach **32x32px**), or ideally **44x44px** for
   high-priority actions.
+
+---
+
+## Attribution and License
+
+This skill is an **edited and distilled** derivative of the Digital Agency
+Design System (DADS), reorganized for LLM use. It is **not** an official
+Digital Agency publication, package, or endorsement, and it does **not**
+replace the official site or implementations.
+
+- Official DADS: https://design.digital.go.jp/dads/
+- DADS usage notices: https://design.digital.go.jp/dads/introduction/notices/
+- Digital Agency copyright policy: https://www.digital.go.jp/copyright-policy
+
+DADS content is provided by the Digital Agency under CC BY 4.0 per its
+copyright policy; the official copyright policy is the authoritative source
+for current terms. The upstream skill repository (45deg/skills) specifies no
+license of its own. When this material conflicts with the official DADS site
+or implementations, the official source wins.

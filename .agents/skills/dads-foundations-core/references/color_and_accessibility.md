@@ -3,6 +3,14 @@
 Use this reference to choose color roles, verify contrast ratios, adapt brand
 colors, and ensure accessibility for users with color vision deficiencies.
 
+## Contents
+
+1. Color Role Directory — key, neutral, functional, accent, semantic colors
+2. Color Palette Registry (v2.14.0) — primitive and neutral HEX values
+3. Contrast Requirements (JIS X 8341-3 / WCAG 2.2)
+4. Brand Color Adaptation Workflow
+5. Color Universal Design (CUD) Guidelines
+
 ---
 
 ## 1. Color Role Directory

@@ -3,6 +3,14 @@
 Use this reference to set up font families, weights, sizes, line heights, select
 typography tokens, and evaluate text accessibility.
 
+## Contents
+
+1. Typeface & Weights — Noto Sans JP / Noto Sans Mono, weights 400/700
+2. Text Sizes & Line Heights
+3. Typography Token Directory — Display, Standard, Dense, Oneline, Mono
+4. Text Formatting Constraints — italics, underline, ruby
+5. Typography Accessibility Guidelines (JIS X 8341-3 / WCAG 2.2)
+
 ---
 
 ## 1. Typeface & Weights

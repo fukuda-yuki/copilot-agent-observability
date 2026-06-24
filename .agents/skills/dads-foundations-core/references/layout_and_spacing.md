@@ -3,6 +3,14 @@
 Use this reference to design responsive layout grids, choose spacing tokens,
 arrange components, and verify layout accessibility.
 
+## Contents
+
+1. 12-Column Grid System — components, templates, offsets
+2. Responsive Breakpoints (768px threshold)
+3. Layout Accessibility Guidelines (JIS X 8341-3 / WCAG 2.2)
+4. Spacing Rules & Box Model — 8px spacer scale
+5. Spacing Accessibility & Coding Constraints
+
 ---
 
 ## 1. 12-Column Grid System
