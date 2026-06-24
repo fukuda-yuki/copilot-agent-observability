@@ -1,3 +1,4 @@
+using CopilotAgentObservability.LocalMonitor.Events;
 using CopilotAgentObservability.LocalMonitor.Health;
 using CopilotAgentObservability.LocalMonitor.Ingestion;
 using Microsoft.Extensions.Hosting;
@@ -20,17 +21,20 @@ internal sealed class ProjectionWorker : BackgroundService
     private readonly MonitorHealthState health;
     private readonly TimeProvider timeProvider;
     private readonly TimeSpan pollInterval;
+    private readonly MonitorEventBroker? eventBroker;
 
     public ProjectionWorker(
         IMonitorProjectionStore store,
         MonitorHealthState health,
         TimeProvider? timeProvider = null,
-        TimeSpan? pollInterval = null)
+        TimeSpan? pollInterval = null,
+        MonitorEventBroker? eventBroker = null)
     {
         this.store = store;
         this.health = health;
         this.timeProvider = timeProvider ?? TimeProvider.System;
         this.pollInterval = pollInterval ?? TimeSpan.FromSeconds(1);
+        this.eventBroker = eventBroker;
     }
 
     public override async Task StartAsync(CancellationToken cancellationToken)
@@ -91,6 +95,7 @@ internal sealed class ProjectionWorker : BackgroundService
         try
         {
             var records = store.ListUnprocessedForProjection(BatchSize);
+            var anyProjected = false;
             foreach (var record in records)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -101,12 +106,16 @@ internal sealed class ProjectionWorker : BackgroundService
                 try
                 {
                     var projection = MonitorProjectionBuilder.Build(record);
-                    store.ApplyProjection(
+                    var projected = store.ApplyProjection(
                         record.Id!.Value,
                         record.Source,
                         record.ReceivedAt,
                         projection,
                         timeProvider.GetUtcNow());
+                    if (projected)
+                    {
+                        anyProjected = true;
+                    }
                 }
                 catch (PersistenceBusyException)
                 {
@@ -119,6 +128,11 @@ internal sealed class ProjectionWorker : BackgroundService
                     // failure, and continue with the next record.
                     health.RecordProjectionFailure();
                 }
+            }
+
+            if (anyProjected)
+            {
+                eventBroker?.PublishProjectionChanged();
             }
 
             var status = store.GetProjectionStatus();

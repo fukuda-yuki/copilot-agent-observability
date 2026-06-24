@@ -1,3 +1,4 @@
+using CopilotAgentObservability.LocalMonitor.Events;
 using CopilotAgentObservability.LocalMonitor.Health;
 using CopilotAgentObservability.LocalMonitor.Ingestion;
 using CopilotAgentObservability.LocalMonitor.Projection;
@@ -7,6 +8,35 @@ namespace CopilotAgentObservability.LocalMonitor.Tests;
 
 public class ProjectionWorkerTests
 {
+    [Fact]
+    public async Task Pass_PublishesOneProjectionEventWhenRecordsNewlyProjected()
+    {
+        var store = new FakeProjectionStore();
+        store.Seed(1, T(1));
+        store.Seed(2, T(2));
+        var broker = new MonitorEventBroker();
+        using var subscription = broker.Subscribe();
+        var worker = new ProjectionWorker(store, ReadyHealth(), eventBroker: broker);
+
+        await worker.RunProjectionPassAsync();
+
+        Assert.True(subscription.Reader.TryRead(out _));
+        // Exactly one notification per pass, regardless of how many rows projected.
+        Assert.False(subscription.Reader.TryRead(out _));
+    }
+
+    [Fact]
+    public async Task Pass_DoesNotPublishWhenNothingNewlyProjected()
+    {
+        var store = new FakeProjectionStore();
+        var broker = new MonitorEventBroker();
+        using var subscription = broker.Subscribe();
+        var worker = new ProjectionWorker(store, ReadyHealth(), eventBroker: broker);
+
+        await worker.RunProjectionPassAsync();
+
+        Assert.False(subscription.Reader.TryRead(out _));
+    }
     [Fact]
     public async Task Pass_ProjectsPreExistingUnprocessedRows()
     {

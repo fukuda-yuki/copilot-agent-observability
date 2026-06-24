@@ -1,4 +1,5 @@
 using System.Text.Encodings.Web;
+using CopilotAgentObservability.LocalMonitor.Events;
 using CopilotAgentObservability.LocalMonitor.Health;
 using CopilotAgentObservability.LocalMonitor.Ingestion;
 using CopilotAgentObservability.LocalMonitor.Projection;
@@ -34,6 +35,7 @@ internal static class MonitorHost
         var health = testOptions?.Health ?? new MonitorHealthState();
         health.SetLoopbackBound(true);
         var commitTimeout = testOptions?.CommitTimeout ?? DefaultCommitTimeout;
+        var eventBroker = new MonitorEventBroker();
         var mvcBuilder = builder.Services.AddRazorPages();
         var monitorAssembly = typeof(MonitorHost).Assembly;
         if (!ReferenceEquals(System.Reflection.Assembly.GetEntryAssembly(), monitorAssembly))
@@ -62,7 +64,7 @@ internal static class MonitorHost
         {
             // Registered after the ingestion writer so its synchronous migration
             // runs first; the projection worker also guards on migration_complete.
-            var projectionWorker = new ProjectionWorker(projectionStore, health, pollInterval: testOptions?.ProjectionPollInterval);
+            var projectionWorker = new ProjectionWorker(projectionStore, health, eventBroker: eventBroker, pollInterval: testOptions?.ProjectionPollInterval);
             builder.Services.AddHostedService(_ => projectionWorker);
         }
 
@@ -172,6 +174,26 @@ internal static class MonitorHost
             catch (PersistenceBusyException)
             {
                 await WriteFailureAsync(context, StatusCodes.Status503ServiceUnavailable, "persistence_busy", "The local monitor raw store is busy.");
+            }
+        });
+        app.MapGet("/events", async context =>
+        {
+            context.Response.Headers.CacheControl = "no-cache";
+            context.Response.ContentType = "text/event-stream";
+            using var subscription = eventBroker.Subscribe();
+            await context.Response.WriteAsync(": connected\n\n", context.RequestAborted);
+            await context.Response.Body.FlushAsync(context.RequestAborted);
+            try
+            {
+                await foreach (var evt in subscription.Reader.ReadAllAsync(context.RequestAborted))
+                {
+                    await context.Response.WriteAsync($"id: {evt.Id}\nevent: {evt.Type}\ndata: {{}}\n\n", context.RequestAborted);
+                    await context.Response.Body.FlushAsync(context.RequestAborted);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Client disconnected or host shutting down; end the stream quietly.
             }
         });
         if (options.EnableRawView)
