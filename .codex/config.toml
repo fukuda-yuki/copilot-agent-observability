@@ -12,3 +12,18 @@ job_max_runtime_seconds = 3600
 [features]
 fast_mode = true
 multi_agent = true
+
+# 人間への承認要求で停止しない
+approval_policy = "never"
+
+# リポジトリ内では自由に読み書き・コマンド実行を許可
+sandbox_mode = "workspace-write"
+
+# restore、npm install、Web APIなどの外部通信を許可
+[sandbox_workspace_write]
+network_access = true
+
+# Windowsでは強い隔離方式を使用
+[windows]
+sandbox = "elevated"
+sandbox_private_desktop = true
