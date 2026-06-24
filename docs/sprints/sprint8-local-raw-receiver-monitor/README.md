@@ -89,16 +89,41 @@ static-dashboard non-exposure (§9) are unchanged. Full model:
 | M3 Ingestion Queue + SQLite Concurrency | Bounded channel, single writer worker, WAL, schema-version additive migration (creates empty projection tables), first `/health/*` endpoints, graceful shutdown. | **Implemented** |
 | M4 Monitor Projection | `monitor_ingestions` / `monitor_traces`, ProjectionWorker, startup catch-up, retry/failure state, sanitized default projections + cursor API + opt-in raw access. | **Implemented** |
 | M5 Web UI + SSE | Overview / Live Ingestions / Traces / Diagnostics; SSE event stream with reconnect/gap recovery. | **Implemented** |
-| M6 Security + Live Validation | DR6 threat-model negative tests (non-loopback, Host validation, cross-origin raw read, opt-in gating, CSRF), readiness non-2xx under saturation, raw non-logging, restart recovery, real VS Code validation. | Pending |
+| M6 Security + Live Validation | DR6 threat-model negative tests (non-loopback, Host validation, cross-origin raw read, opt-in gating, CSRF), readiness non-2xx under saturation, raw non-logging, restart recovery, real VS Code validation. | Verification complete; **live validation BLOCKED** (human-gated) |
 
 ## Current Status
 
-M1–M5 are implemented. M5 adds the Razor Web UI (`/`, `/ingestions`, `/traces`,
-`/diagnostics`) and a notification-only SSE stream (`GET /events`) over the M4
-contracts, all sanitized. The monitor is still **not** fully shippable: the full
-DR6 negative security matrix and CSRF on state-changing actions, readiness `503`
-under saturation, restart recovery, raw non-logging, and live VS Code
-HTTP/protobuf evidence (M6) remain.
+M1–M5 are implemented and M6 verification is complete, but Sprint8 is **not**
+complete: the M6 real VS Code Copilot Chat live validation is **blocked**
+(human-gated) and recorded as a blocker in
+[`milestones/M6-security-live-validation/live-validation.md`](milestones/M6-security-live-validation/live-validation.md).
+
+M6 added (tests only; no production change — the existing M3–M5 implementation
+satisfied every assertion):
+
+- DR6 negative security matrix at the HTTP level: default `/`, `/ingestions`,
+  `/traces`, `/diagnostics`, `/api/monitor/*` never return raw / PII even with
+  `--enable-raw-view`; the raw route is absent without the flag (`404`) and
+  cross-site / foreign-origin with it is `403`; cross-origin `POST /events` is
+  refused (SSE is GET-only); non-loopback `Host` is rejected (`400`); raw markers /
+  DB path / user name never appear in error responses.
+- HTTP-level readiness failure semantics: momentary backpressure / commit-timeout
+  and sub-threshold projection lag stay `200` (`degraded`); sustained stall,
+  `projection_lag_exceeded`, and `projection_status_unknown` are `503` with the
+  pinned body.
+- Same-DB restart recovery (projection catch-up, reaches `ready`).
+
+Verified ready-state for live validation (only the real-VS-Code emission is
+missing): `profile-vscode-env --profile raw-local-receiver --target monitor` emits
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4320` + `http/protobuf`; a
+real-process synthetic OTLP run confirmed `POST /v1/traces` → `200`,
+`/api/monitor/ingestions` → 1 item, `/health/ready` → `200`.
+
+Validation (M6):
+
+- `dotnet build CopilotAgentObservability.slnx`: 0 errors, 0 warnings.
+- `dotnet test CopilotAgentObservability.slnx`: 445 passing, 0 failing, 0 skipped
+  (300 Config CLI + 145 LocalMonitor).
 
 Implemented in M5 (see
 [`milestones/M5-web-ui-sse/plan.md`](milestones/M5-web-ui-sse/plan.md) and
