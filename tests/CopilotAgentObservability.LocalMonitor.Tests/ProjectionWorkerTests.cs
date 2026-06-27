@@ -3,6 +3,7 @@ using CopilotAgentObservability.LocalMonitor.Health;
 using CopilotAgentObservability.LocalMonitor.Ingestion;
 using CopilotAgentObservability.LocalMonitor.Projection;
 using CopilotAgentObservability.Persistence.Sqlite;
+using CopilotAgentObservability.Telemetry;
 
 namespace CopilotAgentObservability.LocalMonitor.Tests;
 
@@ -192,6 +193,7 @@ public class ProjectionWorkerTests
     {
         private readonly List<RawTelemetryRecord> records = new();
         private readonly HashSet<long> projected = new();
+        private readonly HashSet<long> spanProjected = new();
 
         public Func<long, ApplyOutcome> OnApply { get; set; } = _ => ApplyOutcome.Success;
 
@@ -245,6 +247,27 @@ public class ProjectionWorkerTests
             var unprocessed = records.Where(r => !projected.Contains(r.Id!.Value)).ToList();
             var oldest = unprocessed.Count == 0 ? (DateTimeOffset?)null : unprocessed.Min(r => r.ReceivedAt);
             return new MonitorProjectionStatus(unprocessed.Count, oldest);
+        }
+
+        public IReadOnlyList<RawTelemetryRecord> ListUnprocessedForSpanProjection(int limit) =>
+            records.Where(r => projected.Contains(r.Id!.Value) && !spanProjected.Contains(r.Id!.Value)).Take(limit).ToList();
+
+        public bool ApplySpanProjection(long rawRecordId, IReadOnlyList<MonitorSpanProjection> spans, DateTimeOffset projectedAt)
+        {
+            if (!projected.Contains(rawRecordId) || spanProjected.Contains(rawRecordId))
+            {
+                return false;
+            }
+
+            spanProjected.Add(rawRecordId);
+            return true;
+        }
+
+        public MonitorProjectionStatus GetSpanProjectionStatus()
+        {
+            var pending = records.Where(r => projected.Contains(r.Id!.Value) && !spanProjected.Contains(r.Id!.Value)).ToList();
+            var oldest = pending.Count == 0 ? (DateTimeOffset?)null : pending.Min(r => r.ReceivedAt);
+            return new MonitorProjectionStatus(pending.Count, oldest);
         }
 
         public MonitorProjectionPage<MonitorIngestionRow> ListMonitorIngestions(long afterRawRecordId, int limit) =>

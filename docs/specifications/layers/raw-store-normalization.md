@@ -170,7 +170,7 @@ the `/api/monitor/traces/{traceId}/spans` cursor):
 | `id` | INTEGER PK | projection row id |
 | `raw_record_id` | INTEGER NOT NULL | references `raw_records.id` |
 | `trace_id` | TEXT NOT NULL | trace-level reference |
-| `span_id` | TEXT NOT NULL | span-level reference |
+| `span_id` | TEXT NULL | span-level reference |
 | `parent_span_id` | TEXT NULL | hierarchy reference |
 | `span_ordinal` | INTEGER NOT NULL | intra-record ordering for idempotency |
 | `operation` | TEXT NULL | `invoke_agent` / `chat` / `execute_tool` / `execute_hook` |
@@ -193,7 +193,7 @@ the `/api/monitor/traces/{traceId}/spans` cursor):
 | `finish_reasons` | TEXT NULL | comma-separated enum tokens |
 | `conversation_id` | TEXT NULL | reference id |
 | `duration_ms` | REAL NULL | computed from span start / end |
-| `start_time` | TEXT NOT NULL | ISO-8601 |
+| `start_time` | TEXT NULL | ISO-8601 |
 | `end_time` | TEXT NULL | ISO-8601 |
 | `projected_at` | TEXT NOT NULL | ISO-8601 |
 

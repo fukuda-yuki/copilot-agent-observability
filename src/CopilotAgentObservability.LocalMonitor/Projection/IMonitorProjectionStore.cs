@@ -1,5 +1,6 @@
 using CopilotAgentObservability.LocalMonitor.Ingestion;
 using CopilotAgentObservability.Persistence.Sqlite;
+using CopilotAgentObservability.Telemetry;
 using Microsoft.Data.Sqlite;
 
 namespace CopilotAgentObservability.LocalMonitor.Projection;
@@ -23,6 +24,15 @@ internal interface IMonitorProjectionStore
         DateTimeOffset projectedAt);
 
     MonitorProjectionStatus GetProjectionStatus();
+
+    IReadOnlyList<RawTelemetryRecord> ListUnprocessedForSpanProjection(int limit);
+
+    bool ApplySpanProjection(
+        long rawRecordId,
+        IReadOnlyList<MonitorSpanProjection> spans,
+        DateTimeOffset projectedAt);
+
+    MonitorProjectionStatus GetSpanProjectionStatus();
 
     MonitorProjectionPage<MonitorIngestionRow> ListMonitorIngestions(long afterRawRecordId, int limit);
 
@@ -53,6 +63,18 @@ internal sealed class RawTelemetryStoreProjectionStore : IMonitorProjectionStore
 
     public MonitorProjectionStatus GetProjectionStatus() =>
         Guard(store.GetProjectionStatus);
+
+    public IReadOnlyList<RawTelemetryRecord> ListUnprocessedForSpanProjection(int limit) =>
+        Guard(() => store.ListUnprocessedForSpanProjection(limit));
+
+    public bool ApplySpanProjection(
+        long rawRecordId,
+        IReadOnlyList<MonitorSpanProjection> spans,
+        DateTimeOffset projectedAt) =>
+        Guard(() => store.ApplySpanProjection(rawRecordId, spans, projectedAt));
+
+    public MonitorProjectionStatus GetSpanProjectionStatus() =>
+        Guard(store.GetSpanProjectionStatus);
 
     public MonitorProjectionPage<MonitorIngestionRow> ListMonitorIngestions(long afterRawRecordId, int limit) =>
         Guard(() => store.ListMonitorIngestions(afterRawRecordId, limit));

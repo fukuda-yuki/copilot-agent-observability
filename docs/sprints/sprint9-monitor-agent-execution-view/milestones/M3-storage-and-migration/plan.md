@@ -1,7 +1,7 @@
 # Sprint9 M3 — Storage + Migration (Plan)
 
-Status: **Planned** — to be challenge-reviewed via the Codex companion `review`
-path before implementation (per `CLAUDE.md`).
+Status: **Implemented** (2026-06-27). Implementation delegated to a Sonnet
+subagent and verified by the orchestrator (build/test + baseline-diff review).
 Author role: Claude (orchestrator) per `CLAUDE.md`.
 
 Sprint-local planning evidence, not product behavior. Source-of-truth order:
@@ -38,11 +38,36 @@ Out of scope (deferred):
   additive table + columns.
 
 ## Tasks
-- [ ] Add the additive migration (`monitor_spans` + `monitor_traces` columns,
-      `schema_version` bump).
-- [ ] Persist M2 projections with the ordinal-inclusive idempotency key.
-- [ ] Add projection-version + backfill with independent span-projection progress.
-- [ ] Add the Sprint8-populated-DB upgrade test + idempotency/backfill tests.
+- [x] Add the additive migration (`monitor_spans` + `monitor_traces` columns,
+      `schema_version` 1→2 bump; `AddColumnIfMissing` pragma-guarded ALTERs).
+- [x] Persist M2 projections with the ordinal-inclusive idempotency key
+      (`UNIQUE(raw_record_id, span_ordinal)` + `INSERT OR IGNORE`).
+- [x] Add projection-version + backfill with independent span-projection progress
+      (`monitor_ingestions.span_projected_at`; `GetSpanProjectionStatus`).
+- [x] Add the Sprint8-populated-DB upgrade test + idempotency/backfill tests.
+
+## Outcome (2026-06-27)
+
+Implemented per the design in `~/.claude/plans/sprint9-m3-buzzing-sundae.md`.
+Key files: `RawTelemetryStore.cs` (schema + `ApplySpanProjection` /
+`ListUnprocessedForSpanProjection` / `GetSpanProjectionStatus` / `GetSpansForTrace`
+/ `GetTraceRollup`), `MonitorProjectionRows.cs` (`MonitorSpanRow`,
+`MonitorTraceRollupRow`), `IMonitorProjectionStore.cs` (interface + adapter),
+`ProjectionWorker.cs` (Phase-2 span loop, single event per pass),
+`MonitorSpanProjectionStoreTests.cs` (8 new tests incl. mandatory v1→v2 upgrade),
+`raw-store-normalization.md` (`span_id` / `start_time` → `TEXT NULL` reconciliation).
+
+Span rollup is recomputed from the full persisted span set per trace via
+`MonitorTraceRollupBuilder.ComputeRollup` (single source of truth, correct across
+multi-record traces). Readiness/lag contract unchanged: span backlog is tracked
+independently but does **not** gate `/health/ready`; span failures use the existing
+`RecordProjectionFailure` retry path.
+
+Validation: `dotnet build` 0 warnings / 0 errors; `dotnet test` 496/496 green
+(ConfigCli 300, LocalMonitor 196), stable across 5 consecutive LocalMonitor runs.
+A pre-existing Windows file-lock flake in the shared `MonitorTempDirectory.Dispose`
+(surfaced under the added parallel test load) was hardened with a bounded
+retry/best-effort cleanup — test-infra only, no product behavior change.
 
 ## Acceptance criteria
 - Sprint8-populated-DB upgrade test green: spans + rollup columns backfilled.
