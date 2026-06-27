@@ -303,8 +303,9 @@ contract.)
 
 Monitor read API (sanitized, cursor pagination):
 
-- `GET /api/monitor/ingestions` and `GET /api/monitor/traces` return sanitized
-  projections only — the per-table allowlist columns defined in
+- `GET /api/monitor/ingestions`, `GET /api/monitor/traces`, and
+  `GET /api/monitor/traces/{traceId}/spans` return sanitized projections only —
+  the per-table allowlist columns defined in
   [raw-store-normalization.md](raw-store-normalization.md). They read the
   projection tables, never `raw_records.payload_json`, and never return raw
   prompt / response / tool content or PII.
@@ -319,19 +320,34 @@ Monitor read API (sanitized, cursor pagination):
   requires an extra empty fetch to discover the end.
 - cursor keys: `/api/monitor/ingestions` uses `raw_record_id` (the
   `monitor_ingestions` cursor key); `/api/monitor/traces` uses the projection-row
-  id. Each endpoint's filter, ordering, and `next_cursor` use the one key, so a
-  divergence between a projection-row id and `raw_record_id` cannot skip or repeat
-  rows.
+  id; `/api/monitor/traces/{traceId}/spans` uses the `monitor_spans`
+  projection-row id. Each endpoint's filter, ordering, and `next_cursor` use the
+  one key, so a divergence between a projection-row id and `raw_record_id` cannot
+  skip or repeat rows.
+
+`/api/monitor/traces` rows include the rollup columns added by Sprint9:
+`input_tokens`, `output_tokens`, `total_tokens`, `turn_count`,
+`agent_invocation_count`, `duration_ms`, `primary_model` (see
+[raw-store-normalization.md](raw-store-normalization.md) for the full schema).
+
+`/api/monitor/traces/{traceId}/spans` returns sanitized per-span rows from
+`monitor_spans` for the given `trace_id`. Same `after`/`limit` contract as the
+other cursor endpoints. Each row includes operation, category, tool/MCP name,
+agent name, model, token counts, status, error type, timing, and hierarchy
+(`parent_span_id`, `span_ordinal`). No raw content or PII.
 
 Raw / PII exposure follows the Local Ingestion Monitor boundary in
-[../security-data-boundaries.md](../security-data-boundaries.md): default views
-expose sanitized metadata only; raw / PII is served only when the monitor is
-launched with `--enable-raw-view`, loopback-only, and is never logged or
-committed.
+[../security-data-boundaries.md](../security-data-boundaries.md): raw body
+(tool call arguments / results, sub-agent instructions / responses, system
+prompt) and PII (`user.id` / `user.email`) are shown **by default**
+(server-rendered, inert text) on raw-bearing routes (the trace-detail page and
+`GET /traces/{rawRecordId}/raw`). `/api/monitor/*` and SSE never carry raw / PII.
+The `--sanitized-only` flag restores metadata-only mode (raw-bearing routes
+return `404`, PII is excluded). Raw / PII is never logged or committed.
 
 Live validation for the monitor records the same evidence as the
 `raw-local-receiver` profile, plus the monitor port, the VS Code / GitHub
-Copilot extension version, and whether `--enable-raw-view` was set.
+Copilot extension version, and whether `--sanitized-only` was set.
 
 ## Resource Attributes
 
