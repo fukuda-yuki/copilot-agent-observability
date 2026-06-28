@@ -166,6 +166,121 @@ public class RawTelemetryStoreTests
         Assert.Equal(19, exception.SqliteErrorCode);
     }
 
+    [Fact]
+    public void CreateMonitorSchema_OnRawRecordsOnlyDatabase_AddsSchemaVersionAndPreservesRows()
+    {
+        using var tempDirectory = new TempDirectory();
+        var store = new RawTelemetryStore(tempDirectory.DatabasePath);
+        store.CreateSchema();
+        store.Insert(new RawTelemetryRecord(
+            Id: null,
+            Source: RawTelemetrySources.RawOtlp,
+            TraceId: "trace-1",
+            ReceivedAt: new DateTimeOffset(2026, 6, 5, 1, 2, 3, TimeSpan.Zero),
+            ResourceAttributesJson: null,
+            PayloadJson: "{}"));
+
+        store.CreateMonitorSchema();
+
+        using var connection = OpenConnection(tempDirectory.DatabasePath);
+        Assert.Equal(1, CountTables(connection, "schema_version"));
+        Assert.Equal((long)RawTelemetryStore.MonitorSchemaVersion, ReadMonitorSchemaVersion(connection));
+
+        var record = Assert.Single(store.ListRecords());
+        Assert.Equal("trace-1", record.TraceId);
+    }
+
+    [Fact]
+    public void CreateMonitorSchema_AddsProjectionTablesWithAllowlistColumns()
+    {
+        using var tempDirectory = new TempDirectory();
+        var store = new RawTelemetryStore(tempDirectory.DatabasePath);
+
+        store.CreateMonitorSchema();
+
+        using var connection = OpenConnection(tempDirectory.DatabasePath);
+        Assert.Equal(
+            [
+                "id",
+                "raw_record_id",
+                "received_at",
+                "source",
+                "trace_id",
+                "client_kind",
+                "span_count",
+                "projected_at",
+                "span_projected_at",
+            ],
+            ReadColumns(connection, "monitor_ingestions"));
+        Assert.Equal(
+            [
+                "id",
+                "trace_id",
+                "client_kind",
+                "experiment_id",
+                "task_id",
+                "task_category",
+                "agent_variant",
+                "prompt_version",
+                "span_count",
+                "tool_call_count",
+                "error_count",
+                "first_seen_at",
+                "last_seen_at",
+                "projected_at",
+                "input_tokens",
+                "output_tokens",
+                "total_tokens",
+                "turn_count",
+                "agent_invocation_count",
+                "duration_ms",
+                "primary_model",
+            ],
+            ReadColumns(connection, "monitor_traces"));
+        // Verify monitor_spans table exists with the idempotency key columns.
+        var spanCols = ReadColumns(connection, "monitor_spans");
+        Assert.Contains("raw_record_id", spanCols);
+        Assert.Contains("span_ordinal", spanCols);
+        Assert.Contains("trace_id", spanCols);
+        Assert.Contains("projected_at", spanCols);
+    }
+
+    [Fact]
+    public void CreateMonitorSchema_ProjectionsCarryNoRawOrPiiColumns()
+    {
+        using var tempDirectory = new TempDirectory();
+        var store = new RawTelemetryStore(tempDirectory.DatabasePath);
+
+        store.CreateMonitorSchema();
+
+        using var connection = OpenConnection(tempDirectory.DatabasePath);
+        string[] forbidden = ["payload_json", "resource_attributes_json", "user_id", "user_email"];
+        foreach (var table in new[] { "monitor_ingestions", "monitor_traces" })
+        {
+            var columns = ReadColumns(connection, table);
+            foreach (var column in forbidden)
+            {
+                Assert.DoesNotContain(column, columns);
+            }
+        }
+    }
+
+    [Fact]
+    public void CreateMonitorSchema_IsIdempotent()
+    {
+        using var tempDirectory = new TempDirectory();
+        var store = new RawTelemetryStore(tempDirectory.DatabasePath);
+
+        store.CreateMonitorSchema();
+        store.CreateMonitorSchema();
+
+        using var connection = OpenConnection(tempDirectory.DatabasePath);
+        Assert.Equal(1, CountTables(connection, "monitor_ingestions"));
+        Assert.Equal(1, CountTables(connection, "monitor_traces"));
+        Assert.Equal(1, CountTables(connection, "schema_version"));
+        Assert.Equal(1, CountMonitorSchemaRows(connection));
+    }
+
     private static string FixturePath()
     {
         return Path.Combine(AppContext.BaseDirectory, "TestData", "raw-otlp.synthetic.json");
@@ -216,6 +331,35 @@ public class RawTelemetryStoreTests
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = $name;";
         command.Parameters.AddWithValue("$name", tableName);
+        return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+    }
+
+    private static IReadOnlyList<string> ReadColumns(SqliteConnection connection, string tableName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT name FROM pragma_table_info($table) ORDER BY cid;";
+        command.Parameters.AddWithValue("$table", tableName);
+        using var reader = command.ExecuteReader();
+        var columns = new List<string>();
+        while (reader.Read())
+        {
+            columns.Add(reader.GetString(0));
+        }
+
+        return columns;
+    }
+
+    private static long ReadMonitorSchemaVersion(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT version FROM schema_version WHERE component = 'monitor';";
+        return (long)command.ExecuteScalar()!;
+    }
+
+    private static int CountMonitorSchemaRows(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM schema_version WHERE component = 'monitor';";
         return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 
