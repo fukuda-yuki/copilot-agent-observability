@@ -23,10 +23,13 @@ internal static class MonitorTraceRollupBuilder
         var modelCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         // Separate invoke_agent and chat spans for no-double-count rule.
-        MonitorSpanProjection? rootInvokeAgent = null;
-        int? chatInputSum = null;
-        int? chatOutputSum = null;
-        int? chatTotalSum = null;
+        long? rootInputSum = null;
+        long? rootOutputSum = null;
+        long? rootTotalSum = null;
+        bool hasRootInvokeAgentUsage = false;
+        long? chatInputSum = null;
+        long? chatOutputSum = null;
+        long? chatTotalSum = null;
 
         var spanIds = spans
             .Select(span => span.SpanId)
@@ -36,12 +39,17 @@ internal static class MonitorTraceRollupBuilder
 
         foreach (var span in spans)
         {
+            var spanTotal = span.TotalTokens ?? AddTokenCounts(span.InputTokens, span.OutputTokens);
+
             if (string.Equals(span.Operation, "invoke_agent", StringComparison.Ordinal))
             {
                 agentInvocationCount++;
                 if (HasUsage(span) && IsRootSpan(span, spanIds))
                 {
-                    rootInvokeAgent ??= span;
+                    rootInputSum = AddNullable(rootInputSum, span.InputTokens);
+                    rootOutputSum = AddNullable(rootOutputSum, span.OutputTokens);
+                    rootTotalSum = AddNullable(rootTotalSum, spanTotal);
+                    hasRootInvokeAgentUsage = true;
                 }
             }
 
@@ -51,7 +59,7 @@ internal static class MonitorTraceRollupBuilder
                 turnCount++;
                 chatInputSum = AddNullable(chatInputSum, span.InputTokens);
                 chatOutputSum = AddNullable(chatOutputSum, span.OutputTokens);
-                chatTotalSum = AddNullable(chatTotalSum, span.TotalTokens);
+                chatTotalSum = AddNullable(chatTotalSum, spanTotal);
 
                 var model = span.ResponseModel ?? span.RequestModel;
                 if (model is not null)
@@ -79,27 +87,23 @@ internal static class MonitorTraceRollupBuilder
             }
         }
 
-        // No-double-count: prefer invoke_agent tokens, fall back to chat sum.
-        rootInvokeAgent ??= spans.FirstOrDefault(span =>
-            string.Equals(span.Operation, "invoke_agent", StringComparison.Ordinal)
-            && HasUsage(span));
-
-        if (rootInvokeAgent is not null)
+        // No-double-count: prefer root invoke_agent token sums; otherwise use
+        // chat/LLM sums. Child invoke_agent usage is never promoted to the trace
+        // headline unless the root/parent agent emitted that aggregate.
+        if (hasRootInvokeAgentUsage)
         {
-            inputTokens = rootInvokeAgent.InputTokens;
-            outputTokens = rootInvokeAgent.OutputTokens;
-            totalTokens = rootInvokeAgent.TotalTokens;
+            inputTokens = ToTokenCount(rootInputSum);
+            outputTokens = ToTokenCount(rootOutputSum);
+            totalTokens = ToTokenCount(rootTotalSum);
         }
         else
         {
-            inputTokens = chatInputSum;
-            outputTokens = chatOutputSum;
-            totalTokens = chatTotalSum;
+            inputTokens = ToTokenCount(chatInputSum);
+            outputTokens = ToTokenCount(chatOutputSum);
+            totalTokens = ToTokenCount(chatTotalSum);
         }
 
-        totalTokens ??= inputTokens.HasValue && outputTokens.HasValue
-            ? inputTokens + outputTokens
-            : null;
+        totalTokens ??= AddTokenCounts(inputTokens, outputTokens);
 
         double? durationMs = minStartMs.HasValue && maxEndMs.HasValue && maxEndMs.Value >= minStartMs.Value
             ? maxEndMs.Value - minStartMs.Value
@@ -121,9 +125,27 @@ internal static class MonitorTraceRollupBuilder
             PrimaryModel: primaryModel);
     }
 
-    private static int? AddNullable(int? current, int? value)
+    private static long? AddNullable(long? current, int? value)
     {
-        return value.HasValue ? (current ?? 0) + value.Value : current;
+        return value.HasValue ? (current ?? 0L) + value.Value : current;
+    }
+
+    private static int? AddTokenCounts(int? left, int? right)
+    {
+        if (!left.HasValue || !right.HasValue)
+        {
+            return null;
+        }
+
+        var sum = (long)left.Value + right.Value;
+        return ToTokenCount(sum);
+    }
+
+    private static int? ToTokenCount(long? value)
+    {
+        return value.HasValue && value.Value >= int.MinValue && value.Value <= int.MaxValue
+            ? (int)value.Value
+            : null;
     }
 
     private static bool HasUsage(MonitorSpanProjection span) =>

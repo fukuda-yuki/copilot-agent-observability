@@ -84,13 +84,13 @@ internal static class RawMeasurementNormalizer
 
         // No-double-count token rollup: prefer invoke_agent tokens, fall back
         // to sum of chat/LLM spans only. Never sum both.
-        int? invokeAgentInput = null;
-        int? invokeAgentOutput = null;
-        int? invokeAgentTotal = null;
+        long? invokeAgentInputSum = null;
+        long? invokeAgentOutputSum = null;
+        long? invokeAgentTotalSum = null;
         bool hasInvokeAgentTokens = false;
-        int? chatInputSum = null;
-        int? chatOutputSum = null;
-        int? chatTotalSum = null;
+        long? chatInputSum = null;
+        long? chatOutputSum = null;
+        long? chatTotalSum = null;
         var spanIds = group.Spans
             .Select(span => span.SpanId)
             .Where(spanId => !string.IsNullOrEmpty(spanId))
@@ -108,15 +108,15 @@ internal static class RawMeasurementNormalizer
             var spanInput = OtlpSpanReader.ReadFirstInt(span.Attributes, OtlpSpanReader.InputTokenKeys);
             var spanOutput = OtlpSpanReader.ReadFirstInt(span.Attributes, OtlpSpanReader.OutputTokenKeys);
             var spanTotal = OtlpSpanReader.ReadFirstInt(span.Attributes, OtlpSpanReader.TotalTokenKeys);
+            spanTotal ??= AddTokenCounts(spanInput, spanOutput);
 
             if (isInvokeAgent
-                && !hasInvokeAgentTokens
                 && HasUsage(spanInput, spanOutput, spanTotal)
                 && IsRootSpan(span, spanIds))
             {
-                invokeAgentInput = spanInput;
-                invokeAgentOutput = spanOutput;
-                invokeAgentTotal = spanTotal;
+                invokeAgentInputSum = AddNullable(invokeAgentInputSum, spanInput);
+                invokeAgentOutputSum = AddNullable(invokeAgentOutputSum, spanOutput);
+                invokeAgentTotalSum = AddNullable(invokeAgentTotalSum, spanTotal);
                 hasInvokeAgentTokens = true;
             }
 
@@ -162,51 +162,24 @@ internal static class RawMeasurementNormalizer
             }
         }
 
-        if (!hasInvokeAgentTokens)
-        {
-            foreach (var span in group.Spans)
-            {
-                if (!OtlpSpanReader.HasSpanName(span, "invoke_agent"))
-                {
-                    continue;
-                }
-
-                var spanInput = OtlpSpanReader.ReadFirstInt(span.Attributes, OtlpSpanReader.InputTokenKeys);
-                var spanOutput = OtlpSpanReader.ReadFirstInt(span.Attributes, OtlpSpanReader.OutputTokenKeys);
-                var spanTotal = OtlpSpanReader.ReadFirstInt(span.Attributes, OtlpSpanReader.TotalTokenKeys);
-                if (!HasUsage(spanInput, spanOutput, spanTotal))
-                {
-                    continue;
-                }
-
-                invokeAgentInput = spanInput;
-                invokeAgentOutput = spanOutput;
-                invokeAgentTotal = spanTotal;
-                hasInvokeAgentTokens = true;
-                break;
-            }
-        }
-
         int? inputTokens;
         int? outputTokens;
         int? totalTokens;
 
         if (hasInvokeAgentTokens)
         {
-            inputTokens = invokeAgentInput;
-            outputTokens = invokeAgentOutput;
-            totalTokens = invokeAgentTotal;
+            inputTokens = ToTokenCount(invokeAgentInputSum);
+            outputTokens = ToTokenCount(invokeAgentOutputSum);
+            totalTokens = ToTokenCount(invokeAgentTotalSum);
         }
         else
         {
-            inputTokens = chatInputSum;
-            outputTokens = chatOutputSum;
-            totalTokens = chatTotalSum;
+            inputTokens = ToTokenCount(chatInputSum);
+            outputTokens = ToTokenCount(chatOutputSum);
+            totalTokens = ToTokenCount(chatTotalSum);
         }
 
-        totalTokens ??= inputTokens.HasValue && outputTokens.HasValue
-            ? inputTokens + outputTokens
-            : null;
+        totalTokens ??= AddTokenCounts(inputTokens, outputTokens);
 
         var turnCount = explicitTurnCount ?? observedTurnCount;
         var toolCallCount = explicitToolCallCount ?? observedToolCallCount;
@@ -273,9 +246,27 @@ internal static class RawMeasurementNormalizer
         return (int)Math.Round(durationMs, MidpointRounding.AwayFromZero);
     }
 
-    private static int? AddNullable(int? current, int? value)
+    private static long? AddNullable(long? current, int? value)
     {
-        return value.HasValue ? (current ?? 0) + value.Value : current;
+        return value.HasValue ? (current ?? 0L) + value.Value : current;
+    }
+
+    private static int? AddTokenCounts(int? left, int? right)
+    {
+        if (!left.HasValue || !right.HasValue)
+        {
+            return null;
+        }
+
+        var sum = (long)left.Value + right.Value;
+        return ToTokenCount(sum);
+    }
+
+    private static int? ToTokenCount(long? value)
+    {
+        return value.HasValue && value.Value >= int.MinValue && value.Value <= int.MaxValue
+            ? (int)value.Value
+            : null;
     }
 
     private static bool HasUsage(int? inputTokens, int? outputTokens, int? totalTokens) =>

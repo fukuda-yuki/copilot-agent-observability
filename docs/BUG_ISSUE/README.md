@@ -42,6 +42,8 @@ filed" section and are not part of the fix backlog.
 | [M2-3](M2-span-projection.md#M2-3) | Turn-count semantics | Low | Closed | Current spec defines `turn_count` as all `chat` / LLM spans; no behavior change made. |
 | [M2-4](M2-span-projection.md#M2-4) | Error type sanitization | Low | Fixed | `error_type` now uses an identifier/class-token policy instead of the generic secret substring guard. |
 | [M2-5](M2-span-projection.md#M2-5) | Finish reason sanitization | Low | Fixed | Malformed serialized finish-reason arrays are dropped; only string tokens are stored. |
+| [M2-6](M2-span-projection.md#M2-6) | Multiple root token rollup | Medium | Fixed | Multiple root `invoke_agent` usage fields are summed; child `invoke_agent` spans remain excluded from trace-level totals. |
+| [M2-7](M2-span-projection.md#M2-7) | Token rollup overflow | Low | Fixed | Summed / derived token fields use range-safe accumulation and become null when outside the nullable `int` projection range. |
 | [M3-3](M3-storage-migration.md#M3-3) | Span query performance | Low | Closed | Optional composite index deferred until span volumes justify it. |
 | [M5-2](M5-agent-execution-ui.md#M5-2) | Raw-bearing route headers | Low | Fixed | `Cache-Control: no-store` is set before trace-detail early returns. |
 | [M5-3](M5-agent-execution-ui.md#M5-3) | Trace-detail busy handling | Low | Fixed | Trace-detail maps `PersistenceBusyException` to `503 persistence_busy`. |

@@ -13,6 +13,8 @@ sanitization policy.
 | M2-3 | Low | `turn_count` semantics | Closed without code change: current spec defines all `chat` / LLM spans. |
 | M2-4 | Low | `error_type` token sanitization | Fixed: identifier/class-token policy replaces generic secret substring guard. |
 | M2-5 | Low | `finish_reasons` parsing | Fixed: malformed serialized arrays are dropped. |
+| M2-6 | Medium | Multiple root agent token rollup | Fixed: multiple root `invoke_agent` usage fields are summed. |
+| M2-7 | Low | Token rollup overflow | Fixed: summed / derived token fields that exceed the nullable `int` projection range become null, not wrapped values. |
 
 Primary next plan: M2-1 + M2-2 as one token-rollup fix plan. Keep M2-3 as a
 decision item unless the intended turn-count semantics are confirmed.
@@ -58,9 +60,10 @@ Key files: `src/CopilotAgentObservability.Telemetry/Monitoring/MonitorTraceRollu
   trace-detail tree already uses in `TraceDetail.cshtml.cs:98-111`), rather than
   the first by ordinal. Add a fixture where the child `invoke_agent` precedes the
   root.
-- **Resolution:** Fixed. Rollup now selects the root `invoke_agent` by span
-  hierarchy and falls back deterministically only when no root candidate carries
-  usage.
+- **Resolution:** Fixed. Rollup now selects root `invoke_agent` spans by span
+  hierarchy, sums multiple root usage fields, and falls back to `chat` / LLM
+  sums when no root agent-level usage is present. Child `invoke_agent` usage is
+  not promoted to the trace-level headline.
 
 <a id="M2-2"></a>
 
@@ -147,13 +150,52 @@ Key files: `src/CopilotAgentObservability.Telemetry/Monitoring/MonitorTraceRollu
 - **Resolution:** Fixed. Malformed serialized arrays are dropped; only parsed or
   comma-separated string tokens are considered.
 
+<a id="M2-6"></a>
+
+## M2-6 — Multiple root `invoke_agent` spans silently under-count trace-level tokens — Medium (confidence: Medium) [Codex adversarial follow-up]
+
+- **Location:** `MonitorTraceRollup.cs:42-91`; mirrored in
+  `RawMeasurementNormalizer.cs`.
+- **Spec:** `raw-store-normalization.md` now pins trace-level `invoke_agent`
+  usage as the sum of root `invoke_agent` usage fields when multiple root agent
+  invocations are present.
+- **Observed:** The first root `invoke_agent` carrying usage was selected as a
+  single representative. `agent_invocation_count` still counted all agent spans,
+  so a trace with two root agent invocations displayed a count of 2 but only the
+  first root's headline token values.
+- **Impact:** Silent under-count of `input_tokens`, `output_tokens`, and
+  `total_tokens` in the trace list / detail headline for multi-root traces.
+- **Recommendation:** Sum root `invoke_agent` usage fields and keep child
+  `invoke_agent` excluded from the trace-level rollup to preserve the
+  no-double-count rule.
+- **Resolution:** Fixed. Root `invoke_agent` token fields are accumulated across
+  all root usage-bearing spans, with regression fixtures for monitor rollup and
+  raw measurement normalization.
+
+<a id="M2-7"></a>
+
+## M2-7 — Chat fallback token sum can wrap `int` and persist negative tokens — Low (confidence: High) [Codex adversarial follow-up]
+
+- **Location:** `MonitorTraceRollup.cs:124-127`; mirrored in
+  `RawMeasurementNormalizer.cs` and per-span total derivation in
+  `MonitorSpanProjectionBuilder.cs`.
+- **Spec:** `raw-store-normalization.md` now pins range-safe token rollup:
+  derived or summed token values outside the nullable `int` projection field
+  range are stored as null rather than wrapped.
+- **Observed:** `int?` addition used unchecked `int` arithmetic. Two chat spans
+  with `gen_ai.usage.input_tokens = 2000000000` overflowed to a negative
+  `input_tokens` value during fallback rollup.
+- **Impact:** A malformed local OTLP export could corrupt the monitor/API
+  headline token fields with impossible negative counts.
+- **Recommendation:** Accumulate with wider arithmetic and apply an explicit
+  projection-range decision before exposing / storing the field.
+- **Resolution:** Fixed. Token accumulation uses `long`, then converts to
+  nullable `int`; out-of-range fields become null.
+
 ---
 
 ## Evaluated but not filed
 
-- **`int` overflow in token summation** (`MonitorTraceRollup.cs:115-118`,
-  `AddNullable`): unchecked `int` addition could theoretically wrap on absurd
-  token totals. Not realistic for real traces; noted, not filed.
 - **No-double-count core rule:** verified **correct** — `invoke_agent` totals are
   never *added* to `chat` per-call tokens; the rollup uses either the
   `invoke_agent` total or the `chat` sum, exclusively

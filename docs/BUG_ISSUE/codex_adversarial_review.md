@@ -7,10 +7,21 @@ This file is retained as raw review evidence. Do not plan fixes directly from
 this file; use the deduplicated cards in `README.md` and the feature files:
 
 - M2-1 covers the root `invoke_agent` token-rollup finding.
+- M2-6 covers the multiple-root `invoke_agent` token-rollup follow-up.
+- M2-7 covers range-safe token rollup / overflow handling.
 - M3-1 covers hidden span-backfill backlog.
 - M3-2 covers missing `traceId` poison records.
 - M5-1 covers secondary trace raw lookup.
 - M5-4 covers unbounded inline raw rendering.
+
+Follow-up review after the first fix pass:
+
+- [medium] Multiple root `invoke_agent` spans were silently represented by the
+  first root usage only. Resolved by specifying and implementing root usage
+  summation; tracked as M2-6.
+- [low] Chat fallback token sums could overflow unchecked `int` arithmetic and
+  produce negative token counts. Resolved by range-safe accumulation and
+  nullable out-of-range projection; tracked as M2-7.
 
 出荷不可。agent-execution view の中核である token rollup、span backfill readiness、raw 表示の対応関係が、いずれも実データの順序・欠損・バッチ形状で静かに嘘をつく。raw-default-on 自体と CSP 追加なしは仕様上の受容リスクとして反証できるが、projection/readiness の穴は反証できない。
 

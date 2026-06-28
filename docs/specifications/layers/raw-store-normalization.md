@@ -204,7 +204,7 @@ Additive rollup columns on `monitor_traces` (Sprint9):
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| `input_tokens` | INTEGER NULL | trace-level (from `invoke_agent` usage, or fallback sum of `chat` spans) |
+| `input_tokens` | INTEGER NULL | trace-level (sum of root `invoke_agent` usage, or fallback sum of `chat` spans) |
 | `output_tokens` | INTEGER NULL | trace-level |
 | `total_tokens` | INTEGER NULL | trace-level |
 | `turn_count` | INTEGER NULL | count of `chat` / LLM spans |
@@ -236,12 +236,18 @@ Token rollup rule (no double count):
 
 - per-turn tokens = the `chat` span's own `gen_ai.usage.*` (one turn = one
   `chat` / LLM span).
-- per-trace total = the trace's `invoke_agent` usage when present; otherwise the
-  sum of `chat` spans (fallback when no agent-level total is emitted).
+- per-trace total = the trace's root `invoke_agent` usage when present;
+  otherwise the sum of `chat` spans (fallback when no agent-level total is
+  emitted).
+- if a trace has multiple root `invoke_agent` spans with usage, the trace-level
+  token fields are the sum of those root `invoke_agent` usage fields.
 - never add `invoke_agent` totals to `chat` per-call tokens. Sub-agent (child
   `invoke_agent`) usage is attributed to that sub-agent and rolled into the
   parent only through the parent's own agent-level total, not by re-summing
   child `chat` spans.
+- token rollup is computed with a range-safe accumulator. Because the public
+  projection rows expose nullable `int` token fields, a derived or summed token
+  field that exceeds the `int` range is stored as `NULL` rather than wrapped.
 
 Projection-version and backfill:
 

@@ -670,6 +670,117 @@ public class MonitorSpanProjectionBuilderTests
     }
 
     [Fact]
+    public void Rollup_MultipleRootInvokeAgents_SumsRootAgentTokens()
+    {
+        var payload = """
+        {"resourceSpans":[{"resource":{"attributes":[]},"scopeSpans":[{"spans":[
+          {"traceId":"roll-multi-root","spanId":"root-1","name":"invoke_agent",
+           "startTimeUnixNano":"1710000000000000000","endTimeUnixNano":"1710000001000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"100"}},
+             {"key":"gen_ai.usage.output_tokens","value":{"intValue":"50"}}
+           ]},
+          {"traceId":"roll-multi-root","spanId":"root-2","name":"invoke_agent",
+           "startTimeUnixNano":"1710000002000000000","endTimeUnixNano":"1710000003000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"200"}},
+             {"key":"gen_ai.usage.output_tokens","value":{"intValue":"75"}}
+           ]}
+        ]}]}]}
+        """;
+        var record = Record("roll-multi-root", payload);
+        var spans = MonitorSpanProjectionBuilder.Build(record);
+        var rollup = MonitorTraceRollupBuilder.ComputeRollup(spans);
+
+        Assert.Equal(300, rollup.InputTokens);
+        Assert.Equal(125, rollup.OutputTokens);
+        Assert.Equal(425, rollup.TotalTokens);
+        Assert.Equal(2, rollup.AgentInvocationCount);
+    }
+
+    [Fact]
+    public void Rollup_MultipleRootInvokeAgentsWithPartialTotals_DerivesMissingRootTotals()
+    {
+        var spans = new[]
+        {
+            Projection("root-1", parentSpanId: null, inputTokens: 100, outputTokens: 50, totalTokens: 150),
+            Projection("root-2", parentSpanId: null, inputTokens: 200, outputTokens: 75, totalTokens: null),
+        };
+
+        var rollup = MonitorTraceRollupBuilder.ComputeRollup(spans);
+
+        Assert.Equal(300, rollup.InputTokens);
+        Assert.Equal(125, rollup.OutputTokens);
+        Assert.Equal(425, rollup.TotalTokens);
+    }
+
+    [Fact]
+    public void Rollup_RootInvokeAgentWithoutUsage_IgnoresChildAgentUsageAndFallsBackToChat()
+    {
+        var payload = """
+        {"resourceSpans":[{"resource":{"attributes":[]},"scopeSpans":[{"spans":[
+          {"traceId":"roll-root-no-usage","spanId":"root","name":"invoke_agent",
+           "startTimeUnixNano":"1710000000000000000","endTimeUnixNano":"1710000004000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}}
+           ]},
+          {"traceId":"roll-root-no-usage","spanId":"child-agent","parentSpanId":"root","name":"invoke_agent sub",
+           "startTimeUnixNano":"1710000001000000000","endTimeUnixNano":"1710000002000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"10"}},
+             {"key":"gen_ai.usage.output_tokens","value":{"intValue":"5"}}
+           ]},
+          {"traceId":"roll-root-no-usage","spanId":"chat","parentSpanId":"root","name":"chat gpt-4o",
+           "startTimeUnixNano":"1710000002000000000","endTimeUnixNano":"1710000003000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"300"}},
+             {"key":"gen_ai.usage.output_tokens","value":{"intValue":"100"}}
+           ]}
+        ]}]}]}
+        """;
+        var record = Record("roll-root-no-usage", payload);
+        var spans = MonitorSpanProjectionBuilder.Build(record);
+        var rollup = MonitorTraceRollupBuilder.ComputeRollup(spans);
+
+        Assert.Equal(300, rollup.InputTokens);
+        Assert.Equal(100, rollup.OutputTokens);
+        Assert.Equal(400, rollup.TotalTokens);
+        Assert.Equal(2, rollup.AgentInvocationCount);
+    }
+
+    [Fact]
+    public void Rollup_ChatFallbackTokenOverflow_DropsOverflowedField()
+    {
+        var payload = """
+        {"resourceSpans":[{"resource":{"attributes":[]},"scopeSpans":[{"spans":[
+          {"traceId":"roll-overflow","spanId":"chat-1","name":"chat gpt-4o",
+           "startTimeUnixNano":"1710000000000000000","endTimeUnixNano":"1710000001000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"2000000000"}}
+           ]},
+          {"traceId":"roll-overflow","spanId":"chat-2","name":"chat gpt-4o",
+           "startTimeUnixNano":"1710000002000000000","endTimeUnixNano":"1710000003000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"2000000000"}}
+           ]}
+        ]}]}]}
+        """;
+        var record = Record("roll-overflow", payload);
+        var spans = MonitorSpanProjectionBuilder.Build(record);
+        var rollup = MonitorTraceRollupBuilder.ComputeRollup(spans);
+
+        Assert.Null(rollup.InputTokens);
+        Assert.Null(rollup.OutputTokens);
+        Assert.Null(rollup.TotalTokens);
+    }
+
+    [Fact]
     public void Rollup_InvokeAgentWithOnlyTotalTokens_UsesAgentTotal()
     {
         var payload = """
@@ -801,6 +912,99 @@ public class MonitorSpanProjectionBuilderTests
     }
 
     [Fact]
+    public void Normalizer_MultipleRootInvokeAgents_SumsRootAgentTokens()
+    {
+        var payload = """
+        {"resourceSpans":[{"resource":{"attributes":[
+          {"key":"client.kind","value":{"stringValue":"vscode-copilot-chat"}}
+        ]},"scopeSpans":[{"spans":[
+          {"traceId":"norm-multi-root","spanId":"root-1","name":"invoke_agent",
+           "startTimeUnixNano":"1710000000000000000","endTimeUnixNano":"1710000001000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"100"}},
+             {"key":"gen_ai.usage.output_tokens","value":{"intValue":"50"}}
+           ]},
+          {"traceId":"norm-multi-root","spanId":"root-2","name":"invoke_agent",
+           "startTimeUnixNano":"1710000002000000000","endTimeUnixNano":"1710000003000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"200"}},
+             {"key":"gen_ai.usage.output_tokens","value":{"intValue":"75"}}
+           ]}
+        ]}]}]}
+        """;
+
+        var row = Assert.Single(RawMeasurementNormalizer.Normalize(payload));
+        Assert.Equal(300, row.InputTokens);
+        Assert.Equal(125, row.OutputTokens);
+        Assert.Equal(425, row.TotalTokens);
+    }
+
+    [Fact]
+    public void Normalizer_RootInvokeAgentWithoutUsage_IgnoresChildAgentUsageAndFallsBackToChat()
+    {
+        var payload = """
+        {"resourceSpans":[{"resource":{"attributes":[
+          {"key":"client.kind","value":{"stringValue":"vscode-copilot-chat"}}
+        ]},"scopeSpans":[{"spans":[
+          {"traceId":"norm-root-no-usage","spanId":"root","name":"invoke_agent",
+           "startTimeUnixNano":"1710000000000000000","endTimeUnixNano":"1710000004000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}}
+           ]},
+          {"traceId":"norm-root-no-usage","spanId":"child-agent","parentSpanId":"root","name":"invoke_agent sub",
+           "startTimeUnixNano":"1710000001000000000","endTimeUnixNano":"1710000002000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"10"}},
+             {"key":"gen_ai.usage.output_tokens","value":{"intValue":"5"}}
+           ]},
+          {"traceId":"norm-root-no-usage","spanId":"chat","parentSpanId":"root","name":"chat gpt-4o",
+           "startTimeUnixNano":"1710000002000000000","endTimeUnixNano":"1710000003000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"300"}},
+             {"key":"gen_ai.usage.output_tokens","value":{"intValue":"100"}}
+           ]}
+        ]}]}]}
+        """;
+
+        var row = Assert.Single(RawMeasurementNormalizer.Normalize(payload));
+        Assert.Equal(300, row.InputTokens);
+        Assert.Equal(100, row.OutputTokens);
+        Assert.Equal(400, row.TotalTokens);
+    }
+
+    [Fact]
+    public void Normalizer_ChatFallbackTokenOverflow_DropsOverflowedField()
+    {
+        var payload = """
+        {"resourceSpans":[{"resource":{"attributes":[
+          {"key":"client.kind","value":{"stringValue":"vscode-copilot-chat"}}
+        ]},"scopeSpans":[{"spans":[
+          {"traceId":"norm-overflow","spanId":"chat-1","name":"chat gpt-4o",
+           "startTimeUnixNano":"1710000000000000000","endTimeUnixNano":"1710000001000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"2000000000"}}
+           ]},
+          {"traceId":"norm-overflow","spanId":"chat-2","name":"chat gpt-4o",
+           "startTimeUnixNano":"1710000002000000000","endTimeUnixNano":"1710000003000000000",
+           "attributes":[
+             {"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},
+             {"key":"gen_ai.usage.input_tokens","value":{"intValue":"2000000000"}}
+           ]}
+        ]}]}]}
+        """;
+
+        var row = Assert.Single(RawMeasurementNormalizer.Normalize(payload));
+        Assert.Null(row.InputTokens);
+        Assert.Null(row.OutputTokens);
+        Assert.Null(row.TotalTokens);
+    }
+
+    [Fact]
     public void Normalizer_InvokeAgentWithOnlyTotalTokens_UsesAgentTotal()
     {
         var payload = """
@@ -870,6 +1074,40 @@ public class MonitorSpanProjectionBuilderTests
             ReceivedAt: DateTimeOffset.UnixEpoch,
             ResourceAttributesJson: null,
             PayloadJson: payloadJson);
+
+    private static MonitorSpanProjection Projection(
+        string spanId,
+        string? parentSpanId,
+        int? inputTokens,
+        int? outputTokens,
+        int? totalTokens) =>
+        new(
+            TraceId: "roll-direct",
+            SpanId: spanId,
+            ParentSpanId: parentSpanId,
+            SpanOrdinal: 0,
+            Operation: "invoke_agent",
+            Category: "agent_invocation",
+            ToolName: null,
+            ToolType: null,
+            McpToolName: null,
+            McpServerHash: null,
+            AgentName: null,
+            RequestModel: null,
+            ResponseModel: null,
+            InputTokens: inputTokens,
+            OutputTokens: outputTokens,
+            TotalTokens: totalTokens,
+            ReasoningTokens: null,
+            CacheReadTokens: null,
+            CacheCreationTokens: null,
+            Status: "ok",
+            ErrorType: null,
+            FinishReasons: null,
+            ConversationId: null,
+            DurationMs: null,
+            StartTime: null,
+            EndTime: null);
 
     private static string SpanWithNameField(string attributeKey, string attributeValue) =>
         "{\"resourceSpans\":[{\"resource\":{\"attributes\":[]},\"scopeSpans\":[{\"spans\":[" +

@@ -469,11 +469,14 @@ Per-field sanitization policy:
 Token rollup rule（二重計上禁止）:
 
 - per-turn tokens = `chat` span 自身の `gen_ai.usage.*`（1 turn = 1 `chat` / LLM span）。
-- per-trace total = trace の `invoke_agent` usage（存在時）。なければ `chat` span の
+- per-trace total = trace の root `invoke_agent` usage（存在時）。複数の root
+  `invoke_agent` が usage を持つ場合は root usage の合計。なければ `chat` span の
   合計（fallback）。
 - `invoke_agent` total を `chat` per-call tokens に加算しない。sub-agent
   （child `invoke_agent`）usage はその sub-agent に帰属し、parent の trace total には
   parent 自身の agent-level total 経由でのみ含める（child の `chat` span を再合算しない）。
+- token rollup は range-safe accumulator で計算し、公開 projection の nullable
+  `int` token 欄の範囲を超える導出 / 合計値は wrap せず `NULL` とする。
 
 Consequences:
 

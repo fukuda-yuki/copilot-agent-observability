@@ -129,9 +129,7 @@ internal static class MonitorSpanProjectionBuilder
         var cacheReadTokens = OtlpSpanReader.ReadFirstInt(span.Attributes, CacheReadTokenKeys);
         var cacheCreationTokens = OtlpSpanReader.ReadFirstInt(span.Attributes, CacheCreationTokenKeys);
 
-        totalTokens ??= inputTokens.HasValue && outputTokens.HasValue
-            ? inputTokens + outputTokens
-            : null;
+        totalTokens ??= AddTokenCounts(inputTokens, outputTokens);
 
         var status = OtlpSpanReader.IsErrorSpan(span) ? "error" : "ok";
         var errorType = SanitizeErrorType(span.Attributes);
@@ -305,5 +303,18 @@ internal static class MonitorSpanProjectionBuilder
         }
 
         return (end.Value - start.Value) / 1_000_000d;
+    }
+
+    private static int? AddTokenCounts(int? left, int? right)
+    {
+        if (!left.HasValue || !right.HasValue)
+        {
+            return null;
+        }
+
+        var sum = (long)left.Value + right.Value;
+        return sum >= int.MinValue && sum <= int.MaxValue
+            ? (int)sum
+            : null;
     }
 }
