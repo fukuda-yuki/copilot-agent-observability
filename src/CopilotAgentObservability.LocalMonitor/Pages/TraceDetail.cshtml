@@ -6,7 +6,8 @@
     <h2>Trace @Model.TraceId</h2>
 
     @* Sanitized section: tab shell. Summary / Timeline are server-rendered here;
-       Flow Chart (M3) and Cache (M5) are empty containers filled by JS later.
+       Flow Chart (M3) is filled by JS from the sanitized spans API. Cache (M5)
+       remains an empty container filled by JS later.
        Tab switching is Vanilla JS (monitor-views.js). *@
     <div class="tabs" role="tablist" aria-label="Trace views">
         <button class="tab" type="button" role="tab" id="tab-summary" aria-controls="panel-summary" aria-selected="true" tabindex="0">Summary</button>
@@ -51,7 +52,7 @@
                 <tbody>
                     @foreach (var node in Model.Tree)
                     {
-                        <tr>
+                        <tr data-span-row-id="@node.Span.Id">
                             <td class="span-op" style="--depth:@node.Depth">@node.Span.Operation</td>
                             <td>@node.Span.Category</td>
                             <td>@node.Span.ToolName@(node.Span.McpToolName is null ? null : " / " + node.Span.McpToolName)@(node.Span.AgentName is null ? null : " / " + node.Span.AgentName)</td>
@@ -96,7 +97,8 @@
     </div>
 
     <div class="tab-panel" id="panel-flow" role="tabpanel" aria-labelledby="tab-flow" hidden>
-        <p class="tab-placeholder">Flow Chart is not yet available in this build.</p>
+        <div id="flow-status" class="flow-status" role="status">Loading Flow Chart...</div>
+        <div id="flow-chart" class="flow-chart" data-flow-chart-trace-id="@Model.TraceId" aria-label="Trace span flow chart"></div>
     </div>
 
     <div class="tab-panel" id="panel-cache" role="tabpanel" aria-labelledby="tab-cache" hidden>

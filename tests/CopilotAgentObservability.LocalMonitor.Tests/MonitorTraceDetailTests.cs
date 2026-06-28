@@ -46,7 +46,7 @@ public class MonitorTraceDetailTests
     }
 
     [Fact]
-    public async Task TraceDetail_RendersTabShellWithDeferredFlowAndCachePanes()
+    public async Task TraceDetail_RendersFlowChartContainerAndTimelineSpanRowIds()
     {
         using var temp = new MonitorTempDirectory();
         SeedProjectedTrace(temp);
@@ -54,13 +54,37 @@ public class MonitorTraceDetailTests
 
         var body = await host.Client.GetStringAsync($"/traces/{TraceId}");
 
-        // A3 tab shell: Summary/Timeline server-rendered, Flow Chart/Cache deferred
-        // (empty container panes filled by JS in M3/M5).
+        // M3 keeps Summary/Timeline server-rendered, adds the Flow Chart JS
+        // container, and gives graph node clicks a stable Timeline row target.
         Assert.Contains("role=\"tablist\"", body);
         Assert.Contains("Flow Chart", body);
         Assert.Contains("Cache", body);
         Assert.Contains("panel-flow", body);
+        Assert.Contains("id=\"flow-chart\"", body);
+        Assert.Contains("id=\"flow-status\"", body);
+        Assert.Contains("data-flow-chart-trace-id=\"trace-detail\"", body);
+        Assert.Contains("data-span-row-id=\"", body);
+        Assert.DoesNotContain("Flow Chart is not yet available", body);
         Assert.Contains("panel-cache", body);
+    }
+
+    [Fact]
+    public async Task TraceDetail_LoadsGraphVendorScriptsLocally()
+    {
+        using var temp = new MonitorTempDirectory();
+        SeedProjectedTrace(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var body = await host.Client.GetStringAsync($"/traces/{TraceId}");
+
+        Assert.Contains("/vendor/cytoscape.min.js", body);
+        Assert.Contains("/vendor/dagre.min.js", body);
+        Assert.Contains("/vendor/cytoscape-dagre.js", body);
+        Assert.Contains("/monitor-views.js", body);
+        foreach (var cdn in new[] { "googleapis.com", "gstatic.com", "cdn.jsdelivr.net", "unpkg.com" })
+        {
+            Assert.DoesNotContain(cdn, body);
+        }
     }
 
     [Fact]

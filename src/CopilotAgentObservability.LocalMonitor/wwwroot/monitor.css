@@ -324,6 +324,27 @@ pre {
     padding: var(--space-4) var(--space-2);
 }
 
+/* ── Flow Chart (TraceDetail sanitized section) ─────────────────────────── */
+.flow-status {
+    margin: 0 0 var(--space-2);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.flow-chart {
+    min-height: 520px;
+    height: min(68vh, 720px);
+    width: 100%;
+    background: var(--bg-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+}
+
+.span-highlight {
+    background: var(--selection) !important;
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
 /* ── Trace-list progressive disclosure ──────────────────────────────────── */
 .row-toggle {
     appearance: none;

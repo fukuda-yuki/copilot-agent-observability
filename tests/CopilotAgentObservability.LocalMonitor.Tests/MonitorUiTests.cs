@@ -128,6 +128,22 @@ public class MonitorUiTests
         Assert.Equal("font/woff2", response.Content.Headers.ContentType?.MediaType);
     }
 
+    [Theory]
+    [InlineData("/vendor/cytoscape.min.js")]
+    [InlineData("/vendor/dagre.min.js")]
+    [InlineData("/vendor/cytoscape-dagre.js")]
+    public async Task GraphVendorScript_IsServedAsJavaScript(string path)
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var response = await host.Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/javascript", response.Content.Headers.ContentType?.MediaType);
+    }
+
     [Fact]
     public async Task TracesPage_RendersRowExpandDisclosure()
     {
@@ -159,6 +175,24 @@ public class MonitorUiTests
             Assert.DoesNotContain(cdn, css);
             Assert.DoesNotContain(cdn, index);
         }
+    }
+
+    [Fact]
+    public async Task MonitorViewsScript_UsesOnlySanitizedSpanApiForFlowChart()
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var script = await host.Client.GetStringAsync("/monitor-views.js");
+
+        Assert.Contains("/api/monitor/traces/", script);
+        Assert.Contains("next_cursor", script);
+        Assert.Contains("parent_span_id", script);
+        Assert.Contains("if (parent)", script);
+        Assert.DoesNotContain("/raw", script);
+        Assert.DoesNotContain("Html.Raw", script);
+        Assert.DoesNotContain("innerHTML", script);
     }
 
     private static void EnsureSchema(MonitorTempDirectory temp)

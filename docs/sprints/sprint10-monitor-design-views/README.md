@@ -209,9 +209,9 @@ Each milestone produces its own `milestones/Mx-*/plan.md` at execution time
 
 | Milestone | Scope | Status |
 | --- | --- | --- |
-| M1 Specs & Decisions | Record D024–D028; update `requirements.md` §3/§4 (capability + narrow the deferred-design non-goal + DADS non-applicability), `spec.md` (monitor views + TraceDetail architecture), `telemetry-ingestion.md` (note the views consume the existing spans API; no new field), `security-data-boundaries.md` (Cytoscape + dagre vendored + sanitized-only consumption invariant; A2 prefix-diff and cross-trace out), user guide. Confirm the spans API field coverage (done: all required fields present). No code. | Planned |
+| M1 Specs & Decisions | Record D024–D028; update `requirements.md` §3/§4 (capability + narrow the deferred-design non-goal + DADS non-applicability), `spec.md` (monitor views + TraceDetail architecture), `telemetry-ingestion.md` (note the views consume the existing spans API; no new field), `security-data-boundaries.md` (Cytoscape + dagre vendored + sanitized-only consumption invariant; A2 prefix-diff and cross-trace out), user guide. Confirm the spans API field coverage (done: all required fields present). No code. | Done |
 | M2 A3 Visual polish | Dark VS Code-styled theme (D027) + Noto Sans JP/Mono vendor (D028, trimmed to 400/500/700 + mono 400) + layout/navigation across all monitor pages; trace-list readability (7 primary columns + row-expand disclosure); TraceDetail restructured into a sanitized **tab shell** (Summary/Timeline server-rendered, Flow Chart/Cache empty panes) + raw Razor section. Staged migration: per-tab JS rendering deferred (Flow Chart M3, Timeline filter/sort M4, Cache M5), so existing UI tests stay green unmodified. No route/behavior/data/boundary change. | Done |
-| M3 A1 Flow Chart | Vendor Cytoscape.js + dagre + cytoscape-dagre (UMD, `wwwroot/vendor/`, no CDN); render span nodes by category with `parent_span_id` edges, dagre layout, pan/zoom, node-click → Timeline tab switch + highlight, error styling. Built from the existing spans JSON. Record version + SHA in this README. | Planned |
+| M3 A1 Flow Chart | Vendor Cytoscape.js + dagre + cytoscape-dagre (UMD, `wwwroot/vendor/`, no CDN); render span nodes by category with `parent_span_id` edges, dagre layout, pan/zoom, node-click → Timeline tab switch + highlight, error styling. Built from the existing spans JSON. Record version + SHA in this README. | Done |
 | M4 A4 Timeline filter/sort | Client-side filter (status: errors only) and sort (tokens / time) on the flat span list in the Timeline tab. Vanilla JS; sanitized JSON only; no API change. | Planned |
 | M5 A2 Cache Explorer | Cache tab: group chat turns within the current trace by root `invoke_agent` (≈ user request); cache-hit rate / cache-creation / duration / model / timestamp / token breakdown. Sanitized only; prefix-diff out (D026); cross-trace deferred (D026). | Planned |
 | M6 Validation | `dotnet build` / `dotnet test`; Playwright smoke tests (tab switch, filter apply, Flow Chart render); re-assert the sanitized-JSON/SSE invariant (new views read sanitized only; no raw via JSON/SSE); `--sanitized-only` health check (new views work, raw routes 404); dark-theme render sanity. Live VS Code Copilot Chat validation human-gated (inherited). | Planned (live human-gated) |
@@ -252,12 +252,12 @@ Sprint8/Sprint9 M6).
 
 ## Dependencies & risks
 
-- **Vendored client-side assets (~7–12 MB total).** Cytoscape.js (~1.3 MB) +
-  dagre (~90 KB) + cytoscape-dagre (~40 KB) + Noto Sans JP full weight set
-  (~5–10 MB) + Noto Sans Mono (~100 KB). All vendored locally, MIT, UMD/woff2
-  single files, no CDN, no build step (D025, D028). Risk: repository size
-  increase — accepted for a local-only tool. Version pinned; provenance recorded
-  in M2 (fonts) and M3 (Cytoscape/dagre).
+- **Vendored client-side assets (~3.9 MB total).** Cytoscape.js (~424 KB) +
+  dagre (~277 KB) + cytoscape-dagre (~12 KB) + the M2 trimmed Noto font set
+  (~3.1 MB). All vendored locally, MIT/OFL, UMD/woff2 single files, no CDN, no
+  build step (D025, D028). Risk: repository size increase — accepted for a
+  local-only tool. Version pinned; provenance recorded in M2 (fonts) and M3
+  (Cytoscape/dagre).
 - **Playwright dev dependency.** Required for M6 client-side smoke tests. Added
   as a test-project NuGet package (Microsoft.Playwright). Risk: browser binary
   download (~100 MB+) in CI. Record in `docs/decisions.md`.
@@ -281,9 +281,9 @@ Recorded during milestone execution. Updated in-place.
 
 | Asset | Version | SHA-256 | Size | License | Milestone |
 | --- | --- | --- | --- | --- | --- |
-| `wwwroot/vendor/cytoscape.min.js` | TBD | TBD | ~1.3 MB | MIT | M3 |
-| `wwwroot/vendor/dagre.min.js` | TBD | TBD | ~90 KB | MIT | M3 |
-| `wwwroot/vendor/cytoscape-dagre.js` | TBD | TBD | ~40 KB | MIT | M3 |
+| `wwwroot/vendor/cytoscape.min.js` | cytoscape 3.33.1 | `f55947f3daa3bae53209d4b885c195c157f595c225e508a6b382598d9452d6e2` | 434037 B | MIT | M3 |
+| `wwwroot/vendor/dagre.min.js` | dagre 0.8.5 | `62eb9787ccfdbdf4148d4d99d31dbf9ee4770eafee81e637d759b52aac22cd51` | 283803 B | MIT | M3 |
+| `wwwroot/vendor/cytoscape-dagre.js` | cytoscape-dagre 2.5.0 | `bf70fe402991dcbff33e05a7e4a5271c78020bb75e85d1c80ab7538e4157112e` | 12665 B | MIT | M3 |
 | `wwwroot/vendor/fonts/noto-sans-jp-japanese-400-normal.woff2` | fontsource 5.2.9 | `4a7b928d4d75e7fc0bace614030664a7ea7eb7d2f754fd2b2da9c3c0ed350570` | 1017536 B | OFL 1.1 | M2 |
 | `wwwroot/vendor/fonts/noto-sans-jp-japanese-500-normal.woff2` | fontsource 5.2.9 | `116eacf750caa59db9d404d43d2daf0f02ae01c439825716972da8dcc97ce024` | 1030340 B | OFL 1.1 | M2 |
 | `wwwroot/vendor/fonts/noto-sans-jp-japanese-700-normal.woff2` | fontsource 5.2.9 | `a5861823629995d9abb4b16b96a1c57139d9663d7a256209cb6b40640ed5431e` | 1039792 B | OFL 1.1 | M2 |

@@ -20,6 +20,12 @@
         @RenderBody()
     </main>
     <script src=/monitor.js></script>
+    @if (string.Equals(ViewContext.RouteData.Values["page"]?.ToString(), "/TraceDetail", StringComparison.Ordinal))
+    {
+        <script src=/vendor/cytoscape.min.js defer></script>
+        <script src=/vendor/dagre.min.js defer></script>
+        <script src=/vendor/cytoscape-dagre.js defer></script>
+    }
     <script src=/monitor-views.js defer></script>
 </body>
 </html>
