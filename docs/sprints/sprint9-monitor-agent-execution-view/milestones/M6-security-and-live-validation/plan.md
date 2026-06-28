@@ -1,9 +1,10 @@
 # Sprint9 M6 — Security + Live Validation (Plan)
 
-Status: **Planned (live validation human-gated)** — to be challenge-reviewed via
-the Codex companion `review` path before implementation (per `CLAUDE.md`). The
-live VS Code validation step is **human-gated** (same constraint that still
-blocks Sprint8 M6 live validation).
+Status: **Implemented** — DR6 negative matrix asserted (build 0 errors; 514
+tests green incl. 5 new). Live validation: **Part A (GitHub Copilot CLI 1.0.65)
+COMPLETE** (2026-06-28); **Part B (VS Code Copilot Chat) PENDING USER**
+(human-gated). Evidence: [live-validation.md](live-validation.md); traceability:
+[review.md](review.md).
 Author role: Claude (orchestrator) per `CLAUDE.md`.
 
 Sprint-local planning evidence, not product behavior. Source-of-truth order:
@@ -41,14 +42,16 @@ Out of scope (deferred):
 - Design polish; remote / multi-user; anything beyond the README scope.
 
 ## Tasks
-- [ ] Implement the DR6 negative matrix (each assertion above) on synthetic
-      fixtures.
-- [ ] Assert `no-store` on **all** raw-bearing routes (incl. the inline-raw
+- [x] Implement the DR6 negative matrix (each assertion above) on synthetic
+      fixtures. (See [review.md](review.md) traceability table.)
+- [x] Assert `no-store` on **all** raw-bearing routes (incl. the inline-raw
       trace-detail page), not only `GET /traces/{rawRecordId}/raw`.
-- [ ] Assert `--sanitized-only` ⇒ raw routes `404` + PII excluded + no cacheable
-      raw.
-- [ ] Run + record the human-gated live VS Code validation (or report the
-      blocker + exact missing evidence if it cannot run).
+      (`AllRawBearingRoutes_SetNoStore`.)
+- [x] Assert `--sanitized-only` ⇒ raw routes `404` + PII excluded + no cacheable
+      raw. (`SanitizedOnly_ExcludesPiiFromAllReadApis` + the `404` route tests.)
+- [x] Live validation — **Part A (GitHub Copilot CLI) recorded complete**;
+      **Part B (VS Code, human-gated) recorded as a user checklist** in
+      [live-validation.md](live-validation.md).
 
 ## Acceptance criteria
 - Full negative matrix passes (every assertion above green).
