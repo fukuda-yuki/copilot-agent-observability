@@ -3,61 +3,59 @@
 
 <section>
     <h2>Traces</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>TraceId</th>
-                <th>ClientKind</th>
-                <th>ExperimentId</th>
-                <th>TaskId</th>
-                <th>TaskCategory</th>
-                <th>AgentVariant</th>
-                <th>PromptVersion</th>
-                <th>SpanCount</th>
-                <th>ToolCallCount</th>
-                <th>ErrorCount</th>
-                <th>InputTokens</th>
-                <th>OutputTokens</th>
-                <th>TotalTokens</th>
-                <th>TurnCount</th>
-                <th>AgentInvocationCount</th>
-                <th>DurationMs</th>
-                <th>PrimaryModel</th>
-                <th>FirstSeenAt</th>
-                <th>LastSeenAt</th>
-                <th>ProjectedAt</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in Model.Result.Items)
-            {
+    <div class="table-scroll">
+        <table>
+            <thead>
                 <tr>
-                    <td>@row.Id</td>
-                    <td><a href="/traces/@row.TraceId">@row.TraceId</a></td>
-                    <td>@row.ClientKind</td>
-                    <td>@row.ExperimentId</td>
-                    <td>@row.TaskId</td>
-                    <td>@row.TaskCategory</td>
-                    <td>@row.AgentVariant</td>
-                    <td>@row.PromptVersion</td>
-                    <td>@row.SpanCount</td>
-                    <td>@row.ToolCallCount</td>
-                    <td>@row.ErrorCount</td>
-                    <td>@row.InputTokens</td>
-                    <td>@row.OutputTokens</td>
-                    <td>@row.TotalTokens</td>
-                    <td>@row.TurnCount</td>
-                    <td>@row.AgentInvocationCount</td>
-                    <td>@row.DurationMs</td>
-                    <td>@row.PrimaryModel</td>
-                    <td>@row.FirstSeenAt</td>
-                    <td>@row.LastSeenAt</td>
-                    <td>@row.ProjectedAt</td>
+                    <th aria-label="Expand"></th>
+                    <th>TraceId</th>
+                    <th>ClientKind</th>
+                    <th>TotalTokens</th>
+                    <th>ToolCallCount</th>
+                    <th>ErrorCount</th>
+                    <th>TurnCount</th>
+                    <th>PrimaryModel</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Result.Items)
+                {
+                    <tr>
+                        <td>
+                            <button class="row-toggle" type="button" aria-expanded="false" aria-controls="trace-extra-@row.Id" aria-label="Toggle trace details">+</button>
+                        </td>
+                        <td><a href="/traces/@row.TraceId">@row.TraceId</a></td>
+                        <td>@row.ClientKind</td>
+                        <td>@row.TotalTokens</td>
+                        <td>@row.ToolCallCount</td>
+                        <td class="@(row.ErrorCount > 0 ? "status-error" : null)">@row.ErrorCount</td>
+                        <td>@row.TurnCount</td>
+                        <td>@row.PrimaryModel</td>
+                    </tr>
+                    <tr class="trace-extra" id="trace-extra-@row.Id" hidden>
+                        <td colspan="8">
+                            <dl>
+                                <dt>Id</dt><dd>@row.Id</dd>
+                                <dt>ExperimentId</dt><dd>@row.ExperimentId</dd>
+                                <dt>TaskId</dt><dd>@row.TaskId</dd>
+                                <dt>TaskCategory</dt><dd>@row.TaskCategory</dd>
+                                <dt>AgentVariant</dt><dd>@row.AgentVariant</dd>
+                                <dt>PromptVersion</dt><dd>@row.PromptVersion</dd>
+                                <dt>SpanCount</dt><dd>@row.SpanCount</dd>
+                                <dt>InputTokens</dt><dd>@row.InputTokens</dd>
+                                <dt>OutputTokens</dt><dd>@row.OutputTokens</dd>
+                                <dt>AgentInvocationCount</dt><dd>@row.AgentInvocationCount</dd>
+                                <dt>DurationMs</dt><dd>@row.DurationMs</dd>
+                                <dt>FirstSeenAt</dt><dd>@row.FirstSeenAt</dd>
+                                <dt>LastSeenAt</dt><dd>@row.LastSeenAt</dd>
+                                <dt>ProjectedAt</dt><dd>@row.ProjectedAt</dd>
+                            </dl>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
     @if (Model.Result.HasMore && Model.Result.Items.Count > 0)
     {
         <p><a href="/traces?after=@Model.Result.Items[^1].Id">next</a></p>
