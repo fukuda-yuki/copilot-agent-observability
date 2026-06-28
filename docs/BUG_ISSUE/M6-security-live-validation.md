@@ -3,6 +3,15 @@
 Feature: the DR6 negative-matrix test surface for the raw-default-on posture and
 the new surfaces, plus the human-gated live-validation evidence record.
 
+## Fix-unit index
+
+| Card | Severity | Fix unit | Plan note |
+| --- | --- | --- | --- |
+| M6-1 | Medium | Live-validation document consistency | Requires human confirmation if Part B is marked complete. |
+
+Primary next plan: reconcile the four milestone records only after the user
+confirms whether VS Code Copilot Chat Part B was actually run on 2026-06-28.
+
 Source of truth: `docs/specifications/security-data-boundaries.md`; README
 "Safety boundary" + the F1–F6 plan-review record; AGENTS.md "Local-First Risk
 Posture"; `docs/sprints/.../milestones/M6-security-and-live-validation/{plan,review,live-validation}.md`.
@@ -16,6 +25,8 @@ filed" for the seven rules verified as genuinely asserted. The one filed finding
 is documentation consistency.
 
 ---
+
+<a id="M6-1"></a>
 
 ## M6-1 — `live-validation.md` Part B status is inconsistent with the committed milestone records — Medium (confidence: High on the inconsistency; the underlying run requires user confirmation) [Claude sub-agent]
 

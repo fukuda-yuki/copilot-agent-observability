@@ -3,6 +3,15 @@
 Target: branch diff against main
 Verdict: needs-attention
 
+This file is retained as raw review evidence. Do not plan fixes directly from
+this file; use the deduplicated cards in `README.md` and the feature files:
+
+- M2-1 covers the root `invoke_agent` token-rollup finding.
+- M3-1 covers hidden span-backfill backlog.
+- M3-2 covers missing `traceId` poison records.
+- M5-1 covers secondary trace raw lookup.
+- M5-4 covers unbounded inline raw rendering.
+
 出荷不可。agent-execution view の中核である token rollup、span backfill readiness、raw 表示の対応関係が、いずれも実データの順序・欠損・バッチ形状で静かに嘘をつく。raw-default-on 自体と CSP 追加なしは仕様上の受容リスクとして反証できるが、projection/readiness の穴は反証できない。
 
 Findings:

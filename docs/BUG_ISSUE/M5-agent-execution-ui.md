@@ -4,6 +4,18 @@ Feature: trace-detail page (Summary panel, sub-agent span tree, per-turn token
 rollup), new trace-list columns, raw bodies inline by default,
 `--sanitized-only` switch (`--enable-raw-view` removed).
 
+## Fix-unit index
+
+| Card | Severity | Fix unit | Plan note |
+| --- | --- | --- | --- |
+| M5-1 | Medium | Raw lookup for secondary trace ids | Fix with a multi-trace-in-one-record fixture. |
+| M5-4 | Medium | Bounded inline raw rendering | Fix before using large live traces in the trace-detail page. |
+| M5-2 | Low | `no-store` on early returns | Small header-ordering cleanup; can batch with M5-4. |
+| M5-3 | Low | DB busy status mapping | Small page-handler cleanup; can batch with M5-1 if touching page loading. |
+
+Primary next plan: M5-1 + M5-4 as one trace-detail raw-surface fix plan.
+Batch M5-2/M5-3 only if the same page handler is already being edited.
+
 Source of truth: README "Safety boundary" + Decision D023;
 `docs/specifications/security-data-boundaries.md`;
 `docs/specifications/layers/telemetry-ingestion.md`;
@@ -14,6 +26,8 @@ Key files: `src/CopilotAgentObservability.LocalMonitor/Pages/TraceDetail.cshtml{
 `src/CopilotAgentObservability.Persistence.Sqlite/RawTelemetryStore.cs`.
 
 ---
+
+<a id="M5-1"></a>
 
 ## M5-1 — Multi-trace raw payload is not shown for secondary trace ids on the trace-detail page — Medium (confidence: High) [Codex P2]
 
@@ -42,6 +56,8 @@ Key files: `src/CopilotAgentObservability.LocalMonitor/Pages/TraceDetail.cshtml{
   via `raw_records.trace_id`. Add a multi-trace-in-one-record fixture asserting
   the secondary trace renders its raw payload.
 
+<a id="M5-2"></a>
+
 ## M5-2 — `Cache-Control: no-store` missing on the trace-detail page's `403`/`--sanitized-only 404` short-circuits — Low (confidence: High) [Claude sub-agent]
 
 - **Location:** `TraceDetail.cshtml.cs:35-54` — the `--sanitized-only`
@@ -59,6 +75,8 @@ Key files: `src/CopilotAgentObservability.LocalMonitor/Pages/TraceDetail.cshtml{
 - **Recommendation:** Set `no-store` before the early returns (or in middleware
   for the route) so the header is unconditional on the raw-bearing route.
 
+<a id="M5-3"></a>
+
 ## M5-3 — Trace-detail page returns `500` instead of `503` under DB contention — Low (confidence: High) [Claude sub-agent]
 
 - **Location:** `TraceDetail.cshtml.cs:59,66,72` call `GetMonitorTrace` /
@@ -73,6 +91,8 @@ Key files: `src/CopilotAgentObservability.LocalMonitor/Pages/TraceDetail.cshtml{
 - **Impact:** Less accurate status under contention; no security impact.
 - **Recommendation:** Catch `PersistenceBusyException` on the page and return
   `503` consistent with the other routes.
+
+<a id="M5-4"></a>
 
 ## M5-4 — Trace detail renders unbounded raw payloads inline — Medium (confidence: High) [Codex]
 

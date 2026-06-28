@@ -4,6 +4,19 @@ Feature: per-span sanitized projection (`MonitorSpanProjection`), the
 no-double-count trace token rollup (`MonitorTraceRollup`), and the per-field
 sanitization policy.
 
+## Fix-unit index
+
+| Card | Severity | Fix unit | Plan note |
+| --- | --- | --- | --- |
+| M2-1 | High | Root agent token rollup | Fix before relying on trace headline token totals. |
+| M2-2 | Medium | Agent usage presence detection | Can be planned with M2-1 because both touch rollup behavior. |
+| M2-3 | Low | `turn_count` semantics | Requires a spec decision before behavior changes. |
+| M2-4 | Low | `error_type` token sanitization | Small projection-builder change plus negative/positive tests. |
+| M2-5 | Low | `finish_reasons` parsing | Small projection-builder change plus malformed-input test. |
+
+Primary next plan: M2-1 + M2-2 as one token-rollup fix plan. Keep M2-3 as a
+decision item unless the intended turn-count semantics are confirmed.
+
 Source of truth:
 `docs/sprints/sprint9-monitor-agent-execution-view/README.md` — "Token rollup
 rule (no double count)", "Per-field sanitization policy";
@@ -14,6 +27,8 @@ Key files: `src/CopilotAgentObservability.Telemetry/Monitoring/MonitorTraceRollu
 `.../Normalization/OtlpSpanReader.cs`, `.../Normalization/MeasurementSanitizer.cs`.
 
 ---
+
+<a id="M2-1"></a>
 
 ## M2-1 — Trace token total selects the *first* `invoke_agent` by storage order, not the true root — High (confidence: Medium) [Codex-corroborated via M3-1 path; Claude sub-agent]
 
@@ -44,6 +59,8 @@ Key files: `src/CopilotAgentObservability.Telemetry/Monitoring/MonitorTraceRollu
   the first by ordinal. Add a fixture where the child `invoke_agent` precedes the
   root.
 
+<a id="M2-2"></a>
+
 ## M2-2 — Root `invoke_agent` that emits only `total_tokens` (no `input_tokens`) is ignored — Medium (confidence: Medium) [Claude sub-agent]
 
 - **Location:** `MonitorTraceRollup.cs:37` (`span.InputTokens.HasValue`); mirrored
@@ -62,6 +79,8 @@ Key files: `src/CopilotAgentObservability.Telemetry/Monitoring/MonitorTraceRollu
 - **Recommendation:** Treat the `invoke_agent` total as present when **any** of
   `total/input/output` is set; derive `total` from whichever components exist.
 
+<a id="M2-3"></a>
+
 ## M2-3 — `turn_count` includes sub-agent `chat` spans — Low (confidence: Low) [Claude sub-agent]
 
 - **Location:** `MonitorTraceRollup.cs:43-46`.
@@ -78,6 +97,8 @@ Key files: `src/CopilotAgentObservability.Telemetry/Monitoring/MonitorTraceRollu
 - **Recommendation:** Decide the intended semantics; if "root-agent turns",
   exclude spans whose nearest `invoke_agent` ancestor is not the root. If the
   literal "all chat spans" is intended, no change — but pin it in the spec.
+
+<a id="M2-4"></a>
 
 ## M2-4 — Free-form-name guard drops legitimate `error.type` class tokens — Low (confidence: High) [Claude sub-agent]
 
@@ -99,6 +120,8 @@ Key files: `src/CopilotAgentObservability.Telemetry/Monitoring/MonitorTraceRollu
   policy (e.g. allow `[A-Za-z0-9._]` identifier tokens up to max length) over the
   generic free-form-secret heuristic, so genuine class names survive while
   emails/paths/secrets are still rejected.
+
+<a id="M2-5"></a>
 
 ## M2-5 — `finish_reasons` parsing drops non-string elements; malformed array routed through the free-form guard — Low (confidence: Medium) [Claude sub-agent]
 
