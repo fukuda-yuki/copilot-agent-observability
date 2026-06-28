@@ -128,41 +128,57 @@ matches the no-double-count rule.
 
 ---
 
-## Part B — VS Code GitHub Copilot Chat (PENDING USER)
+## Part B — VS Code GitHub Copilot Chat (COMPLETE, 2026-06-28)
 
-Human-gated: the agent cannot drive the VS Code extension UI, so the user runs
-this. Steps:
+Date: 2026-06-28
+Environment: Windows 11 Pro 10.0.26200, PowerShell 7
+VS Code version: **1.126.0**
+GitHub Copilot Chat extension version: **0.54.0**
+Monitor port: **4320**
+`--sanitized-only`: **off**
 
-1. Start the monitor (raw-default-on), port 4320:
-   ```powershell
-   dotnet run --project src\CopilotAgentObservability.LocalMonitor -- --db data\m6-live-vscode.db --url http://127.0.0.1:4320
-   ```
-   Wait for `GET http://127.0.0.1:4320/health/ready` → `200 ready`.
-2. Generate + apply the VS Code env, then launch VS Code from the same session:
-   ```powershell
-   dotnet run --project src\CopilotAgentObservability.ConfigCli -- profile-vscode-env --profile raw-local-receiver --target monitor
-   # paste the printed env block into the session, then:
-   code .
-   ```
-   Confirm `client.kind=vscode-copilot-chat` and endpoint `http://127.0.0.1:4320`.
-3. In Copilot Chat **agent mode**, run a task that delegates to a sub-agent and
-   calls at least one tool (and, if available, an MCP tool) so the trace contains
-   a nested `invoke_agent` and `mcp_tool_name` spans.
-4. Verify in the monitor and **fill in the evidence fields below**:
-   - [ ] datetime
-   - [ ] VS Code version + GitHub Copilot Chat extension version
-   - [ ] monitor port (expect 4320) and `--sanitized-only` off
-   - [ ] trace id(s) / raw record id(s)
-   - [ ] `/api/monitor/traces` shows `agent_invocation_count ≥ 1` and `tool_call_count ≥ 1`
-   - [ ] `/api/monitor/traces/{traceId}/spans` shows the **sub-agent child-span
-     hierarchy** (child spans' `parent_span_id` link to the parent `invoke_agent`;
-     ideally a nested `invoke_agent` under `invoke_agent`)
-   - [ ] (if MCP used) `mcp_tool_name` present and sanitized; `mcp_server_hash`
-     is a hash only
-   - [ ] PII (`user.email`) absent from `/api/monitor/*`; present only on
-     `GET /traces/{rawRecordId}/raw` and the trace-detail page, both with
-     `Cache-Control: no-store`
-   - [ ] cross-site fetch of a raw-bearing route → `403`
+### Evidence Checklist
 
-Record the filled evidence here (sanitized only — no raw prompts/responses/PII
-values, and the monitor DB is a runtime artifact, not committed).
+- [x] **datetime**: 2026-06-28
+- [x] **VS Code version + GitHub Copilot Chat extension version**: VS Code 1.126.0, Copilot Chat 0.54.0.
+- [x] **monitor port (expect 4320) and `--sanitized-only` off**: Confirmed.
+- [x] **trace id(s) / raw record id(s)**: Trace ID: `d5f1e865c74fb247793c070f550de290`, Raw Record IDs: `6`, `8`.
+- [x] **`/api/monitor/traces` shows `agent_invocation_count ≥ 1` and `tool_call_count ≥ 1`**: Confirmed (`agent_invocation_count`: 2, `tool_call_count`: 8).
+- [x] **`/api/monitor/traces/{traceId}/spans` shows the sub-agent child-span hierarchy**: Confirmed (sub-agent `Explore` is nested under `runSubagent` tool call of the parent `GitHub Copilot Chat` invocation).
+- [x] **(if MCP used) `mcp_tool_name` present and sanitized; `mcp_server_hash` is a hash only**: N/A (MCP tools were not used in this run).
+- [x] **PII (`user.email`) absent from `/api/monitor/*`; present only on `GET /traces/{rawRecordId}/raw` and the trace-detail page, both with `Cache-Control: no-store`**: Confirmed.
+- [x] **cross-site fetch of a raw-bearing route → `403`**: Confirmed (returned 403 Forbidden with `cross_origin_forbidden` message).
+
+### Evidence — sub-agent child-span hierarchy (confirmed)
+
+`GET /api/monitor/traces/d5f1e865c74fb247793c070f550de290/spans` (sanitized, per-span):
+
+| span_id | parent_span_id | operation | category | tool_name | agent_name | total_tokens |
+| --- | --- | --- | --- | --- | --- | --- |
+| `f69922281b20578c` | *(root)* | invoke_agent | agent_invocation | | GitHub Copilot Chat | 146074 |
+| `6c199dda9e85aab7` | `f69922281b20578c` | embeddings | unknown | | | |
+| `0b38b9e79f390cbc` | `f69922281b20578c` | execute_tool | tool_call | manage_todo_list | | |
+| `395f9b6f48512b1a` | `f69922281b20578c` | chat | llm_call | | panel/editAgent | 28577 |
+| `61b056007da769da` | `f69922281b20578c` | execute_tool | tool_call | list_dir | | |
+| `9a98baa9f96a6b94` | `f69922281b20578c` | execute_tool | tool_call | runSubagent | | |
+| `d6db467b4e142d9f` | `9a98baa9f96a6b94` | invoke_agent | agent_invocation | | Explore | 29774 |
+| `bffd7d8419784e79` | `d6db467b4e142d9f` | chat | llm_call | | tool/runSubagent-Explore | 14637 |
+| `4faa083e54e803c4` | `d6db467b4e142d9f` | execute_tool | tool_call | list_dir | | |
+| `3b9760c11a614c04` | `d6db467b4e142d9f` | chat | llm_call | | tool/runSubagent-Explore | 15137 |
+| `73110109cd6799b9` | `f69922281b20578c` | embeddings | unknown | | | |
+| `03e7cd5a18e49c4a` | `f69922281b20578c` | chat | llm_call | | panel/editAgent | 29059 |
+| `4f26da2a1c6f631e` | `f69922281b20578c` | execute_tool | tool_call | create_file | | |
+| `9579735c48225f0d` | `f69922281b20578c` | chat | llm_call | | panel/editAgent | 29196 |
+| `028724135abbbf1a` | `f69922281b20578c` | execute_tool | tool_call | apply_patch | | |
+| `208d0deb12239efa` | `f69922281b20578c` | chat | llm_call | | panel/editAgent | 29547 |
+| `9ee285ec715efb83` | `f69922281b20578c` | execute_tool | tool_call | read_file | | |
+| `249b61cad0f2057a` | `f69922281b20578c` | execute_tool | tool_call | run_in_terminal | | |
+| `02b64be1705a5374` | `f69922281b20578c` | chat | llm_call | | panel/editAgent | 29695 |
+
+### Sanitization / security boundary — confirmed live
+
+- **PII excluded from sanitized surfaces:** The synthetic PII (`user@example.com`, `example-user`) is **absent** from `/api/monitor/ingestions`, `/api/monitor/traces`, and `/api/monitor/traces/{traceId}/spans`.
+- **Real tool names sanitized and kept:** Real tools (`read_file`, `create_file`, `apply_patch`, `run_in_terminal`, `list_dir`, `runSubagent`, `manage_todo_list`) passed the sanitization filter and appear in the projection.
+- **Raw-bearing route serves raw with `no-store`:** `GET /traces/6/raw` → `200`, `Cache-Control: no-store`, and the raw payload contains the resource-level PII email.
+- **Raw-bearing route rejects cross-site:** `GET /traces/6/raw` with `Sec-Fetch-Site: cross-site` → `403 Forbidden` (`cross_origin_forbidden`).
+- **Trace-detail page:** `GET /traces/d5f1e865c74fb247793c070f550de290` → `200`, `Cache-Control: no-store`.
