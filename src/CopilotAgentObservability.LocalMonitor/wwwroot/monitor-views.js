@@ -1,4 +1,4 @@
-// Local Ingestion Monitor — view interactions (Sprint10 A3 / M3 / M4).
+// Local Ingestion Monitor — view interactions (Sprint10 A3 / M3 / M4 / M5).
 //
 // Vanilla JS plus the locally vendored Cytoscape/dagre files on TraceDetail
 // (D025). Presentation only: this script reads sanitized monitor JSON and
@@ -276,6 +276,223 @@
         }
     }
 
+    // -- TraceDetail Cache Explorer -----------------------------------------
+    function isChatTurn(span) {
+        return span.operation === "chat" || span.category === "llm_call";
+    }
+
+    function isInvokeAgent(span) {
+        return span.operation === "invoke_agent" || span.category === "agent_invocation";
+    }
+
+    function numberOrZero(value) {
+        return typeof value === "number" && Number.isFinite(value) ? value : 0;
+    }
+
+    function percentOrDash(numerator, denominator) {
+        if (!denominator) {
+            return "n/a";
+        }
+
+        return `${Math.round((numberOrZero(numerator) / denominator) * 100)}%`;
+    }
+
+    function formatTime(value) {
+        return textOrDash(value);
+    }
+
+    function formatCacheTokens(span) {
+        return `${textOrDash(span.cache_read_tokens)} / ${textOrDash(span.cache_creation_tokens)}`;
+    }
+
+    function groupRootForTurn(turn, bySpanId) {
+        let current = turn;
+        let root = null;
+        const seen = new Set();
+
+        while (current && current.parent_span_id && !seen.has(current.parent_span_id)) {
+            seen.add(current.parent_span_id);
+            const parent = bySpanId.get(current.parent_span_id);
+            if (!parent) {
+                break;
+            }
+
+            if (isInvokeAgent(parent)) {
+                root = parent;
+            }
+
+            current = parent;
+        }
+
+        return root;
+    }
+
+    function groupLabel(group) {
+        if (!group.root) {
+            return "Ungrouped trace turns";
+        }
+
+        return group.root.agent_name || group.root.operation || group.root.span_id || "invoke_agent";
+    }
+
+    function modelLabel(spans) {
+        const models = [...new Set(spans.map(formatModel).filter((model) => model !== "-"))];
+        if (models.length === 0) {
+            return "-";
+        }
+
+        return models.length === 1 ? models[0] : "mixed";
+    }
+
+    function sumField(spans, field) {
+        return spans.reduce((sum, span) => sum + numberOrZero(span[field]), 0);
+    }
+
+    function appendMetric(container, label, value) {
+        const item = document.createElement("div");
+        item.className = "cache-metric";
+
+        const labelElement = document.createElement("span");
+        labelElement.className = "cache-metric-label";
+        labelElement.textContent = label;
+
+        const valueElement = document.createElement("strong");
+        valueElement.textContent = value;
+
+        item.append(labelElement, valueElement);
+        container.appendChild(item);
+    }
+
+    function appendCacheTurnRows(body, turns) {
+        for (const turn of turns) {
+            const row = document.createElement("tr");
+            appendCell(row, formatTime(turn.start_time));
+            appendCell(row, formatModel(turn));
+            appendCell(row, percentOrDash(turn.cache_read_tokens, turn.input_tokens));
+            appendCell(row, formatCacheTokens(turn));
+            appendCell(row, formatTokens(turn));
+            appendCell(row, textOrDash(turn.reasoning_tokens));
+            appendCell(row, textOrDash(turn.duration_ms));
+            body.appendChild(row);
+        }
+    }
+
+    function appendCacheGroup(container, group) {
+        const turns = [...group.turns].sort(compareTimelineTime);
+        const inputTokens = sumField(turns, "input_tokens");
+        const cacheReadTokens = sumField(turns, "cache_read_tokens");
+        const cacheCreationTokens = sumField(turns, "cache_creation_tokens");
+        const durationMs = group.root?.duration_ms ?? sumField(turns, "duration_ms");
+
+        const article = document.createElement("article");
+        article.className = "cache-group";
+
+        const title = document.createElement("h4");
+        title.textContent = groupLabel(group);
+        article.appendChild(title);
+
+        const meta = document.createElement("p");
+        meta.className = "cache-group-meta";
+        meta.textContent = group.root
+            ? `Root invoke_agent ${textOrDash(group.root.span_id)}; grouped as the trace-local user request approximation.`
+            : "No root invoke_agent ancestor was available for these turns.";
+        article.appendChild(meta);
+
+        const metrics = document.createElement("div");
+        metrics.className = "cache-metrics";
+        appendMetric(metrics, "Cache hit rate", percentOrDash(cacheReadTokens, inputTokens));
+        appendMetric(metrics, "Cache read / creation", `${cacheReadTokens} / ${cacheCreationTokens}`);
+        appendMetric(metrics, "Tokens in / out / total", `${inputTokens} / ${sumField(turns, "output_tokens")} / ${sumField(turns, "total_tokens")}`);
+        appendMetric(metrics, "Duration (ms)", textOrDash(durationMs));
+        appendMetric(metrics, "Model", modelLabel(turns));
+        appendMetric(metrics, "Timestamp", formatTime(group.root?.start_time || turns[0]?.start_time));
+        article.appendChild(metrics);
+
+        const tableWrap = document.createElement("div");
+        tableWrap.className = "table-scroll";
+
+        const table = document.createElement("table");
+        table.className = "cache-table";
+
+        const head = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        for (const label of ["Timestamp", "Model", "Hit rate", "Cache read / creation", "Tokens (in / out / total)", "Reasoning", "Duration (ms)"]) {
+            const cell = document.createElement("th");
+            cell.textContent = label;
+            headRow.appendChild(cell);
+        }
+
+        head.appendChild(headRow);
+        table.appendChild(head);
+
+        const body = document.createElement("tbody");
+        appendCacheTurnRows(body, turns);
+        table.appendChild(body);
+        tableWrap.appendChild(table);
+        article.appendChild(tableWrap);
+
+        container.appendChild(article);
+    }
+
+    function cacheGroupsFromSpans(spans) {
+        const bySpanId = new Map();
+        for (const span of spans) {
+            if (span.span_id) {
+                bySpanId.set(span.span_id, span);
+            }
+        }
+
+        const groups = new Map();
+        for (const turn of spans.filter(isChatTurn)) {
+            const root = groupRootForTurn(turn, bySpanId);
+            const key = root ? `root:${root.id}` : "ungrouped";
+            if (!groups.has(key)) {
+                groups.set(key, { root, turns: [] });
+            }
+
+            groups.get(key).turns.push(turn);
+        }
+
+        return [...groups.values()].sort((a, b) => compareTimelineTime(a.root || a.turns[0], b.root || b.turns[0]));
+    }
+
+    async function renderCacheExplorer() {
+        const groupsContainer = document.getElementById("cache-groups");
+        if (!groupsContainer) {
+            return;
+        }
+
+        const status = document.getElementById("cache-status");
+        const traceId = groupsContainer.dataset.cacheTraceId;
+        if (!traceId) {
+            if (status) {
+                status.textContent = "Trace id is unavailable.";
+            }
+            return;
+        }
+
+        try {
+            const spans = await fetchAllSpans(traceId);
+            const groups = cacheGroupsFromSpans(spans);
+            if (status) {
+                status.textContent = groups.length === 0
+                    ? "No chat turns with cache metrics are available for this trace."
+                    : `${groups.length} request group${groups.length === 1 ? "" : "s"}; ${groups.reduce((sum, group) => sum + group.turns.length, 0)} chat turn${groups.reduce((sum, group) => sum + group.turns.length, 0) === 1 ? "" : "s"}`;
+            }
+
+            const fragment = document.createDocumentFragment();
+            for (const group of groups) {
+                appendCacheGroup(fragment, group);
+            }
+
+            groupsContainer.replaceChildren(fragment);
+        } catch {
+            if (status) {
+                status.textContent = "Cache Explorer could not be loaded.";
+            }
+        }
+    }
+
     async function renderFlowChart() {
         const graph = document.getElementById("flow-chart");
         if (!graph) {
@@ -415,4 +632,5 @@
     document.addEventListener("keydown", onTabKeydown);
     renderTimeline();
     renderFlowChart();
+    renderCacheExplorer();
 })();

@@ -416,6 +416,69 @@ pre {
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
+/* ── Cache Explorer (TraceDetail sanitized section) ─────────────────────── */
+.cache-status {
+    margin: 0 0 var(--space-2);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.cache-groups {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.cache-group {
+    padding: var(--space-3);
+    background: var(--bg-elev);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+}
+
+.cache-group h4 {
+    margin-top: 0;
+    color: var(--text);
+}
+
+.cache-group-meta {
+    margin: 0 0 var(--space-3);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.cache-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.cache-metric {
+    min-height: 56px;
+    padding: var(--space-2);
+    background: var(--bg-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+}
+
+.cache-metric-label {
+    display: block;
+    margin-bottom: var(--space-1);
+    color: var(--text-dim);
+    font-size: 0.78rem;
+}
+
+.cache-metric strong {
+    color: var(--text-strong);
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.cache-table {
+    min-width: 760px;
+}
+
 /* ── Trace-list progressive disclosure ──────────────────────────────────── */
 .row-toggle {
     appearance: none;

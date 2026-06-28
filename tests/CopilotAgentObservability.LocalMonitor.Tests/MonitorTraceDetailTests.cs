@@ -88,6 +88,21 @@ public class MonitorTraceDetailTests
     }
 
     [Fact]
+    public async Task TraceDetail_RendersCacheExplorerShell()
+    {
+        using var temp = new MonitorTempDirectory();
+        SeedProjectedTrace(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var body = await host.Client.GetStringAsync($"/traces/{TraceId}");
+
+        Assert.Contains("id=\"cache-status\"", body);
+        Assert.Contains("id=\"cache-groups\"", body);
+        Assert.Contains("data-cache-trace-id=\"trace-detail\"", body);
+        Assert.DoesNotContain("Cache Explorer is not yet available in this build.", body);
+    }
+
+    [Fact]
     public async Task TraceDetail_LoadsGraphVendorScriptsLocally()
     {
         using var temp = new MonitorTempDirectory();

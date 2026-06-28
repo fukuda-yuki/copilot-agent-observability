@@ -6,9 +6,8 @@
     <h2>Trace @Model.TraceId</h2>
 
     @* Sanitized section: tab shell. Summary stays server-rendered; Timeline
-       (M4) and Flow Chart (M3) are filled by JS from the sanitized spans API.
-       Cache (M5) remains an empty container filled by JS later.
-       Tab switching is Vanilla JS (monitor-views.js). *@
+       (M4), Flow Chart (M3), and Cache (M5) are filled by JS from the
+       sanitized spans API. Tab switching is Vanilla JS (monitor-views.js). *@
     <div class="tabs" role="tablist" aria-label="Trace views">
         <button class="tab" type="button" role="tab" id="tab-summary" aria-controls="panel-summary" aria-selected="true" tabindex="0">Summary</button>
         <button class="tab" type="button" role="tab" id="tab-timeline" aria-controls="panel-timeline" aria-selected="false" tabindex="-1">Timeline</button>
@@ -79,7 +78,9 @@
     </div>
 
     <div class="tab-panel" id="panel-cache" role="tabpanel" aria-labelledby="tab-cache" hidden>
-        <p class="tab-placeholder">Cache Explorer is not yet available in this build.</p>
+        <h3>Cache</h3>
+        <div id="cache-status" class="cache-status" role="status">Loading Cache Explorer...</div>
+        <div id="cache-groups" class="cache-groups" data-cache-trace-id="@Model.TraceId"></div>
     </div>
 
     <h3>Raw OTLP payload</h3>

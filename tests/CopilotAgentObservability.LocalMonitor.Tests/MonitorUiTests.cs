@@ -215,6 +215,25 @@ public class MonitorUiTests
         Assert.DoesNotContain("innerHTML", script);
     }
 
+    [Fact]
+    public async Task MonitorViewsScript_UsesSanitizedSpanFieldsForCacheExplorer()
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var script = await host.Client.GetStringAsync("/monitor-views.js");
+
+        Assert.Contains("renderCacheExplorer", script);
+        Assert.Contains("cache_read_tokens", script);
+        Assert.Contains("cache_creation_tokens", script);
+        Assert.Contains("input_tokens", script);
+        Assert.Contains("parent_span_id", script);
+        Assert.Contains("textContent", script);
+        Assert.DoesNotContain("/raw", script);
+        Assert.DoesNotContain("innerHTML", script);
+    }
+
     private static void EnsureSchema(MonitorTempDirectory temp)
     {
         var store = new RawTelemetryStore(temp.DatabasePath, RawTelemetryStoreConnectionOptions.MonitorWriter);
