@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using CopilotAgentObservability.LocalMonitor.Health;
 using CopilotAgentObservability.LocalMonitor.Ingestion;
@@ -131,7 +130,7 @@ public class MonitorReadinessFailureTests
         Assert.Contains("\"degraded_reasons\":", body);
     }
 
-    private static async Task<RunningHost> StartHostAsync(
+    private static Task<RunningMonitorHost> StartHostAsync(
         MonitorTempDirectory temp,
         MonitorHealthState health,
         IngestionQueue? queue = null,
@@ -139,24 +138,20 @@ public class MonitorReadinessFailureTests
         int ingestionStallThresholdSeconds = MonitorOptions.DefaultIngestionStallThresholdSeconds,
         int projectionLagThresholdSeconds = MonitorOptions.DefaultProjectionLagThresholdSeconds)
     {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(
-            temp.DatabasePath,
-            url,
-            SanitizedOnly: false,
-            MaxRequestBodyBytes: 31_457_280,
-            ingestionStallThresholdSeconds,
-            projectionLagThresholdSeconds);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions
+        var testOptions = new MonitorHostTestOptions
         {
             Health = health,
             Queue = queue,
             CommitTimeout = commitTimeout,
             StartWriter = false,
             StartProjectionWorker = false,
-        });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
+        };
+        return MonitorTestHost.StartAsync(
+            temp,
+            testOptions: testOptions,
+            maxRequestBodyBytes: MonitorOptions.DefaultMaxRequestBodyBytes,
+            ingestionStallThresholdSeconds: ingestionStallThresholdSeconds,
+            projectionLagThresholdSeconds: projectionLagThresholdSeconds);
     }
 
     private static RawTelemetryRecord SyntheticRecord() =>
@@ -175,30 +170,4 @@ public class MonitorReadinessFailureTests
         {"resourceSpans":[{"resource":{"attributes":[{"key":"client.kind","value":{"stringValue":"vscode-copilot-chat"}}]},"scopeSpans":[{"spans":[{"traceId":"11111111111111111111111111111111","spanId":"2222222222222222","name":"chat gpt-4o"}]}]}]}
         """;
 
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
-    private sealed class RunningHost(Microsoft.AspNetCore.Builder.WebApplication app, HttpClient client) : IAsyncDisposable
-    {
-        public HttpClient Client { get; } = client;
-
-        public async ValueTask DisposeAsync()
-        {
-            Client.Dispose();
-            try
-            {
-                await app.StopAsync();
-            }
-            catch
-            {
-                // Ignore stop faults during teardown.
-            }
-
-            await app.DisposeAsync();
-        }
-    }
 }

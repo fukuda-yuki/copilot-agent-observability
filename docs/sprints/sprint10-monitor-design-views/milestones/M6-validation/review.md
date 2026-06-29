@@ -47,6 +47,12 @@ Updated on 2026-06-29 after the Sprint10 bug-fix commits:
   now remain available while the raw section and full raw links are absent.
 - S10-2 resolved the Playwright bootstrap gap. Chromium is installed before the
   standard solution test command in CI and local validation docs.
+- S10-4 resolved the LocalMonitor test-host port allocation race. Socket-bound
+  tests now use a shared dynamic-port helper instead of `GetFreePort()`
+  preselection.
+- S10-5 resolved the shutdown-drain validation gap. A gated worker regression
+  proves `StopAsync` waits for an already-accepted queue item to commit before
+  returning.
 - Live VS Code Copilot Chat validation is still pending user execution. M6 must
   not be marked complete until sanitized live evidence is supplied.
 
@@ -94,3 +100,19 @@ Notes:
   CopilotAgentObservability.slnx` command.
 - The sandbox could not write Playwright browsers to the default user profile or
   `C:\tmp`, so browser binaries were installed under untracked `tmp/ms-playwright`.
+
+Follow-up validation for the Sprint10 BUG_ISSUE cleanup on 2026-06-29:
+
+```powershell
+dotnet build CopilotAgentObservability.slnx
+pwsh tests\CopilotAgentObservability.LocalMonitor.Tests\bin\Debug\net10.0\playwright.ps1 install chromium
+dotnet test CopilotAgentObservability.slnx
+```
+
+Results:
+
+- Full solution build: 0 warnings, 0 errors.
+- Playwright Chromium install: passed.
+- Full solution test: passed, 300 ConfigCli tests and 250 LocalMonitor tests.
+- The evidence remains automated / synthetic only; live VS Code Copilot Chat
+  validation is still pending user execution.

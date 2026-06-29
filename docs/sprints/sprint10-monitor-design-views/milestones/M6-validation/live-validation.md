@@ -1,7 +1,7 @@
 # Sprint10 M6 Live Validation
 
 Status: Pending — user-gated. This is the only remaining Sprint10 completion
-blocker after S10-1 and S10-2.
+blocker after the Sprint10 BUG_ISSUE automated validation fixes.
 
 Sprint10 M6 automated validation can exercise the browser UI against synthetic
 projected spans. It cannot prove real VS Code Copilot Chat emission shape,
@@ -54,8 +54,11 @@ Automated follow-up evidence recorded on 2026-06-29:
   errors.
 - `pwsh tests\CopilotAgentObservability.LocalMonitor.Tests\bin\Debug\net10.0\playwright.ps1 install chromium`
   completed successfully.
-- `dotnet test CopilotAgentObservability.slnx` passed: 300 ConfigCli tests and
-  248 LocalMonitor tests.
+- `dotnet test CopilotAgentObservability.slnx` passed after S10-4/S10-5:
+  300 ConfigCli tests and 250 LocalMonitor tests.
+- S10-4 replaced racy LocalMonitor test-host port preselection with a shared
+  dynamic-port helper.
+- S10-5 added a gated shutdown-drain regression for accepted queue items.
 
 This automated evidence uses synthetic projected spans only and does not replace
 the required live VS Code Copilot Chat validation.

@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
-using System.Net.Sockets;
 
 namespace CopilotAgentObservability.LocalMonitor.Tests;
 
@@ -281,21 +280,11 @@ public class MonitorTraceDetailTests
         return id;
     }
 
-    private static async Task<RunningHost> StartHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false)
-    {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: sanitizedOnly, MaxRequestBodyBytes: 31_457_280);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
-    }
-
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
+    private static Task<RunningMonitorHost> StartHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false) =>
+        MonitorTestHost.StartAsync(
+            temp,
+            sanitizedOnly: sanitizedOnly,
+            testOptions: new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
 
     private const string AgentTracePayload = """
         {"resourceSpans":[{"resource":{"attributes":[
@@ -359,26 +348,6 @@ public class MonitorTraceDetailTests
            ]}
         ]}]}]}
         """.Replace("PADDING_PLACEHOLDER", new string('x', 6000));
-
-    private sealed class RunningHost(Microsoft.AspNetCore.Builder.WebApplication app, HttpClient client) : IAsyncDisposable
-    {
-        public HttpClient Client { get; } = client;
-
-        public async ValueTask DisposeAsync()
-        {
-            Client.Dispose();
-            try
-            {
-                await app.StopAsync();
-            }
-            catch
-            {
-                // Ignore stop faults during teardown.
-            }
-
-            await app.DisposeAsync();
-        }
-    }
 
     private sealed class BusyProjectionStore : IMonitorProjectionStore
     {

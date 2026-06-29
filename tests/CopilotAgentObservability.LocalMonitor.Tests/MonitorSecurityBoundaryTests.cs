@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 
@@ -289,7 +288,7 @@ public class MonitorSecurityBoundaryTests
         return id;
     }
 
-    private static async Task<int> WaitForIngestionProjectionCountAsync(RunningHost host, int expected)
+    private static async Task<int> WaitForIngestionProjectionCountAsync(RunningMonitorHost host, int expected)
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)
@@ -308,23 +307,17 @@ public class MonitorSecurityBoundaryTests
         return -1;
     }
 
-    private static async Task<RunningHost> StartReadOnlyHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false)
-    {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: sanitizedOnly, MaxRequestBodyBytes: 31_457_280);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
-    }
+    private static Task<RunningMonitorHost> StartReadOnlyHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false) =>
+        MonitorTestHost.StartAsync(
+            temp,
+            sanitizedOnly: sanitizedOnly,
+            testOptions: new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
 
-    private static async Task<RunningHost> StartLiveHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false)
-    {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: sanitizedOnly, MaxRequestBodyBytes: 31_457_280);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions { ProjectionPollInterval = TimeSpan.FromMilliseconds(50) });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
-    }
+    private static Task<RunningMonitorHost> StartLiveHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false) =>
+        MonitorTestHost.StartAsync(
+            temp,
+            sanitizedOnly: sanitizedOnly,
+            testOptions: new MonitorHostTestOptions { ProjectionPollInterval = TimeSpan.FromMilliseconds(50) });
 
     private static StringContent JsonContent(string json) => new(json, Encoding.UTF8, "application/json");
 
@@ -332,13 +325,6 @@ public class MonitorSecurityBoundaryTests
         """
         {"resourceSpans":[{"resource":{"attributes":[{"key":"client.kind","value":{"stringValue":"vscode-copilot-chat"}}]},"scopeSpans":[{"spans":[{"traceId":"55555555555555555555555555555555","spanId":"6666666666666666","name":"chat gpt-4o"}]}]}]}
         """;
-
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
 
     private const string SensitiveTraceJson = """
         {"resourceSpans":[{"resource":{"attributes":[
@@ -432,23 +418,4 @@ public class MonitorSecurityBoundaryTests
         ]}]}]}
         """;
 
-    private sealed class RunningHost(Microsoft.AspNetCore.Builder.WebApplication app, HttpClient client) : IAsyncDisposable
-    {
-        public HttpClient Client { get; } = client;
-
-        public async ValueTask DisposeAsync()
-        {
-            Client.Dispose();
-            try
-            {
-                await app.StopAsync();
-            }
-            catch
-            {
-                // Ignore stop faults during teardown.
-            }
-
-            await app.DisposeAsync();
-        }
-    }
 }

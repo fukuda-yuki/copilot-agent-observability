@@ -55,6 +55,13 @@ Result:
   LocalMonitor had 247 passing tests and 1 failing test.
 - Direct LocalMonitor project run: passed, 248 tests.
 
+Sprint10 BUG_ISSUE cleanup validation on 2026-06-29:
+
+- `dotnet build CopilotAgentObservability.slnx`: passed, 0 warnings, 0 errors.
+- Playwright Chromium install: passed.
+- `dotnet test CopilotAgentObservability.slnx`: passed, 300 ConfigCli tests and
+  250 LocalMonitor tests.
+
 The direct targeted/project runs are diagnostic evidence only. They do not
 substitute for the required solution-level validation command.
 
@@ -65,8 +72,8 @@ substitute for the required solution-level validation command.
 | S10-1 | High | `--sanitized-only` TraceDetail design views | Fixed |
 | S10-2 | High | Playwright validation/bootstrap | Fixed |
 | S10-3 | Medium | Sprint10 completion evidence/state | Open — live evidence blocked |
-| S10-4 | High | LocalMonitor test host port allocation | Open |
-| S10-5 | Medium | Ingestion writer shutdown-drain validation | Open |
+| S10-4 | High | LocalMonitor test host port allocation | Fixed |
+| S10-5 | Medium | Ingestion writer shutdown-drain validation | Fixed |
 
 ---
 
@@ -290,9 +297,9 @@ machine-local browser state.
 
 ## S10-3 — Sprint10 completion remains blocked until live evidence is recorded — Medium
 
-Status: Open — user-gated live evidence is still missing. S10-1 and S10-2 have
-been fixed, so the remaining completion blocker is real VS Code Copilot Chat
-live validation evidence.
+Status: Open — user-gated live evidence is still missing. S10-1, S10-2, S10-4,
+and S10-5 have been fixed, so the remaining completion blocker is real VS Code
+Copilot Chat live validation evidence.
 
 ### Problem
 
@@ -375,7 +382,11 @@ synthetic automated tests.
 
 ## S10-4 — LocalMonitor tests pick loopback ports with a TOCTOU race, so required solution validation can fail — High
 
-Status: Open.
+Status: Fixed. LocalMonitor tests now start Kestrel on dynamic loopback port
+`0` through one shared helper and read the actual bound URL after startup. The
+only remaining fixed-port collision test keeps a `TcpListener` open through the
+startup attempt, so the collision is deterministic rather than a preselected
+free-port race.
 
 ### Problem
 
@@ -396,9 +407,9 @@ Parallel test execution or another local process can claim it first.
   port is already bound; test infrastructure should not introduce a random port
   collision before assertions run.
 
-### Observed implementation
+### Observed implementation before fix
 
-Duplicated `GetFreePort()` helpers exist across LocalMonitor tests, including:
+Duplicated `GetFreePort()` helpers existed across LocalMonitor tests, including:
 
 - `MonitorProjectionApiTests`
 - `MonitorTraceDetailTests`
@@ -450,6 +461,16 @@ the actual bound address from the host after `StartAsync`. If that is not
 available for the current host setup, serialize socket-bound LocalMonitor tests
 or otherwise reserve the port through the bind step.
 
+Implemented fix:
+
+- `MonitorTestHost.StartAsync` builds test hosts with `http://127.0.0.1:0` and
+  reads the bound address from `IServerAddressesFeature`.
+- LocalMonitor API/page/SSE/security/readiness/browser tests use the shared
+  helper instead of duplicated `GetFreePort()` methods.
+- `PortAlreadyBoundRunReturnsDeterministicStartupError` opens a listener and
+  keeps it bound while `MonitorHost.RunAsync` starts, preserving the product
+  behavior test without reintroducing the race.
+
 ### Tests to add/update
 
 - Update LocalMonitor test helpers to use the shared deterministic host starter.
@@ -476,7 +497,10 @@ without relying on reruns.
 
 ## S10-5 — Ingestion writer shutdown-drain test remains intermittent under solution validation — Medium
 
-Status: Open.
+Status: Fixed. A gated worker regression now proves `StopAsync` does not return
+until an already-accepted queue item has finished committing. The current worker
+implementation already satisfied that contract; no production worker change was
+needed.
 
 ### Problem
 
@@ -543,6 +567,16 @@ the product contract is to drain accepted items, expose an explicit drain
 completion point or make `StopAsync` await it. If only the test is racing, use a
 condition-based wait around the committed completions rather than an immediate
 state assertion.
+
+Implemented fix:
+
+- Added a gated `IngestionWriterWorker` regression that enqueues one accepted
+  request, waits until the writer has entered `Insert`, calls `StopAsync`, and
+  asserts the stop task stays incomplete until the gate is released.
+- Kept the existing five-item shutdown drain test; the gated test narrows the
+  contract so future regressions fail deterministically.
+- Because the gated test passed against the existing worker, the issue was
+  closed as a validation-stability gap rather than a production shutdown bug.
 
 ### Tests to add/update
 

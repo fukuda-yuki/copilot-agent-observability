@@ -192,6 +192,30 @@ public class IngestionWriterWorkerTests
         Assert.Equal(5, store.ListRecords().Count);
     }
 
+    [Fact]
+    public async Task Worker_StopAsyncWaitsForAcceptedQueueItemToCommit()
+    {
+        var queue = new IngestionQueue(capacity: 4);
+        var health = new MonitorHealthState();
+        var writer = new GatedRawWriter();
+        var worker = new IngestionWriterWorker(queue, writer, health);
+
+        await worker.StartAsync(CancellationToken.None);
+        Assert.True(queue.TryEnqueue(CreateRecord(), out var request));
+        await writer.Entered;
+
+        var stopTask = worker.StopAsync(CancellationToken.None);
+
+        Assert.False(stopTask.IsCompleted);
+        Assert.False(request.Completion.IsCompleted);
+
+        writer.Release();
+        await stopTask;
+
+        var result = await request.Completion;
+        Assert.Equal(IngestionCommitStatus.Committed, result.Status);
+    }
+
     private sealed class FakeRawWriter : IRawTelemetryWriter
     {
         private readonly Func<RawTelemetryRecord, long> insert;
@@ -212,5 +236,26 @@ public class IngestionWriterWorkerTests
         }
 
         public long Insert(RawTelemetryRecord record) => insert(record);
+    }
+
+    private sealed class GatedRawWriter : IRawTelemetryWriter
+    {
+        private readonly TaskCompletionSource entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly ManualResetEventSlim gate = new(initialState: false);
+
+        public Task Entered => entered.Task;
+
+        public void Release() => gate.Set();
+
+        public void EnsureSchema()
+        {
+        }
+
+        public long Insert(RawTelemetryRecord record)
+        {
+            entered.TrySetResult();
+            gate.Wait();
+            return 1;
+        }
     }
 }

@@ -201,11 +201,24 @@ public class MonitorHostTests
     }
 
     [Fact]
+    public async Task TestHostHelper_BindsDynamicLoopbackPort()
+    {
+        using var tempDirectory = new MonitorTempDirectory();
+        await using var host = await MonitorTestHost.StartAsync(tempDirectory);
+
+        Assert.StartsWith("http://127.0.0.1:", host.Url, StringComparison.Ordinal);
+        Assert.False(host.Url.EndsWith(":0", StringComparison.Ordinal));
+        Assert.Equal(new Uri(host.Url), host.Client.BaseAddress);
+        Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/health/live")).StatusCode);
+    }
+
+    [Fact]
     public async Task PortAlreadyBoundRunReturnsDeterministicStartupError()
     {
         using var tempDirectory = new MonitorTempDirectory();
-        var port = GetFreePort();
-        await using var host = await StartHostAsync(tempDirectory, port: port);
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         using var output = new StringWriter();
         using var error = new StringWriter();
 
@@ -462,7 +475,7 @@ public class MonitorHostTests
         Assert.DoesNotContain(Environment.UserName, body);
     }
 
-    private static async Task<string> WaitForReadyBodyAsync(RunningMonitorForTest host)
+    private static async Task<string> WaitForReadyBodyAsync(RunningMonitorHost host)
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
         string body = string.Empty;
@@ -481,7 +494,7 @@ public class MonitorHostTests
         return body;
     }
 
-    private static async Task<int> WaitForIngestionProjectionCountAsync(RunningMonitorForTest host, int expected)
+    private static async Task<int> WaitForIngestionProjectionCountAsync(RunningMonitorHost host, int expected)
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)
@@ -500,19 +513,17 @@ public class MonitorHostTests
         return -1;
     }
 
-    private static async Task<RunningMonitorForTest> StartHostAsync(
+    private static Task<RunningMonitorHost> StartHostAsync(
         MonitorTempDirectory tempDirectory,
-        int? port = null,
         int maxRequestBodyBytes = 31_457_280,
         MonitorHostTestOptions? testOptions = null,
         bool sanitizedOnly = false)
     {
-        port ??= GetFreePort();
-        var url = $"http://127.0.0.1:{port}";
-        var options = new MonitorOptions(tempDirectory.DatabasePath, url, SanitizedOnly: sanitizedOnly, maxRequestBodyBytes);
-        var app = testOptions is null ? MonitorHost.Build(options) : MonitorHost.Build(options, testOptions);
-        await app.StartAsync();
-        return new RunningMonitorForTest(app, new HttpClient { BaseAddress = new Uri(url) });
+        return MonitorTestHost.StartAsync(
+            tempDirectory,
+            sanitizedOnly: sanitizedOnly,
+            maxRequestBodyBytes: maxRequestBodyBytes,
+            testOptions: testOptions);
     }
 
     private static RawTelemetryRecord SyntheticRecord() =>
@@ -555,40 +566,11 @@ public class MonitorHostTests
         Assert.Empty(new RawTelemetryStore(databasePath).ListRecords());
     }
 
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
     private static void ExecuteSql(SqliteConnection connection, string commandText)
     {
         using var command = connection.CreateCommand();
         command.CommandText = commandText;
         command.ExecuteNonQuery();
-    }
-
-    private sealed class RunningMonitorForTest(Microsoft.AspNetCore.Builder.WebApplication app, HttpClient client) : IAsyncDisposable
-    {
-        public HttpClient Client { get; } = client;
-
-        public async ValueTask DisposeAsync()
-        {
-            Client.Dispose();
-            // Gracefully stop hosted services (incl. the polling projection worker)
-            // so no SQLite connection is open when the temp DB directory is deleted.
-            try
-            {
-                await app.StopAsync();
-            }
-            catch
-            {
-                // Ignore stop faults during teardown.
-            }
-
-            await app.DisposeAsync();
-        }
     }
 
     private sealed class ThrowingRawWriter : IRawTelemetryWriter

@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 
 namespace CopilotAgentObservability.LocalMonitor.Tests;
@@ -84,23 +83,10 @@ public class MonitorSseTests
         return builder.ToString();
     }
 
-    private static async Task<RunningHost> StartHostAsync(MonitorTempDirectory temp, TimeSpan projectionPollInterval)
-    {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: false, MaxRequestBodyBytes: 31_457_280);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions { ProjectionPollInterval = projectionPollInterval });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
-    }
+    private static Task<RunningMonitorHost> StartHostAsync(MonitorTempDirectory temp, TimeSpan projectionPollInterval) =>
+        MonitorTestHost.StartAsync(temp, testOptions: new MonitorHostTestOptions { ProjectionPollInterval = projectionPollInterval });
 
     private static StringContent JsonContent(string json) => new(json, Encoding.UTF8, "application/json");
-
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
 
     private const string SensitiveTraceJson = """
         {"resourceSpans":[{"resource":{"attributes":[
@@ -114,23 +100,4 @@ public class MonitorSseTests
         ]}]}]}
         """;
 
-    private sealed class RunningHost(Microsoft.AspNetCore.Builder.WebApplication app, HttpClient client) : IAsyncDisposable
-    {
-        public HttpClient Client { get; } = client;
-
-        public async ValueTask DisposeAsync()
-        {
-            Client.Dispose();
-            try
-            {
-                await app.StopAsync();
-            }
-            catch
-            {
-                // Ignore stop faults during teardown.
-            }
-
-            await app.DisposeAsync();
-        }
-    }
 }

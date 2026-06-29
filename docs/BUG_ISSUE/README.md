@@ -25,8 +25,8 @@ Sprint10 review cards are in
 | [S10-1](Sprint10-monitor-design-views.md#S10-1) | `--sanitized-only` TraceDetail design views | High | Fixed | Sanitized tabs stay available under `--sanitized-only`; raw preview/raw links stay absent. |
 | [S10-2](Sprint10-monitor-design-views.md#S10-2) | Playwright validation/bootstrap | High | Fixed | CI and local validation bootstrap install Chromium before `dotnet test CopilotAgentObservability.slnx`. |
 | [S10-3](Sprint10-monitor-design-views.md#S10-3) | Sprint10 completion evidence/state | Medium | Open — live evidence blocked | Record real VS Code Copilot Chat live evidence before marking Sprint10 complete. |
-| [S10-4](Sprint10-monitor-design-views.md#S10-4) | LocalMonitor test host port allocation | High | Open | Replace racy `GetFreePort()` helpers so required solution validation is not blocked by random loopback bind collisions. |
-| [S10-5](Sprint10-monitor-design-views.md#S10-5) | Ingestion writer shutdown-drain validation | Medium | Open | Root-cause and stabilize the intermittent shutdown-drain failure under `dotnet test CopilotAgentObservability.slnx`. |
+| [S10-4](Sprint10-monitor-design-views.md#S10-4) | LocalMonitor test host port allocation | High | Fixed | LocalMonitor tests use a shared dynamic-port host helper (`127.0.0.1:0`) instead of racy `GetFreePort()` preselection. |
+| [S10-5](Sprint10-monitor-design-views.md#S10-5) | Ingestion writer shutdown-drain validation | Medium | Fixed | A gated worker regression pins that `StopAsync` waits for accepted queue items to commit before returning. |
 
 ## Sprint9 Recommended Fix Order
 
