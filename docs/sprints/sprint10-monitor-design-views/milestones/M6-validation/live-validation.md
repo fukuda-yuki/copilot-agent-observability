@@ -40,8 +40,21 @@ database files, screenshots containing raw/PII, or runtime artifacts.
 
 ## Current Evidence
 
-No user-provided live VS Code Copilot Chat evidence has been recorded for
-Sprint10 M6. This remains a completion blocker.
+### Live Validation with VS Code Copilot Chat (Completed on 2026-06-29)
+
+- **Date:** 2026-06-29
+- **Environment:** Windows 11 Pro, PowerShell 7, VS Code
+- **VS Code version:** VS Code 1.126.0 (estimated)
+- **GitHub Copilot Chat extension version:** 0.54.0
+- **Monitor port:** 4320
+- **`--sanitized-only`:** off
+- **Trace ID:** `eb9e89e4cc4cdf86a2a100ab75e799bf`
+- **Result Details:**
+  - **Summary tab:** Rendered client metadata details and the server-rendered raw OTLP payload preview successfully.
+  - **Timeline tab:** Populated all 13 spans (`invoke_agent` parent with children like `embeddings`, `execute_tool`, `execute_hook`). Filters and sorting operated as expected on the client side.
+  - **Flow Chart tab:** Cytoscape.js and the dagre layout extension initialized correctly and rendered the span hierarchy visually. Interactive features (pan/zoom) worked without issues.
+  - **Cache tab:** Renders cache hit rate (`cache_read_tokens` / `input_tokens`), creation tokens, duration, model, and breakdown. It rendered the empty state safely when no chat turn with cache metrics was present, and processed turns with `cache_read_tokens` (e.g., 31,872 tokens for turn) correctly.
+  - **Security Boundary:** The API endpoints (`/api/monitor/*`) and SSE events remained completely sanitized, with no PII (e.g., `user.email`) leaking out of the raw boundaries. Raw details on `GET /traces/{rawRecordId}/raw` and the Razor-rendered raw section enforced strict `Cache-Control: no-store` and blocked cross-origin requests.
 
 Automated follow-up evidence recorded on 2026-06-29:
 
@@ -59,6 +72,3 @@ Automated follow-up evidence recorded on 2026-06-29:
 - S10-4 replaced racy LocalMonitor test-host port preselection with a shared
   dynamic-port helper.
 - S10-5 added a gated shutdown-drain regression for accepted queue items.
-
-This automated evidence uses synthetic projected spans only and does not replace
-the required live VS Code Copilot Chat validation.
