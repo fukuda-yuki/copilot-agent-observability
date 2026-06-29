@@ -1,6 +1,6 @@
 # Sprint11 M1 - Specs & Guidance Alignment (Plan)
 
-Status: **Planned** - docs/spec alignment only. No product code, no extension
+Status: **Implemented** - docs/spec alignment only. No product code, no extension
 scaffold, no `.github/extensions/*` files.
 
 Sprint-local planning evidence, not product behavior. Source-of-truth order:

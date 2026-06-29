@@ -662,3 +662,45 @@ Consequences:
   telemetry input, schema, or API field.
 - The Sprint10 design views remain sanitized-only consumers and continue to
   work identically in default and `--sanitized-only` launches.
+
+## D031: Sprint11 Canvas adapter is a thin sanitized Local Monitor adapter
+
+Status: Accepted
+
+Sprint11 adds a GitHub Copilot app Canvas adapter PoC for the Local Ingestion
+Monitor. The adapter is project-scoped at `.github/extensions/otel-monitor-canvas/`
+with `extension.mjs`, ES modules, and the Copilot SDK pattern
+`joinSession({ canvases: [createCanvas({...})] })`.
+
+Decision:
+
+- Use `.github/skills/create-canvas/SKILL.md` as the controlling `/create-canvas`
+  workflow. Do not implement this as a `.github/prompts/*.prompt.md` prompt file.
+- Create the extension scaffold through
+  `extensions_manage({ operation: "scaffold", kind: "canvas", name:
+  "otel-monitor-canvas", location: "project" })` when the active Copilot app
+  environment exposes it. If scaffold or validation tools are unavailable, stop
+  and record the blocker. Hand-written fallback requires explicit product-owner
+  approval.
+- Keep the adapter thin: `open()` returns a loopback-only URL or diagnostic,
+  extension-owned servers bind to `127.0.0.1`, servers close in `onClose()`, and
+  diagnostics use `session.log()`.
+- Require Local Monitor `--sanitized-only` for Canvas display. Canvas surfaces
+  may open sanitized monitor pages or diagnostics only; they must not open a
+  default raw-bearing TraceDetail page.
+- Canvas actions are limited to bounded sanitized monitor DTOs:
+  `monitor_health()`, `list_recent_traces({ limit, status?, model? })`,
+  `get_trace_summary({ traceId })`, `get_trace_span_tree({ traceId })`, and
+  `get_cache_summary({ traceId })`. `list_recent_traces.limit` is bounded to
+  `1..50` for Canvas output.
+
+Consequences:
+
+- D020, D023, D030, and the invariant that `/api/monitor/*` and SSE never return
+  raw / PII remain unchanged.
+- Sprint11 adds no telemetry input, SQLite schema, projection field, monitor API
+  field, raw-bearing endpoint, normalized dataset field, candidate record field,
+  dashboard contract, dependency, or frontend build step in M1.
+- Canvas action responses, logs, and committed outputs must not contain raw
+  prompt / response bodies, tool arguments / results, PII, credentials, tokens,
+  local sensitive paths, raw OTLP payloads, or raw monitor payload dumps.
