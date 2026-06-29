@@ -1,13 +1,13 @@
-# Sprint9 BUG_ISSUE - Fix Backlog
+# BUG_ISSUE - Fix Backlog
 
-This directory is the staged bug backlog for Sprint9 (Local Ingestion Monitor -
-Agent Execution Detail). It is organized for the next step:
+This directory is the staged bug backlog for Local Ingestion Monitor work. It is
+organized for the next step:
 
 1. pick one feature unit;
 2. write a focused fix plan from the relevant bug cards;
 3. implement and validate that unit before moving to the next unit.
 
-Scope reviewed: branch `sprint9-monitor-agent-execution-view` vs `main`
+Sprint9 scope reviewed: branch `sprint9-monitor-agent-execution-view` vs `main`
 (56 files, +5479/-560). Source of truth: `docs/requirements.md` ->
 `docs/spec.md` -> `docs/specifications/` -> current Sprint9 sprint docs.
 
@@ -15,7 +15,18 @@ Each filed finding was independently checked against source before being
 recorded. Claims that did not hold up stay in each file's "Evaluated but not
 filed" section and are not part of the fix backlog.
 
-## Recommended Fix Order
+## Sprint10 Monitor Design Views
+
+Sprint10 review cards are in
+[Sprint10-monitor-design-views.md](Sprint10-monitor-design-views.md).
+
+| Card | Feature unit | Severity | Status | Plan boundary |
+| --- | --- | --- | --- | --- |
+| [S10-1](Sprint10-monitor-design-views.md#S10-1) | `--sanitized-only` TraceDetail design views | High | Open | Resolve spec conflict, then keep sanitized tabs available while raw preview/raw links stay absent. |
+| [S10-2](Sprint10-monitor-design-views.md#S10-2) | Playwright validation/bootstrap | High | Open | Make `dotnet test CopilotAgentObservability.slnx` pass in a clean environment without hidden browser state. |
+| [S10-3](Sprint10-monitor-design-views.md#S10-3) | Sprint10 completion evidence/state | Medium | Open | Record real VS Code Copilot Chat live evidence and update completion docs only after blockers are cleared. |
+
+## Sprint9 Recommended Fix Order
 
 1. **M2 / M3 projection correctness**
    - Fix headline token rollup and poison/backfill projection gaps first.
