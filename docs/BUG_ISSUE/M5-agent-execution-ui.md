@@ -12,6 +12,7 @@ rollup), new trace-list columns, raw bodies inline by default,
 | M5-4 | Medium | Bounded inline raw rendering | Fixed: inline raw is a bounded preview with full-record links. |
 | M5-2 | Low | `no-store` on early returns | Fixed: header is set before trace-detail early returns. |
 | M5-3 | Low | DB busy status mapping | Fixed: trace-detail maps persistence busy to `503 persistence_busy`. |
+| M5-5 | Low | `no-store` on raw-detail error responses | Open: raw-detail `403`/`404`/busy paths still use the common JSON error writer without `Cache-Control: no-store`. |
 
 Primary next plan: M5-1 + M5-4 as one trace-detail raw-surface fix plan.
 Batch M5-2/M5-3 only if the same page handler is already being edited.
@@ -110,6 +111,30 @@ Key files: `src/CopilotAgentObservability.LocalMonitor/Pages/TraceDetail.cshtml{
 - **Recommendation:** Make raw inline bounded: paginate raw records, collapse by default with size limits/previews, and link to the single-record raw route for full payloads. Add a test that the trace-detail page does not render unlimited raw bodies.
 - **Resolution:** Fixed. Trace-detail renders bounded raw previews and links to
   `GET /traces/{rawRecordId}/raw` for the full payload.
+
+<a id="M5-5"></a>
+
+## M5-5 — Raw-detail route error responses omit `Cache-Control: no-store` — Low (confidence: High) [Codex review]
+
+- **Location:** `src/CopilotAgentObservability.LocalMonitor/MonitorHost.cs` raw
+  detail route. The success path sets `Cache-Control: no-store` before rendering
+  the raw payload, but the cross-site `403`, persistence-busy `503`, and unknown
+  raw-record `404` paths return through `WriteFailureAsync` before that header is
+  set.
+- **Spec:** `docs/specifications/security-data-boundaries.md` requires every
+  raw-bearing route / page variant to enforce `Cache-Control: no-store`.
+  `docs/spec.md` lists `GET /traces/{rawRecordId}/raw` as a raw-bearing surface
+  with same-origin and no-store.
+- **Observed:** Current tests assert no-store on successful raw-detail responses
+  only. `RawDetail_CrossSiteFetchIsForbidden` and
+  `RawDetail_UnknownIdReturns404` assert status/body but not the cache header.
+- **Impact:** The error bodies do not contain raw / PII, so this is a boundary
+  hygiene gap rather than a raw exposure. It is still inconsistent with the
+  route-level no-store contract and can cache stale error states for the raw
+  route.
+- **Recommendation:** Set `Cache-Control: no-store` before every raw-detail
+  branch, or add a small route-local helper/middleware for raw-bearing paths.
+  Extend tests to cover `403`, `404`, and busy responses.
 
 ---
 

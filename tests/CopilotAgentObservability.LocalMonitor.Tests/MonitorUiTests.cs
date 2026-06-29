@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 
 namespace CopilotAgentObservability.LocalMonitor.Tests;
 
@@ -115,6 +114,125 @@ public class MonitorUiTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task VendoredFont_IsServedAsWoff2()
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var response = await host.Client.GetAsync("/vendor/fonts/noto-sans-mono-latin-400-normal.woff2");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("font/woff2", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Theory]
+    [InlineData("/vendor/cytoscape.min.js")]
+    [InlineData("/vendor/dagre.min.js")]
+    [InlineData("/vendor/cytoscape-dagre.js")]
+    public async Task GraphVendorScript_IsServedAsJavaScript(string path)
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var response = await host.Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/javascript", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task TracesPage_RendersRowExpandDisclosure()
+    {
+        using var temp = new MonitorTempDirectory();
+        SeedRawWithSensitiveMarkers(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var traces = await host.Client.GetStringAsync("/traces");
+
+        // Progressive disclosure: a per-row toggle and a collapsed detail row.
+        Assert.Contains("row-toggle", traces);
+        Assert.Contains("trace-extra", traces);
+    }
+
+    [Fact]
+    public async Task Theme_VendorsFontsLocallyWithNoExternalCdn()
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var index = await host.Client.GetStringAsync("/");
+        var css = await host.Client.GetStringAsync("/monitor.css");
+
+        // Fonts are referenced from the local vendor path, never a CDN (D028).
+        Assert.Contains("/vendor/fonts/", css);
+        foreach (var cdn in new[] { "googleapis.com", "gstatic.com", "cdn.jsdelivr.net", "unpkg.com" })
+        {
+            Assert.DoesNotContain(cdn, css);
+            Assert.DoesNotContain(cdn, index);
+        }
+    }
+
+    [Fact]
+    public async Task MonitorViewsScript_UsesOnlySanitizedSpanApiForFlowChart()
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var script = await host.Client.GetStringAsync("/monitor-views.js");
+
+        Assert.Contains("/api/monitor/traces/", script);
+        Assert.Contains("next_cursor", script);
+        Assert.Contains("parent_span_id", script);
+        Assert.Contains("if (parent)", script);
+        Assert.DoesNotContain("/raw", script);
+        Assert.DoesNotContain("Html.Raw", script);
+        Assert.DoesNotContain("innerHTML", script);
+    }
+
+    [Fact]
+    public async Task MonitorViewsScript_UsesSanitizedSpanFieldsForTimelineFilterSort()
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var script = await host.Client.GetStringAsync("/monitor-views.js");
+
+        Assert.Contains("timeline-errors-only", script);
+        Assert.Contains("timeline-sort", script);
+        Assert.Contains("status", script);
+        Assert.Contains("error_type", script);
+        Assert.Contains("total_tokens", script);
+        Assert.Contains("start_time", script);
+        Assert.Contains("textContent", script);
+        Assert.DoesNotContain("/raw", script);
+        Assert.DoesNotContain("innerHTML", script);
+    }
+
+    [Fact]
+    public async Task MonitorViewsScript_UsesSanitizedSpanFieldsForCacheExplorer()
+    {
+        using var temp = new MonitorTempDirectory();
+        EnsureSchema(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var script = await host.Client.GetStringAsync("/monitor-views.js");
+
+        Assert.Contains("renderCacheExplorer", script);
+        Assert.Contains("cache_read_tokens", script);
+        Assert.Contains("cache_creation_tokens", script);
+        Assert.Contains("input_tokens", script);
+        Assert.Contains("parent_span_id", script);
+        Assert.Contains("textContent", script);
+        Assert.DoesNotContain("/raw", script);
+        Assert.DoesNotContain("innerHTML", script);
+    }
+
     private static void EnsureSchema(MonitorTempDirectory temp)
     {
         var store = new RawTelemetryStore(temp.DatabasePath, RawTelemetryStoreConnectionOptions.MonitorWriter);
@@ -142,21 +260,11 @@ public class MonitorUiTests
         return id;
     }
 
-    private static async Task<RunningHost> StartHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false)
-    {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: sanitizedOnly, MaxRequestBodyBytes: 31_457_280);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
-    }
-
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
+    private static Task<RunningMonitorHost> StartHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false) =>
+        MonitorTestHost.StartAsync(
+            temp,
+            sanitizedOnly: sanitizedOnly,
+            testOptions: new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
 
     private const string SensitivePayload = """
         {"resourceSpans":[{"resource":{"attributes":[
@@ -170,23 +278,4 @@ public class MonitorUiTests
         ]}]}]}
         """;
 
-    private sealed class RunningHost(Microsoft.AspNetCore.Builder.WebApplication app, HttpClient client) : IAsyncDisposable
-    {
-        public HttpClient Client { get; } = client;
-
-        public async ValueTask DisposeAsync()
-        {
-            Client.Dispose();
-            try
-            {
-                await app.StopAsync();
-            }
-            catch
-            {
-                // Ignore stop faults during teardown.
-            }
-
-            await app.DisposeAsync();
-        }
-    }
 }

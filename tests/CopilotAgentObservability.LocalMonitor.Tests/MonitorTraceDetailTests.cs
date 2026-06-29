@@ -6,15 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
-using System.Net.Sockets;
 
 namespace CopilotAgentObservability.LocalMonitor.Tests;
 
 /// <summary>
 /// Trace-detail page (/traces/{traceId}) — the agent-execution view. It renders the
-/// sanitized Summary + sub-agent tree + per-turn tokens and inlines the raw OTLP
-/// payload. As a raw-bearing route it enforces same-origin + no-store, and under
-/// --sanitized-only the whole page is absent (404). The full negative matrix is M6.
+/// sanitized Summary + sub-agent tree + per-turn tokens and, by default, inlines
+/// the raw OTLP payload. It enforces same-origin + no-store. Under
+/// --sanitized-only, the sanitized tab shell remains available and the raw section
+/// is absent. The full negative matrix is M6.
 /// </summary>
 public class MonitorTraceDetailTests
 {
@@ -36,8 +36,8 @@ public class MonitorTraceDetailTests
 
         // Sanitized sections present.
         Assert.Contains("Summary", body);
-        Assert.Contains("Sub-agent span tree", body);
-        Assert.Contains("Per-turn token rollup", body);
+        Assert.Contains("Timeline", body);
+        Assert.Contains("Errors only", body);
         Assert.Contains("read_file", body);
 
         // Raw body shown inline by default.
@@ -46,7 +46,83 @@ public class MonitorTraceDetailTests
     }
 
     [Fact]
-    public async Task TraceDetail_UnderSanitizedOnly_Returns404AndNoRaw()
+    public async Task TraceDetail_RendersFlowChartContainerAndTimelineShell()
+    {
+        using var temp = new MonitorTempDirectory();
+        SeedProjectedTrace(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var body = await host.Client.GetStringAsync($"/traces/{TraceId}");
+
+        // M4 keeps Summary server-rendered, adds JS-rendered Timeline/Flow
+        // containers, and lets monitor-views.js create stable Timeline row targets.
+        Assert.Contains("role=\"tablist\"", body);
+        Assert.Contains("Flow Chart", body);
+        Assert.Contains("Cache", body);
+        Assert.Contains("panel-flow", body);
+        Assert.Contains("id=\"flow-chart\"", body);
+        Assert.Contains("id=\"flow-status\"", body);
+        Assert.Contains("data-flow-chart-trace-id=\"trace-detail\"", body);
+        Assert.Contains("id=\"timeline-rows\"", body);
+        Assert.DoesNotContain("Flow Chart is not yet available", body);
+        Assert.Contains("panel-cache", body);
+    }
+
+    [Fact]
+    public async Task TraceDetail_RendersTimelineFilterSortShell()
+    {
+        using var temp = new MonitorTempDirectory();
+        SeedProjectedTrace(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var body = await host.Client.GetStringAsync($"/traces/{TraceId}");
+
+        Assert.Contains("id=\"timeline-errors-only\"", body);
+        Assert.Contains("Errors only", body);
+        Assert.Contains("name=\"timeline-sort\"", body);
+        Assert.Contains("value=\"time\"", body);
+        Assert.Contains("value=\"tokens\"", body);
+        Assert.Contains("id=\"timeline-rows\"", body);
+        Assert.Contains("data-timeline-trace-id=\"trace-detail\"", body);
+        Assert.Contains("id=\"timeline-count\"", body);
+    }
+
+    [Fact]
+    public async Task TraceDetail_RendersCacheExplorerShell()
+    {
+        using var temp = new MonitorTempDirectory();
+        SeedProjectedTrace(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var body = await host.Client.GetStringAsync($"/traces/{TraceId}");
+
+        Assert.Contains("id=\"cache-status\"", body);
+        Assert.Contains("id=\"cache-groups\"", body);
+        Assert.Contains("data-cache-trace-id=\"trace-detail\"", body);
+        Assert.DoesNotContain("Cache Explorer is not yet available in this build.", body);
+    }
+
+    [Fact]
+    public async Task TraceDetail_LoadsGraphVendorScriptsLocally()
+    {
+        using var temp = new MonitorTempDirectory();
+        SeedProjectedTrace(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var body = await host.Client.GetStringAsync($"/traces/{TraceId}");
+
+        Assert.Contains("/vendor/cytoscape.min.js", body);
+        Assert.Contains("/vendor/dagre.min.js", body);
+        Assert.Contains("/vendor/cytoscape-dagre.js", body);
+        Assert.Contains("/monitor-views.js", body);
+        foreach (var cdn in new[] { "googleapis.com", "gstatic.com", "cdn.jsdelivr.net", "unpkg.com" })
+        {
+            Assert.DoesNotContain(cdn, body);
+        }
+    }
+
+    [Fact]
+    public async Task TraceDetail_UnderSanitizedOnly_RendersSanitizedTabsWithoutRaw()
     {
         using var temp = new MonitorTempDirectory();
         SeedProjectedTrace(temp);
@@ -55,8 +131,16 @@ public class MonitorTraceDetailTests
         var response = await host.Client.GetAsync($"/traces/{TraceId}");
         var body = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.CacheControl?.NoStore);
+        Assert.Contains("role=\"tablist\"", body);
+        Assert.Contains("Summary", body);
+        Assert.Contains("Timeline", body);
+        Assert.Contains("Flow Chart", body);
+        Assert.Contains("Cache", body);
+        Assert.Contains("data-timeline-trace-id=\"trace-detail\"", body);
+        Assert.DoesNotContain("Raw OTLP payload", body);
+        Assert.DoesNotContain("/raw", body);
         Assert.DoesNotContain("SECRET_PROMPT_TEXT_MARKER", body);
         Assert.DoesNotContain("leak-marker@example.com", body);
     }
@@ -196,21 +280,11 @@ public class MonitorTraceDetailTests
         return id;
     }
 
-    private static async Task<RunningHost> StartHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false)
-    {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: sanitizedOnly, MaxRequestBodyBytes: 31_457_280);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
-    }
-
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
+    private static Task<RunningMonitorHost> StartHostAsync(MonitorTempDirectory temp, bool sanitizedOnly = false) =>
+        MonitorTestHost.StartAsync(
+            temp,
+            sanitizedOnly: sanitizedOnly,
+            testOptions: new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
 
     private const string AgentTracePayload = """
         {"resourceSpans":[{"resource":{"attributes":[
@@ -274,26 +348,6 @@ public class MonitorTraceDetailTests
            ]}
         ]}]}]}
         """.Replace("PADDING_PLACEHOLDER", new string('x', 6000));
-
-    private sealed class RunningHost(Microsoft.AspNetCore.Builder.WebApplication app, HttpClient client) : IAsyncDisposable
-    {
-        public HttpClient Client { get; } = client;
-
-        public async ValueTask DisposeAsync()
-        {
-            Client.Dispose();
-            try
-            {
-                await app.StopAsync();
-            }
-            catch
-            {
-                // Ignore stop faults during teardown.
-            }
-
-            await app.DisposeAsync();
-        }
-    }
 
     private sealed class BusyProjectionStore : IMonitorProjectionStore
     {

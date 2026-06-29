@@ -1,92 +1,63 @@
 @page "/traces"
 @model TracesModel
 
-<section class="monitor-section">
+<section>
     <h2>Traces</h2>
-
-    <form class="monitor-context-bar" method="get">
-        <select class="monitor-select" name="clientKind">
-            <option value="">All ClientKinds</option>
-            @{ var clientKinds = new[] { "copilot-cli", "copilot-coding-agent", "copilot-code-review" }; }
-            @foreach (var kind in clientKinds)
-            {
-                <option value="@kind" selected="@(kind == Model.ClientKind ? "selected" : null)">@kind</option>
-            }
-        </select>
-        <select class="monitor-select" name="status">
-            <option value="">All Status</option>
-            <option value="ok" selected="@(Model.Status == "ok" ? "selected" : null)">OK</option>
-            <option value="error" selected="@(Model.Status == "error" ? "selected" : null)">Error</option>
-        </select>
-        <input class="monitor-input" name="traceId" placeholder="Trace ID…" value="@Model.TraceId" />
-        <button class="monitor-btn monitor-btn-accent" type="submit">Filter</button>
-        <a class="monitor-btn" href="/traces">Reset</a>
-    </form>
-
-    <div class="monitor-table-wrapper">
-    <table class="monitor-table">
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Trace ID</th>
-                <th>ClientKind</th>
-                <th>Status</th>
-                <th class="monitor-text-right">Spans</th>
-                <th class="monitor-text-right">Turns</th>
-                <th>Last Turn</th>
-                <th class="monitor-visually-hidden">Id</th>
-                <th class="monitor-visually-hidden">ExperimentId</th>
-                <th class="monitor-visually-hidden">TaskId</th>
-                <th class="monitor-visually-hidden">TaskCategory</th>
-                <th class="monitor-visually-hidden">AgentVariant</th>
-                <th class="monitor-visually-hidden">PromptVersion</th>
-                <th class="monitor-visually-hidden">ToolCallCount</th>
-                <th class="monitor-visually-hidden">ErrorCount</th>
-                <th class="monitor-visually-hidden">InputTokens</th>
-                <th class="monitor-visually-hidden">OutputTokens</th>
-                <th class="monitor-visually-hidden">TotalTokens</th>
-                <th class="monitor-visually-hidden">AgentInvocationCount</th>
-                <th class="monitor-visually-hidden">DurationMs</th>
-                <th class="monitor-visually-hidden">PrimaryModel</th>
-                <th class="monitor-visually-hidden">FirstSeenAt</th>
-                <th class="monitor-visually-hidden">ProjectedAt</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in Model.Result.Items)
-            {
-                var statusClass = row.ErrorCount > 0 ? "error" : "success";
-                <tr class="monitor-trace-row" data-expand>
-                    <td>@row.FirstSeenAt</td>
-                    <td><a href="/traces/@row.TraceId">@row.TraceId</a></td>
-                    <td>@row.ClientKind</td>
-                    <td><span class="monitor-badge @statusClass">@(row.ErrorCount > 0 ? "Error" : "OK")</span></td>
-                    <td class="monitor-text-right">@row.SpanCount</td>
-                    <td class="monitor-text-right">@row.TurnCount</td>
-                    <td>@row.LastSeenAt</td>
-                    <td class="monitor-visually-hidden">@row.Id</td>
-                    <td class="monitor-visually-hidden">@row.ExperimentId</td>
-                    <td class="monitor-visually-hidden">@row.TaskId</td>
-                    <td class="monitor-visually-hidden">@row.TaskCategory</td>
-                    <td class="monitor-visually-hidden">@row.AgentVariant</td>
-                    <td class="monitor-visually-hidden">@row.PromptVersion</td>
-                    <td class="monitor-visually-hidden">@row.ToolCallCount</td>
-                    <td class="monitor-visually-hidden">@row.ErrorCount</td>
-                    <td class="monitor-visually-hidden">@row.InputTokens</td>
-                    <td class="monitor-visually-hidden">@row.OutputTokens</td>
-                    <td class="monitor-visually-hidden">@row.TotalTokens</td>
-                    <td class="monitor-visually-hidden">@row.AgentInvocationCount</td>
-                    <td class="monitor-visually-hidden">@row.DurationMs</td>
-                    <td class="monitor-visually-hidden">@row.PrimaryModel</td>
-                    <td class="monitor-visually-hidden">@row.FirstSeenAt</td>
-                    <td class="monitor-visually-hidden">@row.ProjectedAt</td>
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th aria-label="Expand"></th>
+                    <th>TraceId</th>
+                    <th>ClientKind</th>
+                    <th>TotalTokens</th>
+                    <th>ToolCallCount</th>
+                    <th>ErrorCount</th>
+                    <th>TurnCount</th>
+                    <th>PrimaryModel</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Result.Items)
+                {
+                    <tr>
+                        <td>
+                            <button class="row-toggle" type="button" aria-expanded="false" aria-controls="trace-extra-@row.Id" aria-label="Toggle trace details">+</button>
+                        </td>
+                        <td><a href="/traces/@row.TraceId">@row.TraceId</a></td>
+                        <td>@row.ClientKind</td>
+                        <td>@row.TotalTokens</td>
+                        <td>@row.ToolCallCount</td>
+                        <td class="@(row.ErrorCount > 0 ? "status-error" : null)">@row.ErrorCount</td>
+                        <td>@row.TurnCount</td>
+                        <td>@row.PrimaryModel</td>
+                    </tr>
+                    <tr class="trace-extra" id="trace-extra-@row.Id" hidden>
+                        <td colspan="8">
+                            <dl>
+                                <dt>Id</dt><dd>@row.Id</dd>
+                                <dt>ExperimentId</dt><dd>@row.ExperimentId</dd>
+                                <dt>TaskId</dt><dd>@row.TaskId</dd>
+                                <dt>TaskCategory</dt><dd>@row.TaskCategory</dd>
+                                <dt>AgentVariant</dt><dd>@row.AgentVariant</dd>
+                                <dt>PromptVersion</dt><dd>@row.PromptVersion</dd>
+                                <dt>SpanCount</dt><dd>@row.SpanCount</dd>
+                                <dt>InputTokens</dt><dd>@row.InputTokens</dd>
+                                <dt>OutputTokens</dt><dd>@row.OutputTokens</dd>
+                                <dt>AgentInvocationCount</dt><dd>@row.AgentInvocationCount</dd>
+                                <dt>DurationMs</dt><dd>@row.DurationMs</dd>
+                                <dt>FirstSeenAt</dt><dd>@row.FirstSeenAt</dd>
+                                <dt>LastSeenAt</dt><dd>@row.LastSeenAt</dd>
+                                <dt>ProjectedAt</dt><dd>@row.ProjectedAt</dd>
+                            </dl>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
     @if (Model.Result.HasMore && Model.Result.Items.Count > 0)
     {
-        <p class="monitor-pagination"><a href="/traces?after=@Model.Result.Items[^1].Id">next →</a></p>
+        <p><a href="/traces?after=@Model.Result.Items[^1].Id">next</a></p>
     }
 </section>

@@ -1,117 +1,107 @@
 @page "/traces/{traceId}"
 @model TraceDetailModel
 
-<section class="monitor-section">
-    <p class="monitor-back-link"><a href="/traces">&larr; Traces</a></p>
+<section>
+    <p><a href="/traces">&larr; Traces</a></p>
     <h2>Trace @Model.TraceId</h2>
 
-    <h3>Summary</h3>
-    <div class="monitor-table-wrapper">
-    <table class="monitor-table">
-        <tbody>
-            <tr><th>ClientKind</th><td>@Model.Trace.ClientKind</td></tr>
-            <tr><th>Total tool calls</th><td>@Model.Trace.ToolCallCount</td></tr>
-            <tr><th>Tokens (input / output / total)</th><td>@Model.Trace.InputTokens / @Model.Trace.OutputTokens / @Model.Trace.TotalTokens</td></tr>
-            <tr><th>Error count</th><td>@Model.Trace.ErrorCount</td></tr>
-            <tr><th>Duration (ms)</th><td>@Model.Trace.DurationMs</td></tr>
-            <tr><th>Turns</th><td>@Model.Trace.TurnCount</td></tr>
-            <tr><th>Agent invocations</th><td>@Model.Trace.AgentInvocationCount</td></tr>
-            <tr><th>Primary model</th><td>@Model.Trace.PrimaryModel</td></tr>
-            <tr><th>Spans</th><td>@Model.Trace.SpanCount</td></tr>
-            <tr><th>First / Last seen</th><td>@Model.Trace.FirstSeenAt / @Model.Trace.LastSeenAt</td></tr>
-        </tbody>
-    </table>
+    @* Sanitized section: tab shell. Summary stays server-rendered; Timeline
+       (M4), Flow Chart (M3), and Cache (M5) are filled by JS from the
+       sanitized spans API. Tab switching is Vanilla JS (monitor-views.js). *@
+    <div class="tabs" role="tablist" aria-label="Trace views">
+        <button class="tab" type="button" role="tab" id="tab-summary" aria-controls="panel-summary" aria-selected="true" tabindex="0">Summary</button>
+        <button class="tab" type="button" role="tab" id="tab-timeline" aria-controls="panel-timeline" aria-selected="false" tabindex="-1">Timeline</button>
+        <button class="tab" type="button" role="tab" id="tab-flow" aria-controls="panel-flow" aria-selected="false" tabindex="-1">Flow Chart</button>
+        <button class="tab" type="button" role="tab" id="tab-cache" aria-controls="panel-cache" aria-selected="false" tabindex="-1">Cache</button>
     </div>
 
-    <div class="monitor-tabs" id="trace-tabs">
-        <button class="monitor-tab active" data-tab="summary">Summary</button>
-        <button class="monitor-tab" data-tab="timeline">Timeline</button>
-        <button class="monitor-tab" data-tab="flowchart">Flow Chart</button>
-        <button class="monitor-tab" data-tab="cache">Cache</button>
-    </div>
-    <div class="monitor-tab-content" id="trace-tab-content">
-        <div data-tab-panel="summary">
-
-    <h3>Sub-agent span tree</h3>
-    <div class="monitor-table-wrapper">
-    <table class="monitor-table">
-        <thead>
-            <tr>
-                <th>Operation</th>
-                <th>Category</th>
-                <th>Tool / MCP / Agent</th>
-                <th>Model</th>
-                <th class="monitor-text-right">Tokens (in / out / total)</th>
-                <th>Status</th>
-                <th class="monitor-text-right">Duration (ms)</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var node in Model.Tree)
-            {
-                <tr>
-                    <td style="padding-left:@(node.Depth * 20)px">@node.Span.Operation</td>
-                    <td>@node.Span.Category</td>
-                    <td>@node.Span.ToolName@(node.Span.McpToolName is null ? null : " / " + node.Span.McpToolName)@(node.Span.AgentName is null ? null : " / " + node.Span.AgentName)</td>
-                    <td>@(node.Span.ResponseModel ?? node.Span.RequestModel)</td>
-                    <td class="monitor-text-right monitor-mono">@node.Span.InputTokens / @node.Span.OutputTokens / @node.Span.TotalTokens</td>
-                    <td>@node.Span.Status@(node.Span.ErrorType is null ? null : " (" + node.Span.ErrorType + ")")</td>
-                    <td class="monitor-text-right monitor-mono">@node.Span.DurationMs</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="tab-panel" id="panel-summary" role="tabpanel" aria-labelledby="tab-summary">
+        <h3>Summary</h3>
+        <table>
+            <tbody>
+                <tr><th>ClientKind</th><td>@Model.Trace.ClientKind</td></tr>
+                <tr><th>Total tool calls</th><td>@Model.Trace.ToolCallCount</td></tr>
+                <tr><th>Tokens (input / output / total)</th><td>@Model.Trace.InputTokens / @Model.Trace.OutputTokens / @Model.Trace.TotalTokens</td></tr>
+                <tr><th>Error count</th><td>@Model.Trace.ErrorCount</td></tr>
+                <tr><th>Duration (ms)</th><td>@Model.Trace.DurationMs</td></tr>
+                <tr><th>Turns</th><td>@Model.Trace.TurnCount</td></tr>
+                <tr><th>Agent invocations</th><td>@Model.Trace.AgentInvocationCount</td></tr>
+                <tr><th>Primary model</th><td>@Model.Trace.PrimaryModel</td></tr>
+                <tr><th>Spans</th><td>@Model.Trace.SpanCount</td></tr>
+                <tr><th>First / Last seen</th><td>@Model.Trace.FirstSeenAt / @Model.Trace.LastSeenAt</td></tr>
+            </tbody>
+        </table>
     </div>
 
-    <h3>Per-turn token rollup</h3>
-    <div class="monitor-table-wrapper">
-    <table class="monitor-table">
-        <thead>
-            <tr>
-                <th>Ordinal</th>
-                <th>Operation</th>
-                <th>Model</th>
-                <th class="monitor-text-right">Input</th>
-                <th class="monitor-text-right">Output</th>
-                <th class="monitor-text-right">Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var turn in Model.Turns)
-            {
-                <tr>
-                    <td class="monitor-mono">@turn.SpanOrdinal</td>
-                    <td>@turn.Operation</td>
-                    <td>@(turn.ResponseModel ?? turn.RequestModel)</td>
-                    <td class="monitor-text-right monitor-mono">@turn.InputTokens</td>
-                    <td class="monitor-text-right monitor-mono">@turn.OutputTokens</td>
-                    <td class="monitor-text-right monitor-mono">@turn.TotalTokens</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    </div>
-
+    <div class="tab-panel" id="panel-timeline" role="tabpanel" aria-labelledby="tab-timeline" hidden>
+        <h3>Timeline</h3>
+        <div class="timeline-toolbar" data-timeline-trace-id="@Model.TraceId">
+            <label class="timeline-filter">
+                <input id="timeline-errors-only" type="checkbox" />
+                Errors only
+            </label>
+            <fieldset class="segmented-control" aria-label="Timeline sort">
+                <legend>Sort</legend>
+                <label>
+                    <input type="radio" name="timeline-sort" value="time" checked />
+                    <span>Time</span>
+                </label>
+                <label>
+                    <input type="radio" name="timeline-sort" value="tokens" />
+                    <span>Tokens</span>
+                </label>
+            </fieldset>
+            <span id="timeline-count" class="timeline-count" role="status">Loading spans...</span>
+        </div>
+        <p id="timeline-empty" class="timeline-empty" hidden>No spans match the current Timeline filter.</p>
+        <div class="table-scroll">
+            <table class="timeline-table">
+                <thead>
+                    <tr>
+                        <th>Operation</th>
+                        <th>Category</th>
+                        <th>Tool / MCP / Agent</th>
+                        <th>Model</th>
+                        <th>Tokens (in / out / total)</th>
+                        <th>Status</th>
+                        <th>Duration (ms)</th>
+                    </tr>
+                </thead>
+                <tbody id="timeline-rows" data-timeline-trace-id="@Model.TraceId"></tbody>
+            </table>
         </div>
     </div>
 
-    <h3>Raw OTLP payload</h3>
-    @if (Model.RawRecords.Count == 0)
+    <div class="tab-panel" id="panel-flow" role="tabpanel" aria-labelledby="tab-flow" hidden>
+        <div id="flow-status" class="flow-status" role="status">Loading Flow Chart...</div>
+        <div id="flow-chart" class="flow-chart" data-flow-chart-trace-id="@Model.TraceId" aria-label="Trace span flow chart"></div>
+    </div>
+
+    <div class="tab-panel" id="panel-cache" role="tabpanel" aria-labelledby="tab-cache" hidden>
+        <h3>Cache</h3>
+        <div id="cache-status" class="cache-status" role="status">Loading Cache Explorer...</div>
+        <div id="cache-groups" class="cache-groups" data-cache-trace-id="@Model.TraceId"></div>
+    </div>
+
+    @if (Model.RawAvailable)
     {
-        <p>No raw records for this trace.</p>
-    }
-    else
-    {
-        @foreach (var record in Model.RawRecords)
+        <h3>Raw OTLP payload</h3>
+        @if (Model.RawRecords.Count == 0)
         {
-            <details>
-                <summary>Raw record @record.Id — <a href="/traces/@record.Id/raw">open full</a> (@record.PayloadLength chars)</summary>
+            <p>No raw records for this trace.</p>
+        }
+        else
+        {
+            @foreach (var record in Model.RawRecords)
+            {
+                <h4>Raw record @record.Id</h4>
+                <p><a href="/traces/@record.Id/raw">Open full raw record</a> (@record.PayloadLength chars)</p>
                 @if (record.IsTruncated)
                 {
                     <p>Raw preview truncated.</p>
                 }
-                <pre class="monitor-raw-preview">@record.Preview</pre>
-            </details>
+                <pre>@record.Preview</pre>
+            }
         }
     }
 </section>

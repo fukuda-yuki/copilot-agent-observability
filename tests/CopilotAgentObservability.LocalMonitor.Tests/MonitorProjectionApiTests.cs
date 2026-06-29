@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 
@@ -171,7 +170,7 @@ public class MonitorProjectionApiTests
         Assert.Contains("\"status\":\"ready\"", await ready.Content.ReadAsStringAsync());
     }
 
-    private static async Task<int> WaitForIngestionCountAsync(RunningHost host, int expected)
+    private static async Task<int> WaitForIngestionCountAsync(RunningMonitorHost host, int expected)
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)
@@ -241,32 +240,20 @@ public class MonitorProjectionApiTests
         return id;
     }
 
-    private static async Task<RunningHost> StartReadOnlyHostAsync(MonitorTempDirectory temp)
-    {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: false, MaxRequestBodyBytes: 31_457_280);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
-    }
+    private static Task<RunningMonitorHost> StartReadOnlyHostAsync(MonitorTempDirectory temp) =>
+        MonitorTestHost.StartAsync(temp, testOptions: new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
 
-    private static async Task<RunningHost> StartLiveHostAsync(MonitorTempDirectory temp)
-    {
-        var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: false, MaxRequestBodyBytes: 31_457_280);
-        var app = MonitorHost.Build(options, new MonitorHostTestOptions { ProjectionPollInterval = TimeSpan.FromMilliseconds(50) });
-        await app.StartAsync();
-        return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) });
-    }
+    private static Task<RunningMonitorHost> StartLiveHostAsync(MonitorTempDirectory temp) =>
+        MonitorTestHost.StartAsync(temp, testOptions: new MonitorHostTestOptions { ProjectionPollInterval = TimeSpan.FromMilliseconds(50) });
 
-    private static async Task<JsonDocument> GetJsonAsync(RunningHost host, string path)
+    private static async Task<JsonDocument> GetJsonAsync(RunningMonitorHost host, string path)
     {
         var response = await host.Client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync());
     }
 
-    private static async Task<string> GetStringAsync(RunningHost host, string path)
+    private static async Task<string> GetStringAsync(RunningMonitorHost host, string path)
     {
         var response = await host.Client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -276,13 +263,6 @@ public class MonitorProjectionApiTests
     private static StringContent JsonContent(string json) => new(json, Encoding.UTF8, "application/json");
 
     private static string TraceJson(string traceId) => TraceTemplate.Replace("__TRACE__", traceId);
-
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
 
     private const string TraceTemplate = """
         {"resourceSpans":[{"resource":{"attributes":[{"key":"client.kind","value":{"stringValue":"vscode-copilot-chat"}}]},"scopeSpans":[{"spans":[{"traceId":"__TRACE__","spanId":"2222222222222222","name":"chat gpt-4o"}]}]}]}
@@ -372,23 +352,4 @@ public class MonitorProjectionApiTests
         ]}]}]}
         """;
 
-    private sealed class RunningHost(Microsoft.AspNetCore.Builder.WebApplication app, HttpClient client) : IAsyncDisposable
-    {
-        public HttpClient Client { get; } = client;
-
-        public async ValueTask DisposeAsync()
-        {
-            Client.Dispose();
-            try
-            {
-                await app.StopAsync();
-            }
-            catch
-            {
-                // Ignore stop faults during teardown.
-            }
-
-            await app.DisposeAsync();
-        }
-    }
 }

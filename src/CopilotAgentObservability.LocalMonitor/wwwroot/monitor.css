@@ -1,511 +1,542 @@
-/* ==========================================================================
-   Local Monitor — monitor.css
-   VS Code Dark+ design system with vendored Noto Sans JP / Noto Sans Mono.
-   Architecture: @font-face → tokens → reset → layout → components → utilities → motion
-   ========================================================================== */
+/* Local Ingestion Monitor — VS Code-styled dark theme (Sprint10 A3 / D027).
+ *
+ * Developer-facing debugging UI: follows VS Code Dark+ conventions, not DADS.
+ * Built on CSS custom-property tokens + an 8px spacing scale. Typography is the
+ * locally vendored Noto Sans JP / Noto Sans Mono (D028, no CDN). Presentation
+ * only — no behavior/route/data change. Captured content is still rendered as
+ * escaped, inert text by Razor (no Html.Raw); this file adds no live markup. */
 
-/* ===== 1. @font-face: Vendored Noto Fonts ===== */
-/* Font files + unicode-range declarations live in /vendor/fonts/fonts.css */
-/* (generated from Google Fonts CSS2 API, local paths rewritten) */
-@import url('/vendor/fonts/fonts.css');
+/* ── Vendored fonts (wwwroot/vendor/fonts, OFL 1.1, no CDN) ──────────────────
+ * Per weight: a no-range Japanese face first, then a latin-range face. On the
+ * overlapping latin codepoints the later (latin) face wins, so latin-only pages
+ * fetch the ~13KB latin file and the ~1MB Japanese file loads only when a CJK
+ * glyph is actually used. */
+@font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(/vendor/fonts/noto-sans-jp-japanese-400-normal.woff2) format('woff2');
+}
+@font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(/vendor/fonts/noto-sans-jp-latin-400-normal.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url(/vendor/fonts/noto-sans-jp-japanese-500-normal.woff2) format('woff2');
+}
+@font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url(/vendor/fonts/noto-sans-jp-latin-500-normal.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url(/vendor/fonts/noto-sans-jp-japanese-700-normal.woff2) format('woff2');
+}
+@font-face {
+    font-family: 'Noto Sans JP';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url(/vendor/fonts/noto-sans-jp-latin-700-normal.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Noto Sans Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(/vendor/fonts/noto-sans-mono-latin-400-normal.woff2) format('woff2');
+}
 
-/* ===== 2. CSS Custom Properties: Design Tokens ===== */
+/* ── Design tokens (VS Code Dark+) ──────────────────────────────────────── */
 :root {
-  /* ── Surface ── */
-  --monitor-bg:          oklch(0.19 0 0);
-  --monitor-surface:     oklch(0.22 0 0);
-  --monitor-surface-alt: oklch(0.25 0 0);
-  --monitor-input-bg:    oklch(0.31 0 0);
+    color-scheme: dark;
 
-  /* ── Border ── */
-  --monitor-border:        oklch(0.28 0 0);
-  --monitor-border-subtle: oklch(0.22 0 0);
+    --font-sans: 'Noto Sans JP', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: 'Noto Sans Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
 
-  /* ── Ink ── */
-  --monitor-ink:        oklch(0.85 0 0);
-  --monitor-ink-subtle: oklch(0.70 0 0);
-  --monitor-muted:      oklch(0.55 0 0);
+    --bg: #1e1e1e;
+    --bg-elev: #252526;
+    --bg-elev-2: #2d2d30;
+    --bg-inset: #1b1b1b;
 
-  /* ── Accent (VS Code blue #007acc ≈) ── */
-  --monitor-accent:        oklch(0.54 0.17 255);
-  --monitor-accent-hover:  oklch(0.58 0.17 255);
-  --monitor-accent-muted:  oklch(0.35 0.06 255);
+    --border: #3c3c3c;
+    --border-subtle: #2b2b2b;
 
-  /* ── Semantic ── */
-  --monitor-success:    oklch(0.70 0.10 165);
-  --monitor-warning:    oklch(0.72 0.10 95);
-  --monitor-error:      oklch(0.55 0.18 25);
+    --text: #d4d4d4;
+    --text-strong: #ffffff;
+    --text-dim: #9d9d9d;
 
-  --monitor-success-bg: oklch(0.22 0.03 165);
-  --monitor-warning-bg: oklch(0.22 0.03 95);
-  --monitor-error-bg:   oklch(0.22 0.04 25);
+    --accent: #4daafc;
+    --row-hover: #2a2d2e;
+    --row-zebra: #232325;
+    --selection: #264f78;
 
-  /* ── Typography ── */
-  --monitor-font-sans: 'Noto Sans JP', sans-serif;
-  --monitor-font-mono: 'Noto Sans Mono', monospace;
+    --error: #f48771;
+    --error-bg: #3a1d1d;
+    --ok: #4ec9b0;
+    --warn: #cca700;
 
-  --monitor-text-xs:   0.6875rem;   /* 11px */
-  --monitor-text-sm:   0.75rem;     /* 12px */
-  --monitor-text-base: 0.8125rem;   /* 13px */
-  --monitor-text-md:   0.875rem;    /* 14px */
-  --monitor-text-lg:   1rem;        /* 16px */
-  --monitor-text-xl:   1.125rem;    /* 18px */
-  --monitor-text-2xl:  1.25rem;     /* 20px */
-  --monitor-text-3xl:  1.5rem;      /* 24px */
+    /* 8px spacing scale */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
 
-  --monitor-leading-tight:   1.2;
-  --monitor-leading-normal:  1.45;
-  --monitor-leading-relaxed: 1.6;
-
-  --monitor-weight-normal:   400;
-  --monitor-weight-medium:   500;
-  --monitor-weight-semibold: 600;
-  --monitor-weight-bold:     700;
-
-  /* ── Spacing (8px grid) ── */
-  --monitor-space-1: 4px;
-  --monitor-space-2: 8px;
-  --monitor-space-3: 12px;
-  --monitor-space-4: 16px;
-  --monitor-space-5: 24px;
-  --monitor-space-6: 32px;
-  --monitor-space-7: 48px;
-
-  /* ── Z-Index ── */
-  --monitor-z-dropdown: 100;
-  --monitor-z-sticky:   200;
-  --monitor-z-overlay:  300;
-  --monitor-z-tooltip:  400;
+    --radius: 4px;
+    --radius-lg: 6px;
 }
 
-/* ===== 3. CSS Reset / Base ===== */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  font-family: var(--monitor-font-sans);
-  font-size: 16px;
-  -webkit-text-size-adjust: 100%;
-  color-scheme: dark;
+/* ── Base ───────────────────────────────────────────────────────────────── */
+* {
+    box-sizing: border-box;
 }
 
 body {
-  background: var(--monitor-bg);
-  color: var(--monitor-ink);
-  font-size: var(--monitor-text-base);
-  line-height: var(--monitor-leading-normal);
-  min-height: 100vh;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-weight: var(--monitor-weight-semibold);
-  line-height: var(--monitor-leading-tight);
-  text-wrap: balance;
-}
-
-h1 { font-size: var(--monitor-text-2xl); }
-h2 { font-size: var(--monitor-text-xl); }
-h3 { font-size: var(--monitor-text-lg); }
-
-a {
-  color: var(--monitor-accent);
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: underline;
-  color: var(--monitor-accent-hover);
-}
-a:visited {
-  color: oklch(0.50 0.12 290);
-}
-
-code, pre, kbd {
-  font-family: var(--monitor-font-mono);
-}
-
-pre {
-  font-size: var(--monitor-text-sm);
-  line-height: var(--monitor-leading-normal);
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: var(--monitor-accent-muted);
-  color: var(--monitor-ink);
+    background: var(--selection);
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
 }
 
 :focus-visible {
-  outline: 2px solid var(--monitor-accent);
-  outline-offset: 1px;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
 }
 
-/* ===== 4. Layout Primitives ===== */
-
-/* ── 4.1 Header (sticky) ── */
-.monitor-header {
-  position: sticky;
-  top: 0;
-  z-index: var(--monitor-z-sticky);
-  background: var(--monitor-bg);
+h1, h2, h3, h4 {
+    color: var(--text-strong);
+    font-weight: 600;
+    line-height: 1.25;
 }
 
-.monitor-nav {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  height: 36px;
-  padding: 0 var(--monitor-space-5);
-  border-bottom: 1px solid var(--monitor-border);
-  background: var(--monitor-surface);
+h1 { font-size: 1.05rem; margin: 0; }
+h2 { font-size: 1.25rem; margin: 0 0 var(--space-3); }
+h3 { font-size: 1rem; margin: var(--space-4) 0 var(--space-2); color: var(--text); }
+h4 { font-size: 0.9rem; margin: var(--space-3) 0 var(--space-1); color: var(--text-dim); }
+
+code, pre {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
 }
 
-.monitor-brand {
-  font-size: var(--monitor-text-sm);
-  font-weight: var(--monitor-weight-medium);
-  color: var(--monitor-ink-subtle);
-  margin-right: var(--monitor-space-5);
+/* ── Header / navigation ────────────────────────────────────────────────── */
+header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
-.monitor-nav a {
-  padding: 0 var(--monitor-space-3);
-  height: 36px;
-  display: flex;
-  align-items: center;
-  font-size: var(--monitor-text-sm);
-  color: var(--monitor-muted);
-  transition: color 150ms ease-out;
-}
-.monitor-nav a:hover {
-  color: var(--monitor-ink-subtle);
-  text-decoration: none;
-}
-.monitor-nav a.active {
-  color: var(--monitor-ink);
-  box-shadow: inset 0 -2px 0 var(--monitor-accent);
+nav {
+    display: flex;
+    gap: var(--space-1);
 }
 
-/* ── 4.2 Status dot (right-aligned in nav) ── */
-.monitor-nav-status {
-  margin-left: auto;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.monitor-nav-status.healthy  { background: var(--monitor-success); }
-.monitor-nav-status.degraded { background: var(--monitor-warning); }
-.monitor-nav-status.unhealthy { background: var(--monitor-error); }
-
-/* ── 4.3 Context Bar (sticky, below nav) ── */
-.monitor-context-bar {
-  position: sticky;
-  top: 36px;
-  z-index: var(--monitor-z-sticky);
-  display: flex;
-  align-items: center;
-  gap: var(--monitor-space-2);
-  padding: var(--monitor-space-2) var(--monitor-space-5);
-  background: var(--monitor-surface);
-  border-bottom: 1px solid var(--monitor-border);
-  flex-wrap: wrap;
+nav a {
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    font-size: 0.9rem;
 }
 
-/* ── 4.4 Content Area ── */
-.monitor-content {
-  padding: var(--monitor-space-4) var(--monitor-space-5);
+nav a:hover {
+    background: var(--bg-elev-2);
+    color: var(--text);
+    text-decoration: none;
 }
 
-/* ===== 5. Component Styles ===== */
-
-/* ── 5.1 Data Tables ── */
-.monitor-table-wrapper {
-  overflow-x: auto;
-  border: 1px solid var(--monitor-border);
-  border-radius: 4px;
+nav a[aria-current="page"] {
+    background: var(--bg-elev-2);
+    color: var(--text-strong);
 }
 
-.monitor-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--monitor-text-base);
-  font-variant-numeric: tabular-nums;
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-4);
 }
 
-.monitor-table th {
-  position: sticky;
-  top: 0;
-  z-index: calc(var(--monitor-z-sticky) - 1);
-  background: var(--monitor-surface);
-  color: var(--monitor-muted);
-  font-weight: var(--monitor-weight-medium);
-  font-size: var(--monitor-text-sm);
-  padding: var(--monitor-space-2) var(--monitor-space-3);
-  border-bottom: 1px solid var(--monitor-border);
-  text-align: left;
-  white-space: nowrap;
-  user-select: none;
-}
-.monitor-table th.sortable {
-  cursor: pointer;
-}
-.monitor-table th.sortable:hover {
-  color: var(--monitor-ink-subtle);
-}
-.monitor-table th[aria-sort="ascending"]::after {
-  content: ' ▲';
-}
-.monitor-table th[aria-sort="descending"]::after {
-  content: ' ▼';
+section {
+    margin-bottom: var(--space-5);
 }
 
-.monitor-table td {
-  padding: var(--monitor-space-2) var(--monitor-space-3);
-  border-bottom: 1px solid var(--monitor-border-subtle);
-  color: var(--monitor-ink);
-  white-space: nowrap;
-}
-.monitor-table tr:hover td {
-  background: var(--monitor-surface-alt);
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+.table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
 }
 
-/* ── 5.2 Metric Panels ── */
-.monitor-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--monitor-space-3);
-  margin-bottom: var(--monitor-space-5);
+table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88rem;
 }
 
-.monitor-metric-panel {
-  background: var(--monitor-surface);
-  border: 1px solid var(--monitor-border);
-  border-radius: 4px;
-  padding: var(--monitor-space-4);
+th, td {
+    padding: var(--space-2) var(--space-3);
+    text-align: left;
+    border-bottom: 1px solid var(--border-subtle);
+    white-space: nowrap;
+    vertical-align: top;
 }
 
-.monitor-metric-panel .metric-label {
-  font-size: var(--monitor-text-sm);
-  color: var(--monitor-muted);
-  margin-bottom: var(--monitor-space-1);
+thead th {
+    background: var(--th-bg, var(--bg-elev-2));
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
 }
 
-.monitor-metric-panel .metric-value {
-  font-size: var(--monitor-text-3xl);
-  font-weight: var(--monitor-weight-semibold);
-  color: var(--monitor-ink);
-  line-height: var(--monitor-leading-tight);
+tbody tr:nth-child(even) {
+    background: var(--row-zebra);
 }
 
-/* ── 5.3 Tabs ── */
-.monitor-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--monitor-border);
-  background: var(--monitor-surface);
+tbody tr:hover {
+    background: var(--row-hover);
 }
 
-.monitor-tab {
-  padding: var(--monitor-space-2) var(--monitor-space-4);
-  font-size: var(--monitor-text-sm);
-  color: var(--monitor-muted);
-  cursor: pointer;
-  border: none;
-  background: none;
-  font-family: inherit;
-  transition: color 150ms ease-out;
-}
-.monitor-tab:hover {
-  color: var(--monitor-ink-subtle);
-}
-.monitor-tab.active {
-  color: var(--monitor-ink);
-  box-shadow: inset 0 -2px 0 var(--monitor-accent);
+td a {
+    font-family: var(--font-mono);
 }
 
-.monitor-tab-content {
-  background: var(--monitor-surface);
-  border: 1px solid var(--monitor-border);
-  border-top: none;
-  border-radius: 0 0 4px 4px;
-  padding: var(--monitor-space-4);
+/* ── Definition-list cards (readiness / overview) ───────────────────────── */
+dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--space-1) var(--space-4);
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-elev);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
 }
 
-/* ── 5.4 Filter Inputs ── */
-.monitor-select,
-.monitor-input {
-  height: 32px;
-  padding: 0 var(--monitor-space-2);
-  background: var(--monitor-input-bg);
-  border: 1px solid var(--monitor-border);
-  color: var(--monitor-ink);
-  font-family: var(--monitor-font-sans);
-  font-size: var(--monitor-text-sm);
-  border-radius: 2px;
-}
-.monitor-select:focus,
-.monitor-input:focus {
-  outline: 2px solid var(--monitor-accent);
-  outline-offset: 0;
-}
-.monitor-input::placeholder {
-  color: var(--monitor-muted);
+dt {
+    color: var(--text-dim);
+    font-size: 0.85rem;
 }
 
-/* ── 5.5 Buttons ── */
-.monitor-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
-  padding: 0 var(--monitor-space-3);
-  font-family: var(--monitor-font-sans);
-  font-size: var(--monitor-text-sm);
-  font-weight: var(--monitor-weight-medium);
-  border: 1px solid var(--monitor-border);
-  border-radius: 2px;
-  background: var(--monitor-input-bg);
-  color: var(--monitor-ink);
-  cursor: pointer;
-  transition: background 150ms ease-out, color 150ms ease-out;
-}
-.monitor-btn:hover {
-  background: var(--monitor-surface-alt);
-}
-.monitor-btn:active {
-  background: var(--monitor-border);
+dd {
+    margin: 0;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
 }
 
-.monitor-btn-accent {
-  background: var(--monitor-accent);
-  border-color: var(--monitor-accent);
-  color: #fff;
-}
-.monitor-btn-accent:hover {
-  background: var(--monitor-accent-hover);
-}
-
-/* ── 5.6 Raw Preview ── */
-.monitor-raw-preview {
-  background: var(--monitor-input-bg);
-  border: 1px solid var(--monitor-border);
-  border-radius: 4px;
-  padding: var(--monitor-space-3);
-  font-family: var(--monitor-font-mono);
-  font-size: var(--monitor-text-sm);
-  line-height: var(--monitor-leading-normal);
-  color: var(--monitor-ink);
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 400px;
-  overflow-y: auto;
+/* ── Preformatted raw payload preview ───────────────────────────────────── */
+pre {
+    margin: var(--space-2) 0;
+    padding: var(--space-3);
+    background: var(--bg-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 320px;
+    overflow: auto;
 }
 
-/* ── 5.7 Status indicators ── */
-.monitor-status {
-  font-weight: var(--monitor-weight-semibold);
-}
-.monitor-status.success  { color: var(--monitor-success); }
-.monitor-status.warning  { color: var(--monitor-warning); }
-.monitor-status.error    { color: var(--monitor-error); }
-
-.monitor-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px var(--monitor-space-2);
-  font-size: var(--monitor-text-xs);
-  font-weight: var(--monitor-weight-medium);
-  border-radius: 3px;
-  line-height: var(--monitor-leading-tight);
-}
-.monitor-badge.success { background: var(--monitor-success-bg); color: var(--monitor-success); }
-.monitor-badge.warning { background: var(--monitor-warning-bg); color: var(--monitor-warning); }
-.monitor-badge.error   { background: var(--monitor-error-bg);   color: var(--monitor-error); }
-
-/* ── 5.8 Banner (diagnostics page) ── */
-.monitor-banner {
-  padding: var(--monitor-space-3) var(--monitor-space-4);
-  border: 1px solid var(--monitor-border);
-  border-radius: 4px;
-  font-size: var(--monitor-text-base);
-  margin-bottom: var(--monitor-space-4);
-}
-.monitor-banner.warning {
-  background: var(--monitor-warning-bg);
-  border-color: var(--monitor-warning);
-  color: var(--monitor-warning);
-}
-.monitor-banner.error {
-  background: var(--monitor-error-bg);
-  border-color: var(--monitor-error);
-  color: var(--monitor-error);
+/* ── Tabs (TraceDetail sanitized section) ───────────────────────────────── */
+.tabs {
+    display: flex;
+    gap: var(--space-1);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-3);
 }
 
-/* ── 5.9 Section headings ── */
-.monitor-section {
-  margin-bottom: var(--monitor-space-5);
-}
-.monitor-section h2,
-.monitor-section h3 {
-  margin-bottom: var(--monitor-space-3);
-}
-
-/* ── 5.10 Back link ── */
-.monitor-back-link {
-  display: inline-block;
-  margin-bottom: var(--monitor-space-4);
-  font-size: var(--monitor-text-sm);
+.tab {
+    appearance: none;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: var(--space-2) var(--space-3);
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
 }
 
-/* ── 5.11 Pagination ── */
-.monitor-pagination {
-  margin-top: var(--monitor-space-3);
-  font-size: var(--monitor-text-sm);
+.tab:hover {
+    color: var(--text);
 }
 
-/* ===== 6. Utilities ===== */
-.monitor-truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.tab[aria-selected="true"] {
+    color: var(--text-strong);
+    border-bottom-color: var(--accent);
 }
 
-.monitor-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
+.tab-panel[hidden] {
+    display: none;
 }
 
-.monitor-mono {
-  font-family: var(--monitor-font-mono);
+.tab-placeholder {
+    color: var(--text-dim);
+    font-style: italic;
+    padding: var(--space-4) var(--space-2);
 }
 
-.monitor-text-right {
-  text-align: right;
+/* ── Timeline controls (TraceDetail sanitized section) ──────────────────── */
+.timeline-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-2);
 }
 
-/* ===== 7. Motion ===== */
-.monitor-table tr {
-  transition: background 150ms ease-out;
-}
-.monitor-tab,
-.monitor-nav a {
-  transition: color 150ms ease-out, box-shadow 150ms ease-out;
-}
-.monitor-btn {
-  transition: background 150ms ease-out, color 150ms ease-out;
+.timeline-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--text);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0ms !important;
-    animation-duration: 0ms !important;
-  }
+.segmented-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.segmented-control legend {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+
+.segmented-control label {
+    cursor: pointer;
+}
+
+.segmented-control input {
+    position: absolute;
+    opacity: 0;
+}
+
+.segmented-control span {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    background: var(--bg-elev);
+    color: var(--text-dim);
+    border-right: 1px solid var(--border);
+}
+
+.segmented-control label:last-child span {
+    border-right: none;
+}
+
+.segmented-control input:checked + span {
+    background: var(--selection);
+    color: var(--text-strong);
+}
+
+.timeline-count,
+.timeline-empty {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.timeline-empty {
+    margin: 0 0 var(--space-2);
+}
+
+/* ── Flow Chart (TraceDetail sanitized section) ─────────────────────────── */
+.flow-status {
+    margin: 0 0 var(--space-2);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.flow-chart {
+    min-height: 520px;
+    height: min(68vh, 720px);
+    width: 100%;
+    background: var(--bg-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+}
+
+.span-highlight {
+    background: var(--selection) !important;
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ── Cache Explorer (TraceDetail sanitized section) ─────────────────────── */
+.cache-status {
+    margin: 0 0 var(--space-2);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.cache-groups {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.cache-group {
+    padding: var(--space-3);
+    background: var(--bg-elev);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+}
+
+.cache-group h4 {
+    margin-top: 0;
+    color: var(--text);
+}
+
+.cache-group-meta {
+    margin: 0 0 var(--space-3);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.cache-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.cache-metric {
+    min-height: 56px;
+    padding: var(--space-2);
+    background: var(--bg-inset);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+}
+
+.cache-metric-label {
+    display: block;
+    margin-bottom: var(--space-1);
+    color: var(--text-dim);
+    font-size: 0.78rem;
+}
+
+.cache-metric strong {
+    color: var(--text-strong);
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.cache-table {
+    min-width: 760px;
+}
+
+/* ── Trace-list progressive disclosure ──────────────────────────────────── */
+.row-toggle {
+    appearance: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.row-toggle:hover {
+    background: var(--row-hover);
+}
+
+.trace-extra[hidden] {
+    display: none;
+}
+
+.trace-extra > td {
+    background: var(--bg-inset);
+    white-space: normal;
+}
+
+.trace-extra dl {
+    background: transparent;
+    border: none;
+    padding: var(--space-1) 0;
+}
+
+/* ── Span-tree indentation (replaces inline padding-left) ───────────────── */
+.span-op {
+    padding-left: calc(var(--space-3) + var(--depth, 0) * 20px);
+}
+
+/* ── Status accents ─────────────────────────────────────────────────────── */
+.status-error { color: var(--error); }
+.status-ok { color: var(--ok); }
+
+/* ── Thin scrollbars (VS Code feel) ─────────────────────────────────────── */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #4a4a4a transparent;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5a5a5a;
 }

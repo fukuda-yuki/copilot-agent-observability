@@ -1,4 +1,7 @@
 using CopilotAgentObservability.LocalMonitor.Health;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CopilotAgentObservability.LocalMonitor.Tests;
 
@@ -37,5 +40,68 @@ internal static class MonitorTestHealth
         health.SetProjectionWorkerRunning(true);
         health.SetProjectionStatus(backlog: 0, oldestUnprocessedReceivedAt: null);
         return health;
+    }
+}
+
+internal static class MonitorTestHost
+{
+    public static async Task<RunningMonitorHost> StartAsync(
+        MonitorTempDirectory temp,
+        bool sanitizedOnly = false,
+        int maxRequestBodyBytes = MonitorOptions.DefaultMaxRequestBodyBytes,
+        int ingestionStallThresholdSeconds = MonitorOptions.DefaultIngestionStallThresholdSeconds,
+        int projectionLagThresholdSeconds = MonitorOptions.DefaultProjectionLagThresholdSeconds,
+        MonitorHostTestOptions? testOptions = null)
+    {
+        var options = new MonitorOptions(
+            temp.DatabasePath,
+            Url: "http://127.0.0.1:0",
+            SanitizedOnly: sanitizedOnly,
+            MaxRequestBodyBytes: maxRequestBodyBytes,
+            ingestionStallThresholdSeconds,
+            projectionLagThresholdSeconds);
+        var app = testOptions is null ? MonitorHost.Build(options) : MonitorHost.Build(options, testOptions);
+        await app.StartAsync();
+
+        var url = GetSingleBoundAddress(app);
+        return new RunningMonitorHost(app, new HttpClient { BaseAddress = new Uri(url) }, url);
+    }
+
+    private static string GetSingleBoundAddress(Microsoft.AspNetCore.Builder.WebApplication app)
+    {
+        var addresses = app.Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>()?
+            .Addresses
+            .ToArray();
+        Assert.NotNull(addresses);
+        var address = Assert.Single(addresses);
+        Assert.StartsWith("http://127.0.0.1:", address, StringComparison.Ordinal);
+        Assert.False(address.EndsWith(":0", StringComparison.Ordinal));
+        return address;
+    }
+}
+
+internal sealed class RunningMonitorHost(
+    Microsoft.AspNetCore.Builder.WebApplication app,
+    HttpClient client,
+    string url) : IAsyncDisposable
+{
+    public HttpClient Client { get; } = client;
+
+    public string Url { get; } = url;
+
+    public async ValueTask DisposeAsync()
+    {
+        Client.Dispose();
+        try
+        {
+            await app.StopAsync();
+        }
+        catch
+        {
+            // Ignore stop faults during teardown.
+        }
+
+        await app.DisposeAsync();
     }
 }
