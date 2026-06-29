@@ -25,6 +25,8 @@ Sprint10 review cards are in
 | [S10-1](Sprint10-monitor-design-views.md#S10-1) | `--sanitized-only` TraceDetail design views | High | Fixed | Sanitized tabs stay available under `--sanitized-only`; raw preview/raw links stay absent. |
 | [S10-2](Sprint10-monitor-design-views.md#S10-2) | Playwright validation/bootstrap | High | Fixed | CI and local validation bootstrap install Chromium before `dotnet test CopilotAgentObservability.slnx`. |
 | [S10-3](Sprint10-monitor-design-views.md#S10-3) | Sprint10 completion evidence/state | Medium | Open — live evidence blocked | Record real VS Code Copilot Chat live evidence before marking Sprint10 complete. |
+| [S10-4](Sprint10-monitor-design-views.md#S10-4) | LocalMonitor test host port allocation | High | Open | Replace racy `GetFreePort()` helpers so required solution validation is not blocked by random loopback bind collisions. |
+| [S10-5](Sprint10-monitor-design-views.md#S10-5) | Ingestion writer shutdown-drain validation | Medium | Open | Root-cause and stabilize the intermittent shutdown-drain failure under `dotnet test CopilotAgentObservability.slnx`. |
 
 ## Sprint9 Recommended Fix Order
 
@@ -49,6 +51,7 @@ Sprint10 review cards are in
 | [M3-2](M3-storage-migration.md#M3-2) | Span projection robustness | Medium | Closed | Missing trace id was already dropped by `INSERT OR IGNORE`; blank/null trace ids are explicitly skipped and backlog still drains. |
 | [M5-1](M5-agent-execution-ui.md#M5-1) | Trace-detail raw lookup | Medium | Fixed | Trace-detail raw lookup resolves records through `monitor_spans.raw_record_id`. |
 | [M5-4](M5-agent-execution-ui.md#M5-4) | Trace-detail raw rendering | Medium | Fixed | Trace-detail renders bounded raw previews and links to the single-record raw route. |
+| [M5-5](M5-agent-execution-ui.md#M5-5) | Raw-detail route headers | Low | Open | Set `Cache-Control: no-store` on raw-detail error/forbidden responses, not only successful raw responses. |
 | [M6-1](M6-security-live-validation.md#M6-1) | Live-validation docs | Medium | Fixed | Part B remains pending unless user-confirmed; candidate evidence no longer marks the milestone complete. |
 | [M2-3](M2-span-projection.md#M2-3) | Turn-count semantics | Low | Closed | Current spec defines `turn_count` as all `chat` / LLM spans; no behavior change made. |
 | [M2-4](M2-span-projection.md#M2-4) | Error type sanitization | Low | Fixed | `error_type` now uses an identifier/class-token policy instead of the generic secret substring guard. |
@@ -67,7 +70,7 @@ Sprint10 review cards are in
 | --- | --- | --- |
 | [M2-span-projection.md](M2-span-projection.md) | Projection builder, token rollup, field sanitization | M2-1 through M2-5 |
 | [M3-storage-migration.md](M3-storage-migration.md) | Additive migration, span backfill, projection progress | M3-1 through M3-3 |
-| [M5-agent-execution-ui.md](M5-agent-execution-ui.md) | Trace-detail page, raw default behavior, raw lookup/rendering | M5-1 through M5-4 |
+| [M5-agent-execution-ui.md](M5-agent-execution-ui.md) | Trace-detail page, raw default behavior, raw lookup/rendering | M5-1 through M5-5 |
 | [M6-security-live-validation.md](M6-security-live-validation.md) | Security boundary validation records and human-gated live evidence | M6-1 |
 | [codex_adversarial_review.md](codex_adversarial_review.md) | Raw Codex review output retained as evidence | Duplicate source for M2-1, M3-1, M3-2, M5-1, M5-4 |
 | [codex_pr32_review.md](codex_pr32_review.md) | Raw Codex review output for PR #32 retained as evidence | Duplicate source for M2-8, M2-9 |

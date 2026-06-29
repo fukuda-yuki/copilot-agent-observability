@@ -28,6 +28,36 @@ Result:
   Playwright browser cache. `ConfigCli.Tests` passed 300 tests; LocalMonitor ran
   246 passing tests and 1 failing test.
 
+Follow-up validation attempted during the 2026-06-29 review:
+
+```powershell
+dotnet build CopilotAgentObservability.slnx
+pwsh tests\CopilotAgentObservability.LocalMonitor.Tests\bin\Debug\net10.0\playwright.ps1 install chromium
+dotnet test CopilotAgentObservability.slnx
+dotnet test tests\CopilotAgentObservability.LocalMonitor.Tests\CopilotAgentObservability.LocalMonitor.Tests.csproj --filter FullyQualifiedName~IngestionWriterWorkerTests.Worker_DrainsAlreadyAcceptedQueueItemsDuringShutdown
+dotnet test CopilotAgentObservability.slnx
+dotnet test tests\CopilotAgentObservability.LocalMonitor.Tests\CopilotAgentObservability.LocalMonitor.Tests.csproj
+```
+
+Result:
+
+- `dotnet build CopilotAgentObservability.slnx`: passed, 0 warnings, 0 errors.
+- Playwright Chromium install: passed.
+- First `dotnet test CopilotAgentObservability.slnx`: failed in
+  `IngestionWriterWorkerTests.Worker_DrainsAlreadyAcceptedQueueItemsDuringShutdown`.
+  `ConfigCli.Tests` passed 300 tests; LocalMonitor had 247 passing tests and 1
+  failing test.
+- Targeted rerun of the ingestion-worker shutdown test: passed.
+- Second `dotnet test CopilotAgentObservability.slnx`: failed in
+  `MonitorProjectionApiTests.CursorApis_RejectInvalidQueryWith400` because
+  Kestrel failed to bind a `GetFreePort()`-selected loopback port
+  (`address already in use`). `ConfigCli.Tests` again passed 300 tests;
+  LocalMonitor had 247 passing tests and 1 failing test.
+- Direct LocalMonitor project run: passed, 248 tests.
+
+The direct targeted/project runs are diagnostic evidence only. They do not
+substitute for the required solution-level validation command.
+
 ## Fix-unit index
 
 | Card | Severity | Fix unit | Status |
@@ -35,6 +65,8 @@ Result:
 | S10-1 | High | `--sanitized-only` TraceDetail design views | Fixed |
 | S10-2 | High | Playwright validation/bootstrap | Fixed |
 | S10-3 | Medium | Sprint10 completion evidence/state | Open — live evidence blocked |
+| S10-4 | High | LocalMonitor test host port allocation | Open |
+| S10-5 | Medium | Ingestion writer shutdown-drain validation | Open |
 
 ---
 
@@ -336,3 +368,198 @@ dotnet test CopilotAgentObservability.slnx
 
 Required live validation evidence is separate and cannot be replaced by
 synthetic automated tests.
+
+---
+
+<a id="S10-4"></a>
+
+## S10-4 — LocalMonitor tests pick loopback ports with a TOCTOU race, so required solution validation can fail — High
+
+Status: Open.
+
+### Problem
+
+The required solution validation command can fail before exercising product
+behavior because LocalMonitor tests choose a "free" port by opening
+`TcpListener(IPAddress.Loopback, 0)`, closing it, and later asking Kestrel to
+bind that numeric port. The port is no longer reserved between those two steps.
+Parallel test execution or another local process can claim it first.
+
+### Source of truth
+
+- `docs/requirements.md`, `docs/spec.md`, and `docs/decisions.md` D015 require
+  `dotnet test CopilotAgentObservability.slnx` as the standard validation
+  command for code / project / workflow changes.
+- `docs/agent-guides/repository-workflow.md` says failed required validation
+  cannot be replaced by another command.
+- Local Monitor itself is specified to fail deterministically when its configured
+  port is already bound; test infrastructure should not introduce a random port
+  collision before assertions run.
+
+### Observed implementation
+
+Duplicated `GetFreePort()` helpers exist across LocalMonitor tests, including:
+
+- `MonitorProjectionApiTests`
+- `MonitorTraceDetailTests`
+- `MonitorUiTests`
+- `MonitorSecurityBoundaryTests`
+- `MonitorSseTests`
+- `MonitorReadinessFailureTests`
+- `MonitorRawViewTests`
+- `MonitorDesignViewPlaywrightTests`
+- `MonitorHostTests`
+
+Each helper closes the listener before the ASP.NET Core host starts.
+
+### Review reproduction
+
+After a successful build and Playwright browser install, rerunning:
+
+```powershell
+dotnet test CopilotAgentObservability.slnx
+```
+
+failed in:
+
+```text
+MonitorProjectionApiTests.CursorApis_RejectInvalidQueryWith400(
+  path: "/api/monitor/traces/trace-1/spans?after=-1")
+```
+
+with:
+
+```text
+Failed to bind to address http://127.0.0.1:54806: address already in use.
+```
+
+Sprint10 M4 review records the same transient `address already in use` failure
+in an unrelated `MonitorProjectionApiTests` case.
+
+### Impact
+
+Sprint10 cannot be treated as validated because the required solution command is
+not reliably green. This is a validation reliability bug, not a product behavior
+change in the Sprint10 views.
+
+### Suggested fix path
+
+Replace the duplicated `GetFreePort()` pattern with one deterministic test-host
+helper. Prefer starting Kestrel on a dynamic loopback port (`port 0`) and reading
+the actual bound address from the host after `StartAsync`. If that is not
+available for the current host setup, serialize socket-bound LocalMonitor tests
+or otherwise reserve the port through the bind step.
+
+### Tests to add/update
+
+- Update LocalMonitor test helpers to use the shared deterministic host starter.
+- Keep browser tests on a real socket because Playwright needs an HTTP URL.
+- Add a repeatable stress check or run the affected LocalMonitor API/page tests
+  together enough times to catch the previous race.
+
+### Validation
+
+Run the required validation sequence unchanged:
+
+```powershell
+dotnet build CopilotAgentObservability.slnx
+pwsh tests\CopilotAgentObservability.LocalMonitor.Tests\bin\Debug\net10.0\playwright.ps1 install chromium
+dotnet test CopilotAgentObservability.slnx
+```
+
+The fix is complete only when the solution test command is reliably green
+without relying on reruns.
+
+---
+
+<a id="S10-5"></a>
+
+## S10-5 — Ingestion writer shutdown-drain test remains intermittent under solution validation — Medium
+
+Status: Open.
+
+### Problem
+
+`IngestionWriterWorkerTests.Worker_DrainsAlreadyAcceptedQueueItemsDuringShutdown`
+intermittently fails under the required solution test command. The test enqueues
+five accepted requests, calls `StopAsync`, and expects every request completion
+to be successful and committed. In failing runs, at least one request completion
+is not completed successfully after `StopAsync` returns.
+
+### Source of truth
+
+- `docs/requirements.md`, `docs/spec.md`, and D015 require the full solution
+  test command to pass for Sprint10 validation.
+- The current `IngestionWriterWorker` contract in code states that shutdown
+  stops accepting new work and drains already-accepted queued items.
+- The existing test suite encodes this as required behavior; a red validation
+  command cannot be treated as success by substituting a targeted rerun.
+
+### Observed implementation
+
+Current worker shutdown path:
+
+- `IngestionWriterWorker.StopAsync` calls `queue.CompleteAdding()`.
+- `ExecuteAsync` reads `queue.Reader.ReadAllAsync(CancellationToken.None)`,
+  intentionally ignoring the stopping token so accepted items can drain.
+- The test immediately asserts `request.Completion.IsCompletedSuccessfully`
+  after `await worker.StopAsync(CancellationToken.None)`.
+
+### Review reproduction
+
+After build and Playwright install:
+
+```powershell
+dotnet test CopilotAgentObservability.slnx
+```
+
+failed in:
+
+```text
+IngestionWriterWorkerTests.Worker_DrainsAlreadyAcceptedQueueItemsDuringShutdown
+Assert.True() Failure
+Expected: True
+Actual:   False
+```
+
+A targeted rerun of the same test passed, and the LocalMonitor test project
+passed directly. Sprint10 M5 review records the same test as an unrelated
+intermittent full-solution failure that later passed on rerun.
+
+### Impact
+
+This blocks reliable Sprint10 validation and leaves uncertainty about whether
+the issue is a test scheduling assumption or a real shutdown drain race. Until
+root cause is fixed, a green targeted rerun should be treated only as diagnostic
+evidence.
+
+### Suggested fix path
+
+Investigate the worker stop path before changing assertions. Confirm whether
+`BackgroundService.StopAsync` can return before the queue-drain loop has
+completed in this setup, or whether the test is racing task-continuation
+scheduling. Then make either the worker contract or the test deterministic. If
+the product contract is to drain accepted items, expose an explicit drain
+completion point or make `StopAsync` await it. If only the test is racing, use a
+condition-based wait around the committed completions rather than an immediate
+state assertion.
+
+### Tests to add/update
+
+- Keep a shutdown-drain regression with a gated fake writer so the test proves
+  accepted items are processed before shutdown completes.
+- Add a timeout-bounded condition wait only after root cause is confirmed.
+- Re-run the full solution test command, not only the targeted test.
+
+### Validation
+
+Run:
+
+```powershell
+dotnet build CopilotAgentObservability.slnx
+pwsh tests\CopilotAgentObservability.LocalMonitor.Tests\bin\Debug\net10.0\playwright.ps1 install chromium
+dotnet test CopilotAgentObservability.slnx
+```
+
+The issue is closed only when the full solution test command no longer requires
+reruns to get past this test.
