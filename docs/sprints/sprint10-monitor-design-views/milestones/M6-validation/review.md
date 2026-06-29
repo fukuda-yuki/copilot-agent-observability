@@ -27,17 +27,28 @@ continues to cover sanitized JSON/SSE invariants, raw/PII non-leakage,
 raw-bearing route `Cache-Control: no-store`, and `--sanitized-only` raw route
 absence.
 
-## Blockers
+## M6-Time Blockers
 
-- `--sanitized-only` conflict remains unresolved by design. The Sprint10 README
-  says the new views work identically under `--sanitized-only`, but current
-  TraceDetail behavior returns `404` because the page is raw-bearing. M6 records
+- At M6 time, the `--sanitized-only` conflict was unresolved by design. The
+  Sprint10 README said the new views work identically under `--sanitized-only`,
+  but TraceDetail returned `404` because the page was raw-bearing. M6 recorded
   this instead of changing behavior.
 - Live VS Code Copilot Chat validation is pending user execution. M6 must not be
   marked complete until sanitized live evidence is supplied.
 - `docs/sprints/sprint10-monitor-design-views/milestones/` has no M3 milestone
   folder, even though commit history and the Sprint10 README record M3 as done.
   M6 does not backfill a synthetic M3 review.
+
+## Current Completion State
+
+Updated on 2026-06-29 after the Sprint10 bug-fix commits:
+
+- S10-1 resolved the `--sanitized-only` TraceDetail conflict. The sanitized tabs
+  now remain available while the raw section and full raw links are absent.
+- S10-2 resolved the Playwright bootstrap gap. Chromium is installed before the
+  standard solution test command in CI and local validation docs.
+- Live VS Code Copilot Chat validation is still pending user execution. M6 must
+  not be marked complete until sanitized live evidence is supplied.
 
 ## Validation
 

@@ -1,6 +1,7 @@
 # Sprint10 M6 Live Validation
 
-Status: Pending — user-gated.
+Status: Pending — user-gated. This is the only remaining Sprint10 completion
+blocker after S10-1 and S10-2.
 
 Sprint10 M6 automated validation can exercise the browser UI against synthetic
 projected spans. It cannot prove real VS Code Copilot Chat emission shape,
@@ -41,3 +42,20 @@ database files, screenshots containing raw/PII, or runtime artifacts.
 
 No user-provided live VS Code Copilot Chat evidence has been recorded for
 Sprint10 M6. This remains a completion blocker.
+
+Automated follow-up evidence recorded on 2026-06-29:
+
+- S10-1 fixed the synthetic `--sanitized-only` TraceDetail conflict: sanitized
+  Summary / Timeline / Flow Chart / Cache tabs remain available, while raw
+  previews and full raw links are absent.
+- S10-2 fixed the Playwright bootstrap gap: Chromium is installed before the
+  standard solution test command.
+- `dotnet build CopilotAgentObservability.slnx` passed with 0 warnings and 0
+  errors.
+- `pwsh tests\CopilotAgentObservability.LocalMonitor.Tests\bin\Debug\net10.0\playwright.ps1 install chromium`
+  completed successfully.
+- `dotnet test CopilotAgentObservability.slnx` passed: 300 ConfigCli tests and
+  248 LocalMonitor tests.
+
+This automated evidence uses synthetic projected spans only and does not replace
+the required live VS Code Copilot Chat validation.

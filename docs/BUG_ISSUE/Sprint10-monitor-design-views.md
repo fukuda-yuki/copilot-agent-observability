@@ -34,7 +34,7 @@ Result:
 | --- | --- | --- | --- |
 | S10-1 | High | `--sanitized-only` TraceDetail design views | Fixed |
 | S10-2 | High | Playwright validation/bootstrap | Fixed |
-| S10-3 | Medium | Sprint10 completion evidence/state | Open |
+| S10-3 | Medium | Sprint10 completion evidence/state | Open — live evidence blocked |
 
 ---
 
@@ -256,15 +256,22 @@ machine-local browser state.
 
 <a id="S10-3"></a>
 
-## S10-3 — Sprint10 is marked by the user as complete, but completion blockers remain recorded — Medium
+## S10-3 — Sprint10 completion remains blocked until live evidence is recorded — Medium
+
+Status: Open — user-gated live evidence is still missing. S10-1 and S10-2 have
+been fixed, so the remaining completion blocker is real VS Code Copilot Chat
+live validation evidence.
 
 ### Problem
 
 The review request said Sprint10 implementation is complete, but repository
-records still mark Monitor Design Views as blocked. The blockers are:
+records must not mark Monitor Design Views complete until the remaining
+human-gated evidence exists. Earlier blockers were:
 
-- S10-1: `--sanitized-only` TraceDetail design views cannot currently open.
-- Live VS Code Copilot Chat validation has not been recorded.
+- S10-1: `--sanitized-only` TraceDetail design views previously could not open
+  (fixed).
+- S10-2: solution tests require hidden Playwright browser state (fixed).
+- Live VS Code Copilot Chat validation has not been recorded (still open).
 
 This is a completion/evidence bug rather than a production-code defect by
 itself. It should remain open until the product behavior and evidence trail are
@@ -273,9 +280,9 @@ consistent.
 ### Source of truth
 
 - `docs/task.md` says Monitor Design Views is
-  `M6 automated validation added / blocked`.
+  `M6 automated validation added / live validation blocked`.
 - `docs/sprints/sprint10-monitor-design-views/README.md` says M6 is blocked by
-  the sanitized-only conflict and live validation.
+  live validation.
 - `docs/sprints/sprint10-monitor-design-views/milestones/M6-validation/live-validation.md`
   says no user-provided live VS Code Copilot Chat evidence has been recorded and
   that this remains a completion blocker.
@@ -292,6 +299,8 @@ consistent.
 - Sprint10 M6 review explicitly records that M6 must not be marked complete
   until sanitized live evidence is supplied.
 - `docs/task.md` has not been promoted to a completed state.
+- S10-1 and S10-2 automated fixes are recorded, but they use synthetic evidence
+  and do not satisfy the live gate.
 
 ### Impact
 
@@ -302,12 +311,10 @@ unconfirmed.
 
 ### Suggested fix path
 
-1. Resolve S10-1 first, or explicitly document why the final accepted behavior
-   differs from the current Sprint10 spec.
-2. Run the live validation procedure in
+1. Run the live validation procedure in
    `docs/sprints/sprint10-monitor-design-views/milestones/M6-validation/live-validation.md`
    with a real VS Code Copilot Chat trace.
-3. Record only sanitized evidence:
+2. Record only sanitized evidence:
    - date/time and environment;
    - monitor command and endpoint;
    - VS Code / Copilot Chat version if available;
@@ -315,7 +322,7 @@ unconfirmed.
    - whether Timeline, Flow Chart, and Cache populated;
    - whether hierarchy and cache/token fields matched what the UI expects;
    - any unconfirmed items.
-4. Update Sprint10 README, M6 live-validation record, M6 review if needed, and
+3. Update Sprint10 README, M6 live-validation record, M6 review if needed, and
    `docs/task.md` only after the evidence is present.
 
 ### Validation
