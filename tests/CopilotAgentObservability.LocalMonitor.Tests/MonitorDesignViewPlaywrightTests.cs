@@ -9,12 +9,14 @@ public class MonitorDesignViewPlaywrightTests
 {
     private const string TraceId = "trace-design";
 
-    [Fact]
-    public async Task TraceDetailDesignViews_RenderFromSanitizedSpansOnly()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TraceDetailDesignViews_RenderFromSanitizedSpansOnly(bool sanitizedOnly)
     {
         using var temp = new MonitorTempDirectory();
         SeedProjectedTrace(temp);
-        await using var host = await StartHostAsync(temp);
+        await using var host = await StartHostAsync(temp, sanitizedOnly);
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
         var page = await browser.NewPageAsync();
@@ -22,6 +24,10 @@ public class MonitorDesignViewPlaywrightTests
         page.Request += (_, request) => requestedUrls.Add(request.Url);
 
         await page.GotoAsync($"{host.Url}/traces/{TraceId}", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+        if (sanitizedOnly)
+        {
+            Assert.DoesNotContain("SECRET_PROMPT_TEXT_MARKER", await page.ContentAsync());
+        }
 
         Assert.Equal("rgb(30, 30, 30)", await page.Locator("body").EvaluateAsync<string>("element => getComputedStyle(element).backgroundColor"));
         Assert.Equal("true", await page.Locator("#tab-summary").GetAttributeAsync("aria-selected"));
@@ -106,10 +112,10 @@ public class MonitorDesignViewPlaywrightTests
         return id;
     }
 
-    private static async Task<RunningHost> StartHostAsync(MonitorTempDirectory temp)
+    private static async Task<RunningHost> StartHostAsync(MonitorTempDirectory temp, bool sanitizedOnly)
     {
         var url = $"http://127.0.0.1:{GetFreePort()}";
-        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: false, MaxRequestBodyBytes: 31_457_280);
+        var options = new MonitorOptions(temp.DatabasePath, url, SanitizedOnly: sanitizedOnly, MaxRequestBodyBytes: 31_457_280);
         var app = MonitorHost.Build(options, new MonitorHostTestOptions { StartWriter = false, StartProjectionWorker = false });
         await app.StartAsync();
         return new RunningHost(app, new HttpClient { BaseAddress = new Uri(url) }, url);

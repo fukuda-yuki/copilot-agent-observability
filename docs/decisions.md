@@ -633,3 +633,32 @@ Consequences:
   conflict: the sprint specification says the new views work under
   `--sanitized-only`, while current TraceDetail behavior is raw-bearing and
   returns `404` in that mode.
+
+## D030: TraceDetail sanitized shell remains available under `--sanitized-only`
+
+Status: Accepted
+
+S10-1 resolves the Sprint10 spec / implementation conflict recorded in M6.
+TraceDetail is a two-section page:
+
+- the upper Summary / Timeline / Flow Chart / Cache tab shell is sanitized
+  client-side presentation over `GET /api/monitor/traces/{traceId}/spans`;
+- the lower raw OTLP preview and full raw record links are raw-bearing surfaces.
+
+Decision:
+
+- `--sanitized-only` keeps `GET /traces/{traceId}` available when the trace has
+  a sanitized projection, so users can inspect the Sprint10 tabs during
+  screen-sharing / health-check runs.
+- `--sanitized-only` omits the lower raw section and full raw links, keeps
+  `GET /traces/{rawRecordId}/raw` at `404`, and excludes PII.
+- TraceDetail keeps `Cache-Control: no-store` and same-origin enforcement in
+  both modes. This is intentionally conservative because the same URL is
+  raw-bearing by default.
+
+Consequences:
+
+- The raw boundary does not add a JSON raw API, endpoint, query parameter,
+  telemetry input, schema, or API field.
+- The Sprint10 design views remain sanitized-only consumers and continue to
+  work identically in default and `--sanitized-only` launches.

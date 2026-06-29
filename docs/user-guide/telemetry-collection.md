@@ -142,8 +142,10 @@ PII は **既定で表示されます**（server-rendered、inert text）。trac
 表示され、`GET /traces/{rawRecordId}/raw` でも個別の raw JSON を確認できます。
 raw-bearing route は same-origin 限定（cross-site は `403`）、`Cache-Control: no-store`。
 
-- `--sanitized-only` を付けて起動すると metadata-only モードになります（raw-bearing
-  route は `404`、PII は除外）。画面共有や health-check 時に使用します。
+- `--sanitized-only` を付けて起動すると metadata-only モードになります（full raw
+  route は `404`、TraceDetail の raw section / full raw link と PII は除外）。
+  TraceDetail の sanitized tab shell は引き続き表示されます。画面共有や health-check
+  時に使用します。
 - raw / PII は repository-safe artifacts には決して出力しません。raw store や一時出力
   を repository に commit しないでください。
 

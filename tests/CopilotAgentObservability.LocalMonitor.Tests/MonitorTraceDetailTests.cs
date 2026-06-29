@@ -12,9 +12,10 @@ namespace CopilotAgentObservability.LocalMonitor.Tests;
 
 /// <summary>
 /// Trace-detail page (/traces/{traceId}) — the agent-execution view. It renders the
-/// sanitized Summary + sub-agent tree + per-turn tokens and inlines the raw OTLP
-/// payload. As a raw-bearing route it enforces same-origin + no-store, and under
-/// --sanitized-only the whole page is absent (404). The full negative matrix is M6.
+/// sanitized Summary + sub-agent tree + per-turn tokens and, by default, inlines
+/// the raw OTLP payload. It enforces same-origin + no-store. Under
+/// --sanitized-only, the sanitized tab shell remains available and the raw section
+/// is absent. The full negative matrix is M6.
 /// </summary>
 public class MonitorTraceDetailTests
 {
@@ -122,7 +123,7 @@ public class MonitorTraceDetailTests
     }
 
     [Fact]
-    public async Task TraceDetail_UnderSanitizedOnly_Returns404AndNoRaw()
+    public async Task TraceDetail_UnderSanitizedOnly_RendersSanitizedTabsWithoutRaw()
     {
         using var temp = new MonitorTempDirectory();
         SeedProjectedTrace(temp);
@@ -131,8 +132,16 @@ public class MonitorTraceDetailTests
         var response = await host.Client.GetAsync($"/traces/{TraceId}");
         var body = await response.Content.ReadAsStringAsync();
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.CacheControl?.NoStore);
+        Assert.Contains("role=\"tablist\"", body);
+        Assert.Contains("Summary", body);
+        Assert.Contains("Timeline", body);
+        Assert.Contains("Flow Chart", body);
+        Assert.Contains("Cache", body);
+        Assert.Contains("data-timeline-trace-id=\"trace-detail\"", body);
+        Assert.DoesNotContain("Raw OTLP payload", body);
+        Assert.DoesNotContain("/raw", body);
         Assert.DoesNotContain("SECRET_PROMPT_TEXT_MARKER", body);
         Assert.DoesNotContain("leak-marker@example.com", body);
     }

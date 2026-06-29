@@ -362,11 +362,13 @@ Raw / PII exposure follows the Local Ingestion Monitor boundary in
 [../security-data-boundaries.md](../security-data-boundaries.md): raw body
 (tool call arguments / results, sub-agent instructions / responses, system
 prompt) and PII (`user.id` / `user.email`) are shown **by default**
-(server-rendered, inert text) on raw-bearing routes. The trace-detail page
+(server-rendered, inert text) on raw-bearing surfaces. The trace-detail page
 renders a bounded inline raw preview and links to `GET /traces/{rawRecordId}/raw`
-for the full single-record payload. `/api/monitor/*` and SSE never carry raw /
-PII. The `--sanitized-only` flag restores metadata-only mode (raw-bearing routes
-return `404`, PII is excluded). Raw / PII is never logged or committed.
+for the full single-record payload by default. `/api/monitor/*` and SSE never
+carry raw / PII. The `--sanitized-only` flag restores metadata-only mode: the
+trace-detail page still returns the sanitized tab shell, omits the raw section
+and full raw links, `GET /traces/{rawRecordId}/raw` returns `404`, and PII is
+excluded. Raw / PII is never logged or committed.
 
 Live validation for the monitor records the same evidence as the
 `raw-local-receiver` profile, plus the monitor port, the VS Code / GitHub

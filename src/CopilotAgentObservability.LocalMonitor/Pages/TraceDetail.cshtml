@@ -83,22 +83,25 @@
         <div id="cache-groups" class="cache-groups" data-cache-trace-id="@Model.TraceId"></div>
     </div>
 
-    <h3>Raw OTLP payload</h3>
-    @if (Model.RawRecords.Count == 0)
+    @if (Model.RawAvailable)
     {
-        <p>No raw records for this trace.</p>
-    }
-    else
-    {
-        @foreach (var record in Model.RawRecords)
+        <h3>Raw OTLP payload</h3>
+        @if (Model.RawRecords.Count == 0)
         {
-            <h4>Raw record @record.Id</h4>
-            <p><a href="/traces/@record.Id/raw">Open full raw record</a> (@record.PayloadLength chars)</p>
-            @if (record.IsTruncated)
+            <p>No raw records for this trace.</p>
+        }
+        else
+        {
+            @foreach (var record in Model.RawRecords)
             {
-                <p>Raw preview truncated.</p>
+                <h4>Raw record @record.Id</h4>
+                <p><a href="/traces/@record.Id/raw">Open full raw record</a> (@record.PayloadLength chars)</p>
+                @if (record.IsTruncated)
+                {
+                    <p>Raw preview truncated.</p>
+                }
+                <pre>@record.Preview</pre>
             }
-            <pre>@record.Preview</pre>
         }
     }
 </section>

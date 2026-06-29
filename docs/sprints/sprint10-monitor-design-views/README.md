@@ -198,10 +198,10 @@ The key invariant that makes the new client-side views safe:
   no `Html.Raw`). No CSP / sanitizer / XSS-matrix apparatus is added (AGENTS.md
   Local-First Risk Posture).
 
-`--sanitized-only` continues to remove the raw-bearing routes. M6 found a current
-implementation/spec conflict here: TraceDetail is still a raw-bearing page and
-therefore returns `404` under `--sanitized-only`, so the new tabs cannot currently
-be opened in that mode. M6 records this blocker rather than changing behavior.
+`--sanitized-only` continues to remove raw-bearing surfaces. After S10-1,
+TraceDetail keeps the sanitized Summary / Timeline / Flow Chart / Cache tabs
+available in this mode, while omitting the raw section and full raw links and
+keeping `GET /traces/{rawRecordId}/raw` at `404`.
 
 ## Milestones
 
@@ -216,7 +216,7 @@ Each milestone produces its own `milestones/Mx-*/plan.md` at execution time
 | M3 A1 Flow Chart | Vendor Cytoscape.js + dagre + cytoscape-dagre (UMD, `wwwroot/vendor/`, no CDN); render span nodes by category with `parent_span_id` edges, dagre layout, pan/zoom, node-click → Timeline tab switch + highlight, error styling. Built from the existing spans JSON. Record version + SHA in this README. | Done |
 | M4 A4 Timeline filter/sort | Client-side filter (status: errors only) and sort (tokens / time) on the flat span list in the Timeline tab. Vanilla JS; sanitized JSON only; no API change. | Done |
 | M5 A2 Cache Explorer | Cache tab: group chat turns within the current trace by root `invoke_agent` (≈ user request); cache-hit rate / cache-creation / duration / model / timestamp / token breakdown. Sanitized only; prefix-diff out (D026); cross-trace deferred (D026). | Done |
-| M6 Validation | `dotnet build` / `dotnet test`; Playwright smoke tests (tab switch, filter apply, Flow Chart render); re-assert the sanitized-JSON/SSE invariant (new views read sanitized only; no raw via JSON/SSE); `--sanitized-only` health check (raw routes 404; new views currently blocked by TraceDetail 404 conflict); dark-theme render sanity. Live VS Code Copilot Chat validation human-gated (inherited). | Automated validation added; blocked by sanitized-only conflict + live validation |
+| M6 Validation | `dotnet build` / Playwright Chromium bootstrap / `dotnet test`; Playwright smoke tests (tab switch, filter apply, Flow Chart render); re-assert the sanitized-JSON/SSE invariant (new views read sanitized only; no raw via JSON/SSE); `--sanitized-only` health check (raw route 404; sanitized tabs available); dark-theme render sanity. Live VS Code Copilot Chat validation human-gated (inherited). | Automated validation added; blocked by live validation |
 
 ## Spec changes required (applied in M1)
 
@@ -271,7 +271,8 @@ Sprint8/Sprint9 M6).
   [Data mapping](#data-mapping); acceptable for a local self-debugging view.
 - **No boundary change, but new client code.** The risk is a view accidentally
   reading a raw route; M6 re-asserts the sanitized-only consumption invariant and
-  that `--sanitized-only` leaves the new views functional.
+  S10-1 verifies that `--sanitized-only` leaves the new views functional while
+  omitting the raw section.
 - **TraceDetail Razor/JS dual rendering.** The page has two rendering engines
   (JS for sanitized tabs, Razor for raw preview). This is accepted for Sprint10
   to preserve the D023 boundary. Future unification direction recorded in

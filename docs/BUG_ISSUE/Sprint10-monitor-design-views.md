@@ -32,7 +32,7 @@ Result:
 
 | Card | Severity | Fix unit | Status |
 | --- | --- | --- | --- |
-| S10-1 | High | `--sanitized-only` TraceDetail design views | Open |
+| S10-1 | High | `--sanitized-only` TraceDetail design views | Fixed |
 | S10-2 | High | Playwright validation/bootstrap | Fixed |
 | S10-3 | Medium | Sprint10 completion evidence/state | Open |
 
@@ -41,6 +41,11 @@ Result:
 <a id="S10-1"></a>
 
 ## S10-1 — `--sanitized-only` removes the TraceDetail page, so sanitized Sprint10 tabs cannot open — High
+
+Status: Fixed. TraceDetail now keeps the sanitized Summary / Timeline / Flow
+Chart / Cache shell available under `--sanitized-only`, while omitting raw
+previews, PII, and full raw links. The full raw route remains `404` in
+`--sanitized-only`.
 
 ### Problem
 

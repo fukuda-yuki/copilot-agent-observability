@@ -91,10 +91,11 @@ Default posture:
 
 - raw body (tool call arguments / results, sub-agent instructions / responses,
   system prompt) and PII (`user.id` / `user.email`) are shown **by default**
-  (server-rendered, inert text) on raw-bearing routes.
-- `--sanitized-only` restores metadata-only mode: raw-bearing routes return
-  `404`, PII is excluded. This is the safety valve for health-check or
-  screen-sharing runs.
+  (server-rendered, inert text) on raw-bearing surfaces.
+- `--sanitized-only` restores metadata-only mode: the full raw route returns
+  `404`, TraceDetail's raw section and full raw links are omitted, PII is
+  excluded, and the sanitized TraceDetail tab shell remains available. This is
+  the safety valve for health-check or screen-sharing runs.
 - API responses (`/api/monitor/*`), list endpoints, and the SSE stream carry
   sanitized metadata only — they **never** return raw / PII, regardless of
   `--sanitized-only`.
@@ -122,20 +123,23 @@ Accepted out of scope (explicit accepted risk):
   risk, not a separately defended boundary. This is the display hardening
   deliberately not added — see `AGENTS.md` Local-First Risk Posture and D020.
 
-Raw-bearing route set (raw / PII surfaces):
+Raw-bearing surfaces:
 
 - raw / PII is exposed through server-rendered routes only. The raw-bearing
-  route set is:
-  - the **trace-detail page** (agent-execution view, which renders a bounded raw
-    preview inline and links to the full single-record raw route).
+  surfaces are:
+  - the **trace-detail page raw section** (agent-execution view lower section,
+    which renders a bounded raw preview inline and links to the full
+    single-record raw route by default).
   - `GET /traces/{rawRecordId}/raw` (server-rendered HTML, one raw record on
     demand by id from `raw_records`).
 - there is **no JSON raw API**; `/api/monitor/*` and the SSE stream **never**
   return raw / PII.
 - **default-on**: raw-bearing routes are active by default (no launch flag
-  required). `--sanitized-only` removes them: routes return `404`, PII is
-  excluded, and no cacheable raw response is generated.
-- **every route in the raw-bearing set** enforces:
+  required). `--sanitized-only` removes raw-bearing surfaces: the raw-detail
+  route returns `404`, the trace-detail page omits its raw section and full raw
+  links while retaining the sanitized tab shell, PII is excluded, and no
+  cacheable raw response is generated.
+- **every raw-bearing route or page variant** enforces:
   - same-origin: a request whose `Sec-Fetch-Site` is cross-site / cross-origin
     (or whose `Origin` is foreign) is rejected with `403`.
   - `Cache-Control: no-store` (so raw / PII is not left in the browser cache
@@ -185,12 +189,13 @@ Additional monitor web-security requirements:
 Mandatory negative tests:
 
 - non-loopback bind rejected; `Host`-header validation enforced.
-- with `--sanitized-only`, all raw-bearing routes return `404` and PII is
-  excluded; no cacheable raw response is generated.
-- a cross-site / cross-origin request to any raw-bearing route is rejected with
+- with `--sanitized-only`, the full raw route returns `404`, the trace-detail
+  raw section and full raw links are absent, PII is excluded, and no cacheable
+  raw response is generated.
+- a cross-site / cross-origin request to any raw-bearing route / page variant is rejected with
   `403`.
-- `Cache-Control: no-store` is present on **all** raw-bearing routes (not only
-  the raw-detail route).
+- `Cache-Control: no-store` is present on **all** raw-bearing routes / page
+  variants (not only the raw-detail route).
 - raw / PII is never returned by `/api/monitor/*` or the SSE stream.
 - a state-changing request without CSRF / same-origin is rejected.
 - raw / PII never appears in logs or repository-committed outputs.
@@ -204,9 +209,9 @@ Sprint10 design views (client-side presentation, boundary unchanged):
 - the Sprint10 design views (Flow Chart, Cache Explorer, timeline filter/sort,
   themed trace-detail UI) are **client-side rendering over the sanitized
   `/api/monitor/*` JSON and SSE only**. They never read a raw-bearing route, add
-  no raw-bearing route, and add no new endpoint / field. The raw-bearing route
-  set, the default-on posture, and `--sanitized-only` (raw routes ⇒ `404`) are
-  all unchanged; the new views work identically under `--sanitized-only` because
+  no raw-bearing route, and add no new endpoint / field. The raw-bearing
+  surfaces, the default-on posture, and `--sanitized-only` raw removal are
+  unchanged; the new views work identically under `--sanitized-only` because
   they were sanitized to begin with.
 - **vendored, no CDN.** Cytoscape.js + dagre + cytoscape-dagre (D025) and Noto
   Sans JP / Noto Sans Mono (D028) are vendored locally under `wwwroot/vendor/`;
