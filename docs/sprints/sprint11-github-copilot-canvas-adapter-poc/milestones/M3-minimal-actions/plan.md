@@ -1,7 +1,7 @@
 # Sprint11 M3 - Minimal Actions (Plan)
 
-Status: **Planned** - first agent-callable sanitized monitor actions. Gated by
-M2 scaffold/runtime shape.
+Status: **Implemented with M4** - first agent-callable sanitized monitor
+actions. Implemented in the same change set as M4 trace-analysis actions.
 
 Sprint-local planning evidence, not product behavior. Source-of-truth order:
 `docs/requirements.md` -> `docs/spec.md` -> `docs/specifications/`. Sprint

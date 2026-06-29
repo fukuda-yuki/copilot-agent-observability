@@ -1,7 +1,8 @@
 # Sprint11 M4 - Trace Analysis Actions (Plan)
 
-Status: **Planned** - trace hierarchy and cache analysis actions. Gated by M3
-minimal actions.
+Status: **Implemented** - trace hierarchy and cache analysis actions.
+Implemented together with the M3 minimal actions because the extension still had
+only the M2 scaffold at start.
 
 Sprint-local planning evidence, not product behavior. Source-of-truth order:
 `docs/requirements.md` -> `docs/spec.md` -> `docs/specifications/`. Sprint

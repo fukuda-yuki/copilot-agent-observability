@@ -75,6 +75,7 @@ internal sealed class IngestionWriterWorker : BackgroundService
     private readonly IngestionQueue queue;
     private readonly IRawTelemetryWriter writer;
     private readonly MonitorHealthState health;
+    private readonly TaskCompletionSource readerStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool migrated;
 
     public IngestionWriterWorker(
@@ -105,10 +106,12 @@ internal sealed class IngestionWriterWorker : BackgroundService
         }
 
         await base.StartAsync(cancellationToken).ConfigureAwait(false);
+        await readerStarted.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        readerStarted.TrySetResult();
         try
         {
             // Intentionally not cancelled by stoppingToken: shutdown completes the

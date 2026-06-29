@@ -182,10 +182,8 @@ public class IngestionWriterWorkerTests
 
         await worker.StopAsync(CancellationToken.None);
 
-        foreach (var request in requests)
+        foreach (var result in await Task.WhenAll(requests.Select(static request => request.Completion.WaitAsync(TimeSpan.FromSeconds(5)))))
         {
-            Assert.True(request.Completion.IsCompletedSuccessfully);
-            var result = await request.Completion;
             Assert.Equal(IngestionCommitStatus.Committed, result.Status);
         }
 
