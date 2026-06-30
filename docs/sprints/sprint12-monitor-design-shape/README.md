@@ -1,11 +1,12 @@
 # Sprint12: Local Monitor — Design Shape
 
-Sprint12 は、Sprint10/Sprint11 後の Local Monitor visual foundation を整理する
-**Shape / documentation alignment** sprint である。
-コード実装は行わず、以下のドキュメント成果物をアウトプットする。
+Sprint12 は、Sprint10/Sprint11 後の Local Monitor visual foundation を整理し、
+その設計を Local Monitor UI に反映する sprint である。
 
-本スプリントは、既存の Local Monitor UI 方針、デザイントークン、ページレイアウト、
-および current source of truth に昇格済みの仕様との整合を記録する。
+前半の M1-M4 は **Shape / documentation alignment** として、既存の Local Monitor
+UI 方針、デザイントークン、ページレイアウト、および current source of truth に
+昇格済みの仕様との整合を記録する。後半の M5-M6 は、その設計を `monitor.css` と
+Razor pages に反映し、ブラウザ表示と既存境界を検証する。
 
 ## Decision
 
@@ -18,7 +19,7 @@ Sprint10 M1 の D027/D028 定義を整理し、Shape フェーズで以下を確
 
 ## Scope
 
-ドキュメントのみ。コード変更なし。
+M1-M4 はドキュメントのみ。M5 以降で Local Monitor の見た目を実装する。
 
 - `docs/decisions.md` — D024–D028 追記
 - `PRODUCT.md` — Visual Foundation セクション追加
@@ -26,6 +27,9 @@ Sprint10 M1 の D027/D028 定義を整理し、Shape フェーズで以下を確
 - `DESIGN.md` — 新規作成（VS Code Dark+ トークン、Noto タイポグラフィ、8px spacing、コンポーネント語彙）
 - `monitor.css` トークンアーキテクチャ設計書
 - 5ページレイアウト仕様書
+- `monitor.css` 実装反映
+- 共通レイアウト、Index / Traces / TraceDetail / Ingestions / Diagnostics の Razor 表示調整
+- browser smoke / screenshot による主要ページ確認
 
 ## Milestones
 
@@ -35,10 +39,12 @@ Sprint10 M1 の D027/D028 定義を整理し、Shape フェーズで以下を確
 | M2 DESIGN.md | `DESIGN.md` 新規作成。VS Code Dark+ カラートークン、Noto タイポグラフィ、8px spacing、コンポーネント語彙、semantic status colors | Done |
 | M3 CSS Token Architecture | `monitor.css` のデザイントークン階層（colors / spacing / typography / components）の完全な設計書 | Done |
 | M4 Page Layouts | 5ページ（Index / Traces / TraceDetail / Ingestions / Diagnostics）のレイアウト仕様書 | Done |
+| M5 Visual Implementation | `DESIGN.md`、M3 CSS token architecture、M4 page layouts を `monitor.css` と Razor pages に反映する。telemetry 入力、SQLite schema、API field、raw / sanitized 境界、Canvas adapter contract は変更しない | Planned |
+| M6 Validation | build、Playwright Chromium bootstrap、full test、Local Monitor 主要ページ browser smoke / screenshot、raw 境界、`--sanitized-only` 表示を確認する | Planned |
 
-## Done
+## M1-M4 Done
 
-全4マイルストーン完了。成果物:
+Shape / documentation alignment の4マイルストーンは完了。成果物:
 
 | ファイル | サイズ | 内容 |
 |----------|--------|------|
@@ -51,7 +57,7 @@ Sprint10 M1 の D027/D028 定義を整理し、Shape フェーズで以下を確
 
 ## Non-goals
 
-- コード実装（CSS 書き換え、フォント vendor、Razor テンプレート変更）
 - Static Dashboard のデザイン変更（独立して維持）
 - 新しい telemetry 入力、projection 列、スキーマ変更、API フィールド追加
+- raw / sanitized 境界または Canvas adapter contract の変更
 - DADS 適用
