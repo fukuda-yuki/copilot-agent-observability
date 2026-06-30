@@ -433,6 +433,10 @@ repository-safe summary generation. The Local Monitor project references the
 official `GitHub.Copilot.SDK` .NET package. Normal repository validation can
 build and test the integration without requiring a signed-in Copilot SDK
 runtime; live analysis validation still requires a signed-in Copilot session.
+The SDK runner reads local configuration from `CopilotAnalysis:*`, including
+optional BYOK provider settings. It must set a writable SDK `BaseDirectory`
+instead of relying on runtime defaults, and it must not persist provider API
+keys or raw provider errors containing credentials.
 
 ## Local Ingestion Monitor Windows Startup
 

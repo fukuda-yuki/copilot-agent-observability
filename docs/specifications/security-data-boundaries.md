@@ -331,6 +331,10 @@ Route boundary:
   route.
 - browser state-changing start requests require same-origin and CSRF protection.
 - raw analysis result responses use `Cache-Control: no-store`.
+- BYOK provider credentials for `.NET GitHub.Copilot.SDK` are local secrets.
+  They may be read from user-secrets or equivalent local configuration, but API
+  keys must not be logged, stored in analysis events/results, exposed in UI, or
+  included in repository-safe summaries.
 
 ## Shared Use Preconditions
 

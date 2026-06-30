@@ -37,8 +37,15 @@ Confirmed:
   availability, analysis run creation, and repository-safe summary raw-marker /
   PII exclusion.
 
+Additional BYOK validation completed on 2026-06-30:
+
+- The first BYOK attempt reached `sending_message` and failed with
+  `I/O error: アクセスが拒否されました。 (os error 5)`.
+- After setting a writable SDK `BaseDirectory`, BYOK analysis succeeded with
+  result length `2338`.
+- Safe summary remained free of synthetic raw markers and PII.
+
 Remaining live checks:
 
-- Confirm a signed-in Copilot SDK session returns a model analysis result.
 - Invoke analysis with each internal raw/summary tool available to the SDK.
 - Confirm raw tool data reaches Copilot only through the Local Monitor process.

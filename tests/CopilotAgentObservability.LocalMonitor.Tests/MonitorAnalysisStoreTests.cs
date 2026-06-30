@@ -1,10 +1,73 @@
 using CopilotAgentObservability.LocalMonitor.Analysis;
 using CopilotAgentObservability.LocalMonitor.Ingestion;
+using Microsoft.Extensions.Configuration;
 
 namespace CopilotAgentObservability.LocalMonitor.Tests;
 
 public class MonitorAnalysisStoreTests
 {
+    [Fact]
+    public void CopilotAnalysisSettings_ReadsByokProviderConfiguration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["CopilotAnalysis:Model"] = "glm-5.2",
+                ["CopilotAnalysis:BaseDirectory"] = @"C:\tmp\cao-copilot-sdk",
+                ["CopilotAnalysis:Provider:Type"] = "openai",
+                ["CopilotAnalysis:Provider:BaseUrl"] = "https://example.test/v1/",
+                ["CopilotAnalysis:Provider:WireApi"] = "completions",
+                ["CopilotAnalysis:Provider:ApiKey"] = "secret-value",
+            })
+            .Build();
+
+        var settings = CopilotAnalysisSettings.From(configuration);
+
+        Assert.True(settings.Enabled);
+        Assert.Equal("glm-5.2", settings.Model);
+        Assert.Equal(@"C:\tmp\cao-copilot-sdk", settings.BaseDirectory);
+        Assert.NotNull(settings.Provider);
+        Assert.Equal("openai", settings.Provider.Type);
+        Assert.Equal("https://example.test/v1", settings.Provider.BaseUrl);
+        Assert.Equal("completions", settings.Provider.WireApi);
+    }
+
+    [Fact]
+    public void CopilotAnalysisSettings_ReadsDisabledFlag()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["CopilotAnalysis:Enabled"] = "false",
+            })
+            .Build();
+
+        var settings = CopilotAnalysisSettings.From(configuration);
+
+        Assert.False(settings.Enabled);
+        Assert.Equal("gpt-5", settings.Model);
+        Assert.Null(settings.Provider);
+    }
+
+    [Fact]
+    public void CopilotAnalysisSettings_RejectsUnsupportedWireApi()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["CopilotAnalysis:Provider:Type"] = "openai",
+                ["CopilotAnalysis:Provider:BaseUrl"] = "https://example.test/v1",
+                ["CopilotAnalysis:Provider:WireApi"] = "invalid",
+                ["CopilotAnalysis:Provider:ApiKey"] = "secret-value",
+            })
+            .Build();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => CopilotAnalysisSettings.From(configuration));
+
+        Assert.Contains("WireApi", exception.Message);
+        Assert.DoesNotContain("secret-value", exception.Message);
+    }
+
     [Fact]
     public void StartRun_PersistsQueuedRun()
     {

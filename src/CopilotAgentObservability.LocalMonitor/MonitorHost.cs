@@ -6,6 +6,7 @@ using CopilotAgentObservability.LocalMonitor.Ingestion;
 using CopilotAgentObservability.LocalMonitor.Projection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CopilotAgentObservability.LocalMonitor;
@@ -34,6 +35,11 @@ internal static class MonitorHost
             // assembly is the test runner, not this one).
             ApplicationName = typeof(MonitorHost).Assembly.GetName().Name,
         });
+
+        // Local Monitor is a local runtime tool, so read Secret Manager explicitly.
+        // API key values must not reach logs, diagnostics, or repository-safe output.
+        builder.Configuration.AddUserSecrets(typeof(MonitorHost).Assembly, optional: true, reloadOnChange: false);
+
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls(options.Url);
         // Serve wwwroot/monitor.css and wwwroot/monitor.js from the static web
@@ -70,7 +76,7 @@ internal static class MonitorHost
         var analysisStore = testOptions?.AnalysisStore ?? new SqliteMonitorAnalysisStore(options.DatabasePath);
         analysisStore.CreateSchema();
         builder.Services.AddSingleton(analysisStore);
-        var analysisRunner = testOptions?.AnalysisRunner ?? new DotNetCopilotRawAnalysisRunner(analysisStore, projectionStore);
+        var analysisRunner = testOptions?.AnalysisRunner ?? new DotNetCopilotRawAnalysisRunner(analysisStore, projectionStore, builder.Configuration);
         builder.Services.AddSingleton(analysisRunner);
 
         if (testOptions?.StartProjectionWorker ?? true)

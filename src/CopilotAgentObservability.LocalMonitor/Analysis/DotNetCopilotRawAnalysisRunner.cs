@@ -4,6 +4,7 @@ using System.Text.Json;
 using CopilotAgentObservability.LocalMonitor.Projection;
 using GitHub.Copilot;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
 
 namespace CopilotAgentObservability.LocalMonitor.Analysis;
 
@@ -11,13 +12,16 @@ internal sealed class DotNetCopilotRawAnalysisRunner : IMonitorAnalysisRunner
 {
     private readonly IMonitorAnalysisStore analysisStore;
     private readonly IMonitorProjectionStore projectionStore;
+    private readonly IConfiguration configuration;
 
     public DotNetCopilotRawAnalysisRunner(
         IMonitorAnalysisStore analysisStore,
-        IMonitorProjectionStore projectionStore)
+        IMonitorProjectionStore projectionStore,
+        IConfiguration configuration)
     {
         this.analysisStore = analysisStore;
         this.projectionStore = projectionStore;
+        this.configuration = configuration;
     }
 
     public Task StartAsync(MonitorAnalysisContext context, CancellationToken cancellationToken)
@@ -35,6 +39,7 @@ internal sealed class DotNetCopilotRawAnalysisRunner : IMonitorAnalysisRunner
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            analysisStore.AppendEvent(context.RunId, "sdk_phase", "loading_local_tool_data", DateTimeOffset.UtcNow);
             var data = MonitorAnalysisToolData.Create(projectionStore, context);
             var result = await RunCopilotSessionAsync(context, data, cancellationToken);
             analysisStore.CompleteRun(context.RunId, result, DateTimeOffset.UtcNow);
@@ -47,12 +52,14 @@ internal sealed class DotNetCopilotRawAnalysisRunner : IMonitorAnalysisRunner
                 "Analysis was canceled.",
                 DateTimeOffset.UtcNow);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            var message = SanitizedExceptionMessage(exception, configuration["CopilotAnalysis:Provider:ApiKey"]);
+            analysisStore.AppendEvent(context.RunId, "sdk_error", message, DateTimeOffset.UtcNow);
             analysisStore.FinishRun(
                 context.RunId,
                 MonitorAnalysisStatus.Failed,
-                "The .NET Copilot SDK analysis runner failed before returning a result.",
+                message,
                 DateTimeOffset.UtcNow);
         }
     }
@@ -62,13 +69,27 @@ internal sealed class DotNetCopilotRawAnalysisRunner : IMonitorAnalysisRunner
         MonitorAnalysisToolData data,
         CancellationToken cancellationToken)
     {
-        await using var client = new CopilotClient();
+        var settings = CopilotAnalysisSettings.From(configuration);
+        if (!settings.Enabled)
+        {
+            throw new InvalidOperationException("CopilotAnalysis is disabled by local configuration.");
+        }
+
+        Directory.CreateDirectory(settings.BaseDirectory);
+        await using var client = new CopilotClient(new CopilotClientOptions
+        {
+            BaseDirectory = settings.BaseDirectory,
+            WorkingDirectory = Directory.GetCurrentDirectory(),
+        });
+        analysisStore.AppendEvent(context.RunId, "sdk_phase", "starting_client", DateTimeOffset.UtcNow);
         await client.StartAsync(cancellationToken);
+        analysisStore.AppendEvent(context.RunId, "sdk_phase", "creating_session", DateTimeOffset.UtcNow);
         await using var session = await client.CreateSessionAsync(new SessionConfig
         {
-            Model = "gpt-5",
+            Model = settings.Model,
             Streaming = true,
             OnPermissionRequest = PermissionHandler.ApproveAll,
+            Provider = settings.Provider,
             Tools =
             [
                 DefineTool("get_raw_trace", "Return the raw trace records for this Local Monitor analysis run.", () => Serialize(data.RawTrace)),
@@ -110,8 +131,11 @@ internal sealed class DotNetCopilotRawAnalysisRunner : IMonitorAnalysisRunner
             }
         });
 
-        await session.SendAsync(new MessageOptions { Prompt = BuildPrompt(context) }, cancellationToken);
-        await done.Task.WaitAsync(TimeSpan.FromMinutes(3), cancellationToken);
+        analysisStore.AppendEvent(context.RunId, "sdk_phase", "sending_message", DateTimeOffset.UtcNow);
+        await session.SendAndWaitAsync(new MessageOptions { Prompt = BuildPrompt(context) });
+        done.TrySetResult();
+        await done.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        analysisStore.AppendEvent(context.RunId, "sdk_phase", "session_completed", DateTimeOffset.UtcNow);
         return final.Length == 0
             ? "Copilot SDK analysis completed without a textual result."
             : final.ToString();
@@ -139,6 +163,91 @@ internal sealed class DotNetCopilotRawAnalysisRunner : IMonitorAnalysisRunner
         {
             WriteIndented = false,
         });
+
+    private static string SanitizedExceptionMessage(Exception exception, string? apiKey)
+    {
+        var typeName = exception.GetType().Name;
+        var message = exception.Message;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return $"{typeName}: SDK analysis failed.";
+        }
+
+        message = message.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal);
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            message = message.Replace(apiKey, "[redacted-api-key]", StringComparison.Ordinal);
+        }
+
+        return message.Length > 500
+            ? $"{typeName}: {message[..500]}..."
+            : $"{typeName}: {message}";
+    }
+}
+
+internal sealed record CopilotAnalysisSettings(bool Enabled, string Model, string BaseDirectory, ProviderConfig? Provider)
+{
+    public static CopilotAnalysisSettings From(IConfiguration configuration)
+    {
+        var section = configuration.GetSection("CopilotAnalysis");
+        var enabled = !bool.TryParse(section["Enabled"], out var parsedEnabled) || parsedEnabled;
+        var model = section["Model"];
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            model = "gpt-5";
+        }
+
+        var baseDirectory = section["BaseDirectory"];
+        if (string.IsNullOrWhiteSpace(baseDirectory))
+        {
+            baseDirectory = Path.Combine(
+                Path.GetTempPath(),
+                "CopilotAgentObservability",
+                "LocalMonitor",
+                "CopilotSdk");
+        }
+
+        var providerSection = section.GetSection("Provider");
+        var type = providerSection["Type"];
+        var baseUrl = providerSection["BaseUrl"];
+        var apiKey = providerSection["ApiKey"];
+        if (string.IsNullOrWhiteSpace(type)
+            && string.IsNullOrWhiteSpace(baseUrl)
+            && string.IsNullOrWhiteSpace(apiKey))
+        {
+            return new CopilotAnalysisSettings(enabled, model, baseDirectory, Provider: null);
+        }
+
+        if (string.IsNullOrWhiteSpace(type)
+            || string.IsNullOrWhiteSpace(baseUrl)
+            || string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("CopilotAnalysis:Provider requires Type, BaseUrl, and ApiKey when any provider setting is present.");
+        }
+
+        var wireApi = providerSection["WireApi"];
+        if (string.IsNullOrWhiteSpace(wireApi))
+        {
+            wireApi = "completions";
+        }
+
+        if (wireApi is not ("completions" or "responses"))
+        {
+            throw new InvalidOperationException("CopilotAnalysis:Provider:WireApi must be 'completions' or 'responses'.");
+        }
+
+        return new CopilotAnalysisSettings(
+            enabled,
+            model,
+            baseDirectory,
+            new ProviderConfig
+            {
+                Type = type,
+                BaseUrl = baseUrl.TrimEnd('/'),
+                ApiKey = apiKey,
+                WireApi = wireApi,
+            });
+    }
 }
 
 internal sealed record MonitorAnalysisToolData(

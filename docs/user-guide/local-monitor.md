@@ -244,6 +244,25 @@ raw record / span context を .NET GitHub Copilot SDK analysis service に渡し
 
 `--sanitized-only` では raw analysis UI と routes は表示・提供されません。
 
+### Copilot raw analysis BYOK
+
+Local Monitor は .NET GitHub Copilot SDK の BYOK provider 設定を
+`CopilotAnalysis:*` から読みます。Secret Manager で設定する例:
+
+```powershell
+dotnet user-secrets init --project src\CopilotAgentObservability.LocalMonitor
+dotnet user-secrets set "CopilotAnalysis:Enabled" "true" --project src\CopilotAgentObservability.LocalMonitor
+dotnet user-secrets set "CopilotAnalysis:Model" "glm-5.2" --project src\CopilotAgentObservability.LocalMonitor
+dotnet user-secrets set "CopilotAnalysis:Provider:Type" "openai" --project src\CopilotAgentObservability.LocalMonitor
+dotnet user-secrets set "CopilotAnalysis:Provider:BaseUrl" "https://<endpoint>/v1" --project src\CopilotAgentObservability.LocalMonitor
+dotnet user-secrets set "CopilotAnalysis:Provider:WireApi" "completions" --project src\CopilotAgentObservability.LocalMonitor
+dotnet user-secrets set "CopilotAnalysis:Provider:ApiKey" "<api-key>" --project src\CopilotAgentObservability.LocalMonitor
+```
+
+`CopilotAnalysis:BaseDirectory` を指定しない場合、Local Monitor は writable な
+temporary local directory を Copilot SDK runtime state として使います。API key は
+analysis events、UI、repository-safe summary には出力しません。
+
 ### 出力境界
 
 - Raw analysis result は local runtime data です。
