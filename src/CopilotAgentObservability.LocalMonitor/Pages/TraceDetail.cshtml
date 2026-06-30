@@ -1,23 +1,24 @@
 @page "/traces/{traceId}"
 @model TraceDetailModel
 
-<section>
+<section class="monitor-section">
     <p><a href="/traces">&larr; Traces</a></p>
-    <h2>Trace @Model.TraceId</h2>
+    <h2>Trace <span class="monitor-mono">@Model.TraceId</span></h2>
 
     @* Sanitized section: tab shell. Summary stays server-rendered; Timeline
        (M4), Flow Chart (M3), and Cache (M5) are filled by JS from the
        sanitized spans API. Tab switching is Vanilla JS (monitor-views.js). *@
-    <div class="tabs" role="tablist" aria-label="Trace views">
-        <button class="tab" type="button" role="tab" id="tab-summary" aria-controls="panel-summary" aria-selected="true" tabindex="0">Summary</button>
-        <button class="tab" type="button" role="tab" id="tab-timeline" aria-controls="panel-timeline" aria-selected="false" tabindex="-1">Timeline</button>
-        <button class="tab" type="button" role="tab" id="tab-flow" aria-controls="panel-flow" aria-selected="false" tabindex="-1">Flow Chart</button>
-        <button class="tab" type="button" role="tab" id="tab-cache" aria-controls="panel-cache" aria-selected="false" tabindex="-1">Cache</button>
+    <div class="monitor-tabs tabs" role="tablist" aria-label="Trace views">
+        <button class="monitor-tab tab" type="button" role="tab" id="tab-summary" aria-controls="panel-summary" aria-selected="true" tabindex="0">Summary</button>
+        <button class="monitor-tab tab" type="button" role="tab" id="tab-timeline" aria-controls="panel-timeline" aria-selected="false" tabindex="-1">Timeline</button>
+        <button class="monitor-tab tab" type="button" role="tab" id="tab-flow" aria-controls="panel-flow" aria-selected="false" tabindex="-1">Flow Chart</button>
+        <button class="monitor-tab tab" type="button" role="tab" id="tab-cache" aria-controls="panel-cache" aria-selected="false" tabindex="-1">Cache</button>
     </div>
 
-    <div class="tab-panel" id="panel-summary" role="tabpanel" aria-labelledby="tab-summary">
+    <div class="monitor-tab-content tab-panel" id="panel-summary" role="tabpanel" aria-labelledby="tab-summary">
         <h3>Summary</h3>
-        <table>
+        <div class="monitor-table-wrapper">
+        <table class="monitor-table">
             <tbody>
                 <tr><th>ClientKind</th><td>@Model.Trace.ClientKind</td></tr>
                 <tr><th>Total tool calls</th><td>@Model.Trace.ToolCallCount</td></tr>
@@ -31,9 +32,10 @@
                 <tr><th>First / Last seen</th><td>@Model.Trace.FirstSeenAt / @Model.Trace.LastSeenAt</td></tr>
             </tbody>
         </table>
+        </div>
     </div>
 
-    <div class="tab-panel" id="panel-timeline" role="tabpanel" aria-labelledby="tab-timeline" hidden>
+    <div class="monitor-tab-content tab-panel" id="panel-timeline" role="tabpanel" aria-labelledby="tab-timeline" hidden>
         <h3>Timeline</h3>
         <div class="timeline-toolbar" data-timeline-trace-id="@Model.TraceId">
             <label class="timeline-filter">
@@ -54,8 +56,8 @@
             <span id="timeline-count" class="timeline-count" role="status">Loading spans...</span>
         </div>
         <p id="timeline-empty" class="timeline-empty" hidden>No spans match the current Timeline filter.</p>
-        <div class="table-scroll">
-            <table class="timeline-table">
+        <div class="monitor-table-wrapper table-scroll">
+            <table class="monitor-table timeline-table">
                 <thead>
                     <tr>
                         <th>Operation</th>
@@ -72,12 +74,12 @@
         </div>
     </div>
 
-    <div class="tab-panel" id="panel-flow" role="tabpanel" aria-labelledby="tab-flow" hidden>
+    <div class="monitor-tab-content tab-panel" id="panel-flow" role="tabpanel" aria-labelledby="tab-flow" hidden>
         <div id="flow-status" class="flow-status" role="status">Loading Flow Chart...</div>
-        <div id="flow-chart" class="flow-chart" data-flow-chart-trace-id="@Model.TraceId" aria-label="Trace span flow chart"></div>
+        <div id="flow-chart" class="monitor-flow-chart flow-chart" data-flow-chart-trace-id="@Model.TraceId" aria-label="Trace span flow chart"></div>
     </div>
 
-    <div class="tab-panel" id="panel-cache" role="tabpanel" aria-labelledby="tab-cache" hidden>
+    <div class="monitor-tab-content tab-panel" id="panel-cache" role="tabpanel" aria-labelledby="tab-cache" hidden>
         <h3>Cache</h3>
         <div id="cache-status" class="cache-status" role="status">Loading Cache Explorer...</div>
         <div id="cache-groups" class="cache-groups" data-cache-trace-id="@Model.TraceId"></div>
@@ -100,7 +102,7 @@
                 {
                     <p>Raw preview truncated.</p>
                 }
-                <pre>@record.Preview</pre>
+                <pre class="monitor-raw-preview">@record.Preview</pre>
             }
         }
     }

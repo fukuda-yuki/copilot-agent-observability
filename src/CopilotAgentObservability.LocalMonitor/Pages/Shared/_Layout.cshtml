@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="monitor-root">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,10 +10,10 @@
     <header class="monitor-header">
         <nav class="monitor-nav" aria-label="Monitor navigation">
             <span class="monitor-brand">Local Ingestion Monitor</span>
-            <a href="/" class="@(Context.Request.Path == "/" ? "active" : "")">Overview</a>
-            <a href="/ingestions" class="@(Context.Request.Path.StartsWithSegments("/ingestions") ? "active" : "")">Ingestions</a>
-            <a href="/traces" class="@(Context.Request.Path.StartsWithSegments("/traces") ? "active" : "")">Traces</a>
-            <a href="/diagnostics" class="@(Context.Request.Path == "/diagnostics" ? "active" : "")">Diagnostics</a>
+            <a href="/" class="@(Context.Request.Path == "/" ? "active" : "")" aria-current="@(Context.Request.Path == "/" ? "page" : null)">Overview</a>
+            <a href="/ingestions" class="@(Context.Request.Path.StartsWithSegments("/ingestions") ? "active" : "")" aria-current="@(Context.Request.Path.StartsWithSegments("/ingestions") ? "page" : null)">Ingestions</a>
+            <a href="/traces" class="@(Context.Request.Path.StartsWithSegments("/traces") ? "active" : "")" aria-current="@(Context.Request.Path.StartsWithSegments("/traces") ? "page" : null)">Traces</a>
+            <a href="/diagnostics" class="@(Context.Request.Path == "/diagnostics" ? "active" : "")" aria-current="@(Context.Request.Path == "/diagnostics" ? "page" : null)">Diagnostics</a>
             <span class="monitor-nav-status" id="monitor-status-dot" title="Checking…" aria-label="Monitor status: checking"></span>
         </nav>
     </header>

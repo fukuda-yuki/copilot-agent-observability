@@ -1,10 +1,10 @@
 @page "/traces"
 @model TracesModel
 
-<section>
+<section class="monitor-section">
     <h2>Traces</h2>
-    <div class="table-scroll">
-        <table>
+    <div class="monitor-table-wrapper table-scroll">
+        <table class="monitor-table">
             <thead>
                 <tr>
                     <th aria-label="Expand"></th>
@@ -24,12 +24,12 @@
                         <td>
                             <button class="row-toggle" type="button" aria-expanded="false" aria-controls="trace-extra-@row.Id" aria-label="Toggle trace details">+</button>
                         </td>
-                        <td><a href="/traces/@row.TraceId">@row.TraceId</a></td>
+                        <td class="monitor-mono"><a href="/traces/@row.TraceId">@row.TraceId</a></td>
                         <td>@row.ClientKind</td>
-                        <td>@row.TotalTokens</td>
-                        <td>@row.ToolCallCount</td>
-                        <td class="@(row.ErrorCount > 0 ? "status-error" : null)">@row.ErrorCount</td>
-                        <td>@row.TurnCount</td>
+                        <td class="monitor-text-right">@row.TotalTokens</td>
+                        <td class="monitor-text-right">@row.ToolCallCount</td>
+                        <td class="monitor-text-right @(row.ErrorCount > 0 ? "status-error" : null)">@row.ErrorCount</td>
+                        <td class="monitor-text-right">@row.TurnCount</td>
                         <td>@row.PrimaryModel</td>
                     </tr>
                     <tr class="trace-extra" id="trace-extra-@row.Id" hidden>
@@ -58,6 +58,6 @@
     </div>
     @if (Model.Result.HasMore && Model.Result.Items.Count > 0)
     {
-        <p><a href="/traces?after=@Model.Result.Items[^1].Id">next</a></p>
+        <p class="monitor-pagination"><a href="/traces?after=@Model.Result.Items[^1].Id">next →</a></p>
     }
 </section>

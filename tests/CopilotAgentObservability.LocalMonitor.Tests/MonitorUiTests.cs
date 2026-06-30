@@ -169,6 +169,8 @@ public class MonitorUiTests
 
         // Fonts are referenced from the local vendor path, never a CDN (D028).
         Assert.Contains("/vendor/fonts/", css);
+        Assert.Contains("--monitor-bg: oklch(0.19 0 0)", css);
+        Assert.Contains("--monitor-accent: oklch(0.54 0.17 255)", css);
         foreach (var cdn in new[] { "googleapis.com", "gstatic.com", "cdn.jsdelivr.net", "unpkg.com" })
         {
             Assert.DoesNotContain(cdn, css);

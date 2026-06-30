@@ -409,10 +409,10 @@
         article.appendChild(metrics);
 
         const tableWrap = document.createElement("div");
-        tableWrap.className = "table-scroll";
+        tableWrap.className = "monitor-table-wrapper table-scroll";
 
         const table = document.createElement("table");
-        table.className = "cache-table";
+        table.className = "monitor-table cache-table";
 
         const head = document.createElement("thead");
         const headRow = document.createElement("tr");

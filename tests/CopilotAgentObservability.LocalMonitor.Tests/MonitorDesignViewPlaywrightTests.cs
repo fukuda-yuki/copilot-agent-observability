@@ -28,7 +28,9 @@ public class MonitorDesignViewPlaywrightTests
             Assert.DoesNotContain("SECRET_PROMPT_TEXT_MARKER", await page.ContentAsync());
         }
 
-        Assert.Equal("rgb(30, 30, 30)", await page.Locator("body").EvaluateAsync<string>("element => getComputedStyle(element).backgroundColor"));
+        Assert.Equal(
+            "oklch(0.19 0 0)",
+            await page.Locator("body").EvaluateAsync<string>("element => getComputedStyle(element).getPropertyValue('--monitor-bg').trim()"));
         Assert.Equal("true", await page.Locator("#tab-summary").GetAttributeAsync("aria-selected"));
 
         await page.Locator("#tab-timeline").ClickAsync();
