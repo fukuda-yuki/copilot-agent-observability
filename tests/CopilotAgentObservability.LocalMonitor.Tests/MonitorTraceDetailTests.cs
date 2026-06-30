@@ -105,6 +105,23 @@ public class MonitorTraceDetailTests
     }
 
     [Fact]
+    public async Task TraceDetail_RendersRawAnalysisActionUnderRawDefault()
+    {
+        using var temp = new MonitorTempDirectory();
+        SeedProjectedTrace(temp);
+        await using var host = await StartHostAsync(temp);
+
+        var body = await host.Client.GetStringAsync($"/traces/{TraceId}");
+
+        Assert.Contains("Analyze raw trace with Copilot", body);
+        Assert.Contains("id=\"analysis-focus\"", body);
+        Assert.Contains("value=\"tool-usage\"", body);
+        Assert.Contains("value=\"agent-flow\"", body);
+        Assert.Contains("data-analysis-trace-id=\"trace-detail\"", body);
+        Assert.Contains("x-monitor-csrf", body);
+    }
+
+    [Fact]
     public async Task TraceDetail_DoesNotLoadGraphVendorScripts_AndHasNoCdn()
     {
         // D033: the Cytoscape / dagre vendored graph dependency is removed; the
@@ -144,6 +161,7 @@ public class MonitorTraceDetailTests
         Assert.Contains("キャッシュ", body);
         Assert.Contains("data-timeline-trace-id=\"trace-detail\"", body);
         Assert.DoesNotContain("Raw OTLP ペイロード", body);
+        Assert.DoesNotContain("Analyze raw trace with Copilot", body);
         Assert.DoesNotContain("/raw", body);
         Assert.DoesNotContain("SECRET_PROMPT_TEXT_MARKER", body);
         Assert.DoesNotContain("leak-marker@example.com", body);

@@ -1670,6 +1670,37 @@ pre,
     white-space: normal;
 }
 
+.monitor-analysis-panel {
+    margin: var(--monitor-space-5) 0;
+    padding: var(--monitor-space-4);
+    border: 1px solid var(--monitor-border);
+    background: var(--monitor-surface);
+}
+
+.analysis-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--monitor-space-3);
+}
+
+.analysis-controls label {
+    display: grid;
+    gap: var(--monitor-space-1);
+    color: var(--monitor-muted);
+    font-size: var(--monitor-text-sm);
+}
+
+.analysis-controls select {
+    min-width: 160px;
+}
+
+.monitor-analysis-result {
+    min-height: 44px;
+    margin-top: var(--monitor-space-3);
+    white-space: pre-wrap;
+}
+
 .trace-extra dl {
     background: transparent;
     border: none;
