@@ -696,3 +696,35 @@ Consequences:
 - CI では script existence / parse / stable defaults / dry-run task shape を検証し、
   actual Task Scheduler registration と logon trigger は Windows 実機 validation evidence
   として扱う。
+
+## D032: LocalMonitor は Windows x64 self-contained folder ZIP を初期配布単位にする
+
+Status: Accepted
+
+LocalMonitor を、repository を clone して `dotnet run` する開発者向けツールだけでなく、
+利用者端末に展開して起動できるローカル常駐診断ツールとして配布する。初期配布単位は
+GitHub Actions が生成する Windows x64 self-contained folder publish の Release ZIP とする。
+
+決定:
+
+- Release ZIP 名は `local-monitor-win-x64.zip`。
+- publish は `win-x64` self-contained folder publish とし、初期対応では single-file exe 化を必須にしない。
+- ZIP は `app/`、`scripts/`、`README.md`、`manifest.json`、notices を含む。
+- 利用者端末では `dotnet run` / `dotnet build` / `dotnet restore`、.NET SDK、.NET Runtime、ASP.NET Core Runtime の事前導入を要求しない。
+- install root 既定は `%LOCALAPPDATA%\CopilotAgentObservability\LocalMonitor\app\`。
+- runtime DB / logs / state は `%LOCALAPPDATA%\CopilotAgentObservability\LocalMonitor\` 配下に残し、app install root と責務を分ける。
+- install、今すぐ起動、Task Scheduler startup 登録、startup enable / disable、stop、status、uninstall は分離した操作とする。
+- Task Scheduler 登録は引き続き利用者が明示選択した場合のみ、current user / least privilege / AtLogOn / multiple instances IgnoreNew とする。
+- uninstall は DB / logs を既定保持し、明示指定時のみ runtime data を削除する。
+- Release ZIP、workflow logs、artifact metadata に raw prompt / response、tool arguments / results、PII、credentials、raw OTLP payload、runtime DB / logs / state を含めない。
+
+非採用:
+
+- Windows Service、IIS、machine-wide collector、Intune / MSI / winget、tray app、Docker / Langfuse / Collector の同梱。
+- 初期対応での GitHub Release 作成、tag push、release asset 添付の自動化。
+
+Consequences:
+
+- `.github/workflows/local-monitor-release.yml` は build、Playwright Chromium bootstrap、test、package、artifact upload までを行う。
+- `scripts/local-monitor/start.ps1` は `DotnetRun` と `Published` の両 mode を扱う。
+- ZIP 利用者向け手順は user guide と operations guide に記録する。
