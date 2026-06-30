@@ -79,57 +79,71 @@ extension-owned helper page.
 
 Feasibility: high.
 
-### B. Canvas dashboard view — deferred
+### B. Canvas dashboard view — **design confirmed (D037), implemented this sprint (M2)**
 
-New-Session entry point showing the whole Local Monitor at a glance: recent
-traces, error traces, high-token traces, slow traces, per-model summary,
-per-client-kind summary, connection state, recent sessions.
+New sanitized aggregate endpoint `GET /api/monitor/summary?limit=N` (default
+50, range 1–200, no cursor pagination) built from `IMonitorProjectionStore` and
+a new shared `MonitorSummaryService`, consumed by both the Razor `Index`
+PageModel (replacing its inline highlight computation) and the Canvas adapter.
+Response: `scope` (limit/trace_count), `latest_trace` / `top_token_trace` /
+`error_trace` (`compactTrace`-shaped), `per_model_summary` /
+`per_client_kind_summary` (model or client_kind, trace_count, total_tokens,
+error_count; null grouped as `"unknown"`). `readiness` is intentionally
+excluded — `/health/ready` stays the single source of truth. See D037 for the
+full resolved contract.
 
-Reuse direction: add a sanitized aggregate endpoint on the Local Monitor (e.g.
-`GET /api/monitor/summary`) built from `MonitorTraceRollup` and the existing
-projection store, **shared with the Razor index page** so the dashboard
-highlight logic is not duplicated in JS. Client-side aggregation over a single
-`/api/monitor/traces` page (limit 50) is rejected because it cannot compute
-error / slow highlights across the full dataset. Public-interface change → spec
-first.
+Feasibility: medium–high (confirmed).
 
-Feasibility: medium–high.
+### C. Canvas trace detail view — **design confirmed (D037), implemented this sprint (M3)**
 
-### C. Canvas trace detail view — deferred
+Scoped down from "render the full trace detail" to a **minimal summary card**:
+a new token-protected route `GET /api/trace-detail/:traceId` on the
+Canvas-extension-owned loopback server (not a new Local Monitor endpoint)
+returns `compactTrace` fields plus `cache_hit_rate` and `primary_model`. The
+helper page renders this as a card (status / model / tokens / duration / cache
+hit rate) when a trace is selected, plus a "Local Monitorで詳細を見る" deep
+link. Span tree and per-turn cache detail are NOT rendered in Canvas — deep
+investigation stays on the existing "Copilotでこのトレースを分析" dispatch
+path. This avoids reimplementing the Local Monitor's tree/timeline/cache tab UI
+(D030).
 
-Render the selected trace on the Canvas from the existing bounded actions
-(`get_trace_summary` / `get_trace_span_tree` / `get_cache_summary`): trace
-summary, span tree, top spans, token / latency / cache / error summary, tool
-call summary, and the analysis-dispatch affordance. Bounded projection only; no
-raw preview.
+Feasibility: medium (confirmed; scope reduced from original proposal).
 
-Feasibility: medium.
+### D. Canvas raw preview boundary — **design confirmed (D037), implementation NOT started**
 
-### D. Canvas raw preview boundary — deferred (design first)
+Resolved design: if built, raw preview is **server-rendered only** inside the
+Canvas-owned loopback helper page — the extension fetches raw server-to-server
+from the Local Monitor's existing raw-bearing route and embeds it as
+`escapeHtml`-escaped inert text; the helper page's client-side JS never
+receives raw as JSON (mirrors D020/D023/D032's "JS does not fetch raw" rule).
+Same-origin, `Cache-Control: no-store`, and an explicit per-trace user action
+apply; no raw by default. Canvas action responses stay bounded DTOs regardless.
+**This is a design template, not an implementation go-ahead** — building it
+requires a separate, explicit user decision to start a future milestone.
 
-Decide whether the Canvas loopback helper page may show a prompt / response
-preview, and under which controls (no-store / loopback / same-origin /
-per-launch token, explicit user action, contract-test changes). Action responses
-stay bounded DTOs regardless. This conflicts with the Sprint11 boundary, so it
-is an independent design issue handled after A's UX and bounded detail land.
+Feasibility: medium (design confirmed; implementation deferred pending explicit go-ahead).
 
-Feasibility: medium (technically possible; boundary design needed).
+### E. Session-to-trace correlation — **dropped (D037)**
 
-### E. Session-to-trace correlation — deferred (design first)
-
-Stably correlate the open Copilot app session with a Local Monitor trace. Design
-a correlation key from session id / instance id / trace id / resource
-attributes. When no stable key exists, show an explicit "inferred" candidate or
-require manual selection — never present an auto-correlation as confirmed.
-
-Feasibility: low–medium.
+Investigation of the OTel ingestion side found no stable identifier that
+correlates a Copilot app session with a Local Monitor trace (`client_kind` is
+a client type, not an instance; `conversation_id` is span-level and unstable;
+`trace_id` has no session-level grouping). The GitHub Copilot SDK's
+`CanvasProviderOpenRequest`/`InvokeActionRequest`/`CloseRequest` do carry a
+`sessionId` field, but it has no corresponding OTel attribute on the ingestion
+side. Auto-correlation would require adding a new resource/span attribute
+(telemetry schema change, spec-first, and unconfirmed whether the Copilot
+CLI/app would ever emit a matching value) — out of scope. Child E will not be
+implemented; the manual trace dropdown shipped in child A is the permanent
+selection mechanism.
 
 ## Recommended implementation order
 
-A → B → C → D → E. A changes no display boundary and is immediately useful; B/C
-advance Local Monitor projection reuse; D changes a design boundary and is taken
-after the UX / bounded detail are in place; E is the most uncertain and needs a
-correlation-key design.
+A → B/C (parallel) → D → E(dropped). A changed no display boundary and shipped
+first. B and C touch disjoint file sets (Local Monitor C# vs. the Canvas
+extension) and were implemented in parallel once their designs were confirmed
+(D037). D is design-confirmed but implementation is gated on an explicit future
+go-ahead. E is dropped — no further work planned.
 
 ## Tech-debt prerequisite (F8)
 
@@ -158,6 +172,10 @@ in the parent Issue and carried by D036.
 | Milestone | Scope | Status |
 | --- | --- | --- |
 | M1 Helper UX (child A) | F8 smoke scaffold (A0), decision-supporting trace line, Japanese focus / button / heading, concrete health/error guidance, collapsed health response, contract-test update. Display boundary unchanged. | Implemented; automated tests + self-review done. Live Canvas runtime validation pending (human-gated). |
+| M2 Dashboard summary (child B) | `GET /api/monitor/summary`, shared `MonitorSummaryService`, Index PageModel refactor. See `milestones/M2-dashboard-summary/plan.md`. | Implemented this turn per D037. |
+| M3 Trace detail card (child C) | Canvas-owned `GET /api/trace-detail/:traceId` route, helper-page summary card. See `milestones/M3-trace-detail-card/plan.md`. | Implemented this turn per D037. |
+| Child D raw preview | Design confirmed (D037); no code change. | Not started — needs a separate explicit go-ahead. |
+| Child E correlation | N/A | Dropped (D037) — no implementation planned. |
 
 ## Validation
 

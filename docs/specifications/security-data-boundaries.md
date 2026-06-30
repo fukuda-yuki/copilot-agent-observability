@@ -339,6 +339,44 @@ D036):
   index page; it must stay within the sanitized `/api/monitor/*` boundary (no
   prompt body, no raw payload).
 
+Sprint15 child B/C/D/E resolution (D037):
+
+- **Child B — `GET /api/monitor/summary`.** Loopback-only, no same-origin/
+  no-store requirement (sanitized, not raw-bearing, same as `/api/monitor/traces`).
+  Fields are limited to the existing sanitized projection allowlist:
+  `scope.limit` / `scope.trace_count`, `latest_trace` / `top_token_trace` /
+  `error_trace` (each `compactTrace`-shaped), `per_model_summary` /
+  `per_client_kind_summary` (`model`/`client_kind`, `trace_count`,
+  `total_tokens`, `error_count` only). No prompt body, no raw payload, no PII.
+  `readiness` is intentionally excluded — `/health/ready` stays the single
+  source of truth. Aggregation is computed in-memory over the same bounded
+  `limit`-row window already used by `/api/monitor/traces`; no new SQL surface.
+- **Child C — `GET /api/trace-detail/:traceId`.** New route on the
+  Canvas-extension-owned loopback server only (not a new Local Monitor
+  endpoint), token-protected the same way as the existing `/api/traces` proxy.
+  Returns `compactTrace` fields plus `cache_hit_rate` and `primary_model` only.
+  Does not return span trees, per-turn cache detail, or any field not already
+  exposed by the existing bounded actions. No raw prompt/response.
+- **Child D — raw preview, design confirmed, NOT implemented.** If built, the
+  Canvas-owned loopback helper page may show raw prompt/response content only
+  as **server-rendered, escaped inert text** fetched server-to-server from the
+  Local Monitor's existing raw-bearing route (e.g. `GET /traces/{rawRecordId}/raw`)
+  at render time — never as JSON returned to the helper page's client-side JS
+  (mirrors the "JS does not fetch raw" rule from D020/D023/D032). The same
+  raw-bearing controls apply: same-origin, `Cache-Control: no-store`, and an
+  explicit per-trace user action (no raw shown by default). Canvas **action**
+  responses (`get_trace_summary` etc., invoked by the agent via
+  `invoke_canvas_action`) stay bounded DTOs regardless; raw preview, if ever
+  built, is confined to the helper page's own server-rendered HTML and never
+  flows into an action response, a Copilot prompt, or a log. `sanitizeDto()`'s
+  forbidden-key filter continues to apply unchanged to all action DTOs — raw
+  preview would be a separate code path, not a loosening of that filter.
+  Implementation requires a separate, explicit user go-ahead; this entry
+  records the confirmed design only.
+- **Child E — dropped.** No implementation. No new resource/span attribute is
+  added to the OTel ingestion schema. The Canvas helper page's manual trace
+  dropdown (child A) remains the permanent trace-selection mechanism.
+
 Sprint12 UX redesign (prompt identification + DOM views, boundary controls
 reused):
 

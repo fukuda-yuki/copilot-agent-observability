@@ -76,11 +76,18 @@ Copilot Agent Observability は、GitHub Copilot Chat、GitHub Copilot CLI、Cod
   不変）、(c) `ready` / `not_ready` / `unreachable` を区別し確認 URL・起動コマンド・
   設定確認・参照 monitor base URL など次操作を具体化した health / error 導線、
   (d) health 生レスポンスの既定折りたたみ、を提供する。これは表示境界を変えず、
-  Canvas action response を bounded DTO のまま維持する（D036）。将来の Canvas
-  診断 surface（dashboard view、trace detail view、raw preview、session-to-trace
-  correlation）は Local Monitor の projection / endpoint / view model の再利用で
-  実現し、monitor UI を再実装しない。Canvas surface での prompt / response preview の
-  可否は独立した境界設計判断として扱う（D036）。
+  Canvas action response を bounded DTO のまま維持する（D036）。Local Monitor 側に
+  sanitized 集計 endpoint `GET /api/monitor/summary`（既存 projection の allowlist
+  範囲内、`limit` 既定 50、cursor pagination なし）を追加し、Razor ダッシュボードと
+  Canvas で共用する（D037）。Canvas ヘルパーページには選択したトレースの要約カード
+  （状態・主要モデル・トークン合計・所要時間・cache hit rate、bounded DTO のみ、
+  span tree / cache 明細は含まない）を追加する（D037）。Canvas raw preview は、
+  実装するとすれば Local Monitor の既存 raw-bearing route 群と同じ制御
+  （server-rendered のみ・escaped inert text・JS は raw を受け取らない・
+  same-origin・`Cache-Control: no-store`・明示操作必須）に従う設計を確定したが、
+  実装には別途利用者の明示的な go-ahead を要する（D037）。session-to-trace
+  correlation は、OTel 取り込み側に対応する安定識別子が存在しないため見送り、
+  trace は引き続き手動選択とする（D037）。
 - Grafana JSON dashboard fallback。
 
 参考のみ:

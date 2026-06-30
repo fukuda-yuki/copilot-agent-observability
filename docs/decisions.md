@@ -871,3 +871,134 @@ view model / projection を再利用した診断 surface へ引き上げる。se
 - Canvas surface での prompt / response preview の可否は子 D の独立した境界設計
   判断に委ね、子 A では有効化しない。
 - `--sanitized-only` を Canvas 利用の前提に戻さない（D030 を維持）。
+
+## D037: Sprint15 子 B〜E の設計を確定する（D036 更新）
+
+Status: Accepted
+
+D036 で「設計のみ記録・実装は次スプリント」とした子 B〜E について、実装着手前に
+不明点を解消する深堀り調査（Local Monitor 既存実装の調査、GitHub Copilot SDK
+`rpc.ts` 生成型の調査、OTel 取り込み側の既存識別子調査）を行い、利用者確認を経て
+以下のとおり確定する。
+
+### 子 B（dashboard view）: 設計確定、本スプリントで実装着手
+
+新規 sanitized endpoint `GET /api/monitor/summary?limit=N`（loopback-only、
+`/api/monitor/*` の既存 allowlist 規約に従う）を追加し、Razor `Index` ページの
+inline ハイライト計算と共用する新規共有サービスから返す。
+
+- `limit`: 既定 50、範囲 1–200（既存 `/api/monitor/traces` の規約に合わせる）。
+  cursor pagination は設けない（スナップショット集計であり、drill-down は既存の
+  `/api/monitor/traces` を使う）。
+- 集計は `IMonitorProjectionStore.ListMonitorTraces(0, limit)` で取得した
+  window 内を C# 側でメモリ集計する（新規 SQL GROUP BY は追加しない。limit が
+  小さく bounded であるため）。
+- レスポンス形（確定）:
+  ```json
+  {
+    "scope": { "limit": 50, "trace_count": 37 },
+    "latest_trace": { ...既存 /api/monitor/traces の compactTrace 相当フィールド... } | null,
+    "top_token_trace": { ... } | null,
+    "error_trace": { ... } | null,
+    "per_model_summary": [ { "model": "gpt-5", "trace_count": 12, "total_tokens": 84000, "error_count": 1 } ],
+    "per_client_kind_summary": [ { "client_kind": "vscode-copilot-chat", "trace_count": 30, "total_tokens": 210000, "error_count": 2 } ]
+  }
+  ```
+  `model` / `client_kind` が null の trace は `"unknown"` バケットに集計し、
+  `per_model_summary` / `per_client_kind_summary` の `trace_count` 合計が
+  `scope.trace_count` と一致するようにする。
+- `readiness` はこのレスポンスに含めない（既存 `/health/ready` を正本のまま唯一の
+  情報源とし、二重の情報源を作らない。子 A の Canvas ヘルパーも既に
+  `/health/ready` を直接参照している）。
+- 共有サービス（新規、例 `MonitorSummaryService`）を Local Monitor プロジェクト内に
+  追加し、`Index.cshtml.cs` の既存 inline ハイライト計算（`TopTokenTrace` /
+  `ErrorTrace` / `LatestTrace`）をこのサービス呼び出しに置き換える。Razor 側の
+  見た目（既存カード）は変更しない。新しい per-model / per-client-kind サマリは
+  まず API レスポンスとしてのみ提供し、Index ページへの新規パネル追加は本決定の
+  スコープ外（必要なら別途 Issue 化する）。
+- フィールドは `security-data-boundaries.md` の既存 allowlist（sanitized
+  projection 列のみ、raw / PII 不可）の範囲内に限定する。
+
+### 子 C（trace detail view）: 設計確定、本スプリントで実装着手
+
+子 C を「Local Monitor の TraceDetail ページ全体（タブ4種）を Canvas に再実装する」
+案ではなく、**最小の要約カード**として確定する（D030 の reuse-not-reimplement 原則
+を維持）。
+
+- Canvas 拡張所有 loopback ヘルパーサーバーに新規ルート
+  `GET /api/trace-detail/:traceId`（既存 `/api/traces` と同じ
+  `x-canvas-token` 認証パターン）を追加する。内部で既存の bounded action
+  (`get_trace_summary` 相当の trace 行取得 + `get_cache_summary` 相当の
+  span 集計ロジック)を呼び出し、`compactTrace` フィールド一式 + `cache_hit_rate`
+  + `primary_model` のみを返す。span tree やターン別キャッシュ明細は返さない
+  （それらは既存の "Copilotでこのトレースを分析" trigger 経由で Copilot 側に
+  委ねる、現行方針を維持）。
+- ヘルパーページに「選択したトレースの要約」カードを追加する
+  （`renderHelperHtml` 拡張）。trace dropdown の選択変更時に
+  `/api/trace-detail/:traceId` を fetch し、状態・主要モデル・トークン合計・
+  所要時間・cache hit rate を表示し、`${monitorUrl}/traces/{traceId}` への
+  「Local Monitorで詳細を見る」リンクを添える。
+- 表示境界は子 A と同一（bounded DTO、raw 非送出、loopback、token 認証）。
+
+### 子 D（Canvas raw preview boundary）: 設計確定、実装は次段階
+
+利用者確認の結果、Local Monitor の既存 raw-bearing route 群（D020 DR3/DR4、D023、
+D032）と同じ制御パターンを踏襲する設計を正式な方針として確定するが、**本スプリント
+では実装に着手しない**。実装は別マイルストーン（利用者の明示的な go-ahead を要する）
+とする。
+
+確定した設計方針（将来の実装が従うべき制約）:
+
+- raw preview は Canvas 拡張所有の loopback ヘルパーページ上で
+  **server-rendered のみ**で提供する。Canvas の embedded HTTP server が
+  Local Monitor の既存 raw-bearing route（例 `GET /traces/{rawRecordId}/raw`）
+  から server-to-server で raw を取得し、ヘルパーページの HTML 内に
+  `escapeHtml`（`canvas-helpers.mjs` の既存実装）で escape した inert text として
+  埋め込む。クライアント側 JS（ヘルパーページの `<script>`）は raw を JSON として
+  一切受け取らない（D020/D023/D032 の「JS は raw を取得しない」原則を踏襲）。
+- 同一の制御を強制する: same-origin（Canvas ヘルパーサーバー自身への
+  same-origin。loopback token 認証は既存どおり維持）、`Cache-Control: no-store`、
+  利用者の明示操作（trace 選択 + 明示的な「raw を表示」操作）を要求し、既定では
+  raw を出さない。
+- Canvas **action** response（`get_trace_summary` 等、Copilot agent が
+  `invoke_canvas_action` で呼ぶもの）は本決定後も bounded DTO のまま変更しない。
+  raw preview はヘルパーページの server-rendered HTML に限定し、Canvas action /
+  ログ / Copilot へのプロンプト送出経路には一切流れない。
+- `sanitizeDto()` の forbidden-key フィルタ（`raw|payload|prompt|content|
+  argument|result|user|email|credential|secret` 正規表現）は action DTO に
+  引き続き適用する。raw preview ルートはこのフィルタの対象外の別経路（直接
+  server-rendered embed）として実装し、フィルタを緩めることでの誤った raw 露出を
+  避ける。
+
+この設計は「実装してよい」という承認ではなく、「実装するとすればこの形」という
+確定済みテンプレートである。実装着手には別途利用者の明示的な go-ahead を要する。
+
+### 子 E（session-to-trace correlation）: 見送り（実装しない）
+
+OTel 取り込み側を全面調査した結果、GitHub Copilot app session を Local Monitor の
+trace と安定的に対応付けられる既存識別子は **存在しない**ことを確認した
+（`client_kind` は client 種別のみで instance を識別しない、`conversation_id` は
+span 単位で trace レベルの安定識別子ではない、`trace_id` はリクエスト単位で
+session グルーピングを持たない）。GitHub Copilot SDK 側の
+`CanvasProviderOpenRequest` / `CanvasProviderInvokeActionRequest` /
+`CanvasProviderCloseRequest` には `sessionId: string`（"Target session
+identifier"）フィールドが存在することを `github/copilot-sdk` の生成型
+(`nodejs/src/generated/rpc.ts`) で確認したが、これは Copilot SDK 側の内部
+session id であり、OTel 取り込み側のどの属性とも対応しない。
+
+利用者確認の結果、自動相関のための新規 telemetry resource/span attribute 追加
+（telemetry schema 変更、spec 先行更新、Copilot CLI/app 側が実際にそのような
+属性を OTel として送出するかも未確認）は行わず、**子 E は見送る**。Canvas の
+trace 選択は子 A で実装済みの手動 dropdown 選択を恒久的な設計として維持する。
+ヒューリスティック推定候補の提示も本決定では追加しない（過剰実装を避ける）。
+
+不変（D036 を維持）:
+
+- Canvas action response は bounded DTO のまま。raw prompt / response body、
+  tool arguments / results、PII、credential、token、local sensitive path、raw OTLP
+  payload を Canvas action / ログ / 静的成果物へ返さない。
+- 子 B の新規 endpoint は sanitized projection の allowlist 範囲内に限定する。
+- 子 C の新規ルートは bounded DTO のみを返し、span tree / cache 明細など重い
+  projection は返さない。
+- 子 D は設計確定のみであり、実装（コード変更）は本決定の対象外。
+- `--sanitized-only` を Canvas 利用の前提に戻さない。
