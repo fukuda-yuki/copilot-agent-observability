@@ -172,8 +172,8 @@ in the parent Issue and carried by D036.
 | Milestone | Scope | Status |
 | --- | --- | --- |
 | M1 Helper UX (child A) | F8 smoke scaffold (A0), decision-supporting trace line, Japanese focus / button / heading, concrete health/error guidance, collapsed health response, contract-test update. Display boundary unchanged. | Implemented; automated tests + self-review done. Live Canvas runtime validation pending (human-gated). |
-| M2 Dashboard summary (child B) | `GET /api/monitor/summary`, shared `MonitorSummaryService`, Index PageModel refactor. See `milestones/M2-dashboard-summary/plan.md`. | Implemented this turn per D037. |
-| M3 Trace detail card (child C) | Canvas-owned `GET /api/trace-detail/:traceId` route, helper-page summary card. See `milestones/M3-trace-detail-card/plan.md`. | Implemented this turn per D037. |
+| M2 Dashboard summary (child B) | `GET /api/monitor/summary`, shared `MonitorSummaryService`, Index PageModel refactor. See `milestones/M2-dashboard-summary/plan.md` and `review.md`. | Implemented; automated tests + self-review done (302 LocalMonitor tests passing, +9 new). No Canvas-side consumer yet — endpoint only. |
+| M3 Trace detail card (child C) | Canvas-owned `GET /api/trace-detail/:traceId` route, helper-page summary card. See `milestones/M3-trace-detail-card/plan.md` and `review.md`. | Implemented; automated tests + self-review done (12/12 JS smoke, +1 contract-test fact). Live Canvas runtime rendering of the new card pending (human-gated). |
 | Child D raw preview | Design confirmed (D037); no code change. | Not started — needs a separate explicit go-ahead. |
 | Child E correlation | N/A | Dropped (D037) — no implementation planned. |
 
