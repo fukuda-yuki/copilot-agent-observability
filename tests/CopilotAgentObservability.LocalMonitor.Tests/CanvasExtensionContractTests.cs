@@ -147,6 +147,28 @@ public class CanvasExtensionContractTests
     }
 
     [Fact]
+    public void Extension_DeclaresTraceDetailSummaryCardSurface()
+    {
+        var script = ReadExtension();
+
+        // Sprint15 M3 (child C, D037): minimal bounded trace-detail summary
+        // route + card, gated by the same x-canvas-token as every other route.
+        Assert.Contains("/api/trace-detail/", script);
+        Assert.Contains("cache_hit_rate", script);
+        Assert.Contains("traceDetailSummary", script);
+        Assert.Contains("選択したトレースの要約", script);
+
+        // The new route must not bypass the existing per-route token check or
+        // introduce a new Local Monitor endpoint / raw field category.
+        Assert.Contains("x-canvas-token", script);
+        Assert.Contains("/api/monitor/traces", script);
+        Assert.Contains("/spans", script);
+        Assert.DoesNotContain("/raw", script);
+        Assert.DoesNotContain("payload_json", script);
+        Assert.DoesNotContain("console.log", script);
+    }
+
+    [Fact]
     public void CanvasHelperJsPassesSyntaxCheckAndUnitSmoke()
     {
         // Sprint15 M1 A0 (F8 prerequisite): executable JS smoke wired into the

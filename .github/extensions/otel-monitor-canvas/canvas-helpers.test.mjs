@@ -16,6 +16,7 @@ import {
     shortTraceId,
     buildAnalysisPrompt,
     compactTrace,
+    traceDetailSummary,
 } from "./canvas-helpers.mjs";
 
 const SAMPLE_TRACE_ROW = {
@@ -150,4 +151,45 @@ test("BOUNDARY_NOTE: pins the raw/PII invariant sentence", () => {
         BOUNDARY_NOTE,
         "Canvas action responses and logs must not contain raw telemetry or PII.",
     );
+});
+
+test("traceDetailSummary: returns the expected bounded shape for a sample compactTrace row", () => {
+    const trace = compactTrace(SAMPLE_TRACE_ROW);
+    const summary = traceDetailSummary({ trace, cacheHitRate: 0.42 });
+
+    assert.deepEqual(summary, {
+        trace_id: "abc12345-6789-0000-0000-000000000000",
+        status: "ok",
+        primary_model: "gpt-5",
+        span_count: 12,
+        tool_call_count: 3,
+        total_tokens: 8420,
+        duration_ms: 18200,
+        cache_hit_rate: 0.42,
+        last_seen_at: "2026-07-01T14:32:07.123Z",
+    });
+});
+
+test("traceDetailSummary: cache_hit_rate is null when not a number (e.g. no chat turns)", () => {
+    const trace = compactTrace(SAMPLE_TRACE_ROW);
+    const summary = traceDetailSummary({ trace, cacheHitRate: null });
+
+    assert.equal(summary.cache_hit_rate, null);
+});
+
+test("renderHelperHtml: contains the trace detail summary card heading and no raw fields", () => {
+    const html = renderHelperHtml({
+        instanceId: "inst-1",
+        monitorUrl: "http://127.0.0.1:4320",
+        healthState: "ready",
+        statusCode: 200,
+        healthBody: "{\"status\":\"ready\"}",
+        error: null,
+        token: "token-1",
+    });
+
+    assert.match(html, /選択したトレースの要約/);
+    assert.match(html, /Local Monitorで詳細を見る/);
+    assert.doesNotMatch(html, /\/raw/);
+    assert.doesNotMatch(html, /payload_json/);
 });

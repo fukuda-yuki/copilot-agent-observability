@@ -345,6 +345,25 @@ export function sanitizeDto(value) {
     return sanitized;
 }
 
+// --------------- trace detail summary (Sprint15 M3 / child C, D037) ---------------
+
+// Builds the bounded trace-detail summary DTO from a compactTrace row plus a
+// separately computed cache_hit_rate. No new field category beyond
+// compactTrace fields + cache_hit_rate (D037).
+export function traceDetailSummary({ trace, cacheHitRate }) {
+    return {
+        trace_id: trace.trace_id,
+        status: trace.status,
+        primary_model: trace.primary_model ?? null,
+        span_count: trace.span_count ?? null,
+        tool_call_count: trace.tool_call_count ?? null,
+        total_tokens: trace.total_tokens ?? null,
+        duration_ms: trace.duration_ms ?? null,
+        cache_hit_rate: typeof cacheHitRate === "number" ? cacheHitRate : null,
+        last_seen_at: trace.last_seen_at ?? null,
+    };
+}
+
 // --------------- analysis prompt ---------------
 
 export function buildAnalysisPrompt({ traceId, spanId, focus }) {
@@ -534,6 +553,19 @@ export function renderHelperHtml({ instanceId, monitorUrl, healthState, statusCo
   ${healthDetailsHtml}
 
   <div class="card">
+    <h2>選択したトレースの要約</h2>
+    <p class="muted" id="trace-detail-empty">トレースを選択すると要約が表示されます。</p>
+    <dl class="kv" id="trace-detail-kv" style="display:none;">
+      <dt>状態</dt><dd id="td-status"></dd>
+      <dt>主要モデル</dt><dd id="td-model"></dd>
+      <dt>トークン合計</dt><dd id="td-tokens"></dd>
+      <dt>所要時間</dt><dd id="td-duration"></dd>
+      <dt>キャッシュヒット率</dt><dd id="td-cache"></dd>
+    </dl>
+    <p id="trace-detail-link" style="display:none;"><a id="td-monitor-link" href="#" target="_blank" rel="noopener noreferrer">Local Monitorで詳細を見る</a></p>
+  </div>
+
+  <div class="card">
     <h2>Copilotでこのトレースを分析</h2>
     <p style="margin-bottom:12px;color:var(--muted);">トレースと観点を選んで Copilot 分析を実行します。Copilot は bounded な monitor action を使い、このヘルパーから raw な monitor payload を受け取りません。</p>
     <div class="row">
@@ -568,15 +600,56 @@ ${focusOptionsHtml}
   <script>
     (function () {
       var token = ${JSON.stringify(escapedToken)};
+      var monitorUrlBase = ${JSON.stringify(String(monitorUrl ?? "").replace(/\/$/, ""))};
       var traceSel = document.getElementById("trace");
       var focusSel = document.getElementById("focus");
       var spanInput = document.getElementById("span");
       var btn = document.getElementById("analyze");
       var result = document.getElementById("result");
+      var tdEmpty = document.getElementById("trace-detail-empty");
+      var tdKv = document.getElementById("trace-detail-kv");
+      var tdLink = document.getElementById("trace-detail-link");
+      var tdStatus = document.getElementById("td-status");
+      var tdModel = document.getElementById("td-model");
+      var tdTokens = document.getElementById("td-tokens");
+      var tdDuration = document.getElementById("td-duration");
+      var tdCache = document.getElementById("td-cache");
+      var tdMonitorLink = document.getElementById("td-monitor-link");
 
       function setResult(msg, ok) {
         result.textContent = msg;
         result.className = ok ? "ok" : "err";
+      }
+
+      function showTraceDetailEmpty(msg) {
+        tdEmpty.textContent = msg;
+        tdEmpty.style.display = "";
+        tdKv.style.display = "none";
+        tdLink.style.display = "none";
+      }
+
+      function loadTraceDetail(traceId) {
+        if (!traceId) { showTraceDetailEmpty("トレースを選択すると要約が表示されます。"); return; }
+        showTraceDetailEmpty("読み込み中…");
+        fetch("/api/trace-detail/" + encodeURIComponent(traceId) + "?t=" + encodeURIComponent(token), { headers: { "x-canvas-token": token } })
+          .then(function (r) { return r.json().then(function (b) { return { status: r.status, body: b }; }); })
+          .then(function (out) {
+            if (out.status !== 200) {
+              showTraceDetailEmpty("要約の取得に失敗しました: " + (out.body && out.body.error || ("HTTP " + out.status)));
+              return;
+            }
+            var d = out.body;
+            tdStatus.textContent = d.status === "error" ? "エラーあり" : "OK";
+            tdModel.textContent = d.primary_model != null ? String(d.primary_model) : "—";
+            tdTokens.textContent = d.total_tokens != null ? String(d.total_tokens) : "—";
+            tdDuration.textContent = d.duration_ms != null ? String(d.duration_ms) + "ms" : "—";
+            tdCache.textContent = typeof d.cache_hit_rate === "number" ? Math.round(d.cache_hit_rate * 100) + "%" : "—";
+            tdMonitorLink.href = monitorUrlBase + "/traces/" + encodeURIComponent(traceId);
+            tdEmpty.style.display = "none";
+            tdKv.style.display = "";
+            tdLink.style.display = "";
+          })
+          .catch(function (e) { showTraceDetailEmpty("要約の取得に失敗しました: " + e.message); });
       }
 
       if (!token) { setResult("起動トークンがありません。", false); return; }
@@ -596,6 +669,10 @@ ${focusOptionsHtml}
           if (!traceSel.options.length) { setResult("最近のトレースが見つかりませんでした。", true); }
         })
         .catch(function (e) { setResult("トレースの読み込みに失敗しました: " + e.message, false); });
+
+      traceSel.addEventListener("change", function () {
+        loadTraceDetail(traceSel.value);
+      });
 
       btn.addEventListener("click", function () {
         var traceId = traceSel.value;

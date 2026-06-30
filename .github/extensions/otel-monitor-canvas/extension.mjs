@@ -38,6 +38,7 @@ import {
     cacheTurn,
     sanitizeDto,
     formatTraceLine,
+    traceDetailSummary,
     MAX_CACHE_TURNS,
 } from "./canvas-helpers.mjs";
 
@@ -85,6 +86,33 @@ function sendJson(res, statusCode, payload) {
     res.end(JSON.stringify(payload));
 }
 
+// Shared "fetch sanitized trace rows" used by both the /api/traces helper
+// route and the /api/trace-detail/:traceId route (Sprint15 M3), so both share
+// one underlying fetch+parse path rather than duplicating it. Operates on the
+// route's own `monitorUrl` closure variable, mirroring fetchTracePage's ctx-
+// based equivalent used by the Canvas action handlers.
+async function fetchHelperTraceRows(monitorUrl) {
+    const { response, body } = await fetchTextWithTimeout(monitorApiUrl(monitorUrl, `/api/monitor/traces?limit=${MAX_TRACE_LIST_LIMIT}`));
+    if (!response.ok) {
+        throw new CanvasError("monitor_unavailable", `The Local Monitor returned HTTP ${response.status}.`);
+    }
+    const page = body ? parseJsonBody(body) : { items: [] };
+    return Array.isArray(page.items) ? page.items : [];
+}
+
+// Shared "fetch sanitized spans for one trace" used by /api/trace-detail/:traceId
+// (Sprint15 M3), mirroring fetchSpanPage's ctx-based equivalent used by the
+// Canvas action handlers.
+async function fetchHelperSpans(monitorUrl, traceId) {
+    const encodedTraceId = encodeURIComponent(traceId);
+    const { response, body } = await fetchTextWithTimeout(monitorApiUrl(monitorUrl, `/api/monitor/traces/${encodedTraceId}/spans?limit=${MAX_SPAN_PAGE_SIZE}`));
+    if (!response.ok) {
+        throw new CanvasError("monitor_unavailable", `The Local Monitor returned HTTP ${response.status}.`);
+    }
+    const page = body ? parseJsonBody(body) : { items: [] };
+    return Array.isArray(page.items) ? page.items : [];
+}
+
 function createHelperServer({ instanceId, monitorUrl, healthState, statusCode, healthBody, error, token, session }) {
     const server = createServer(async (req, res) => {
         const url = new URL(req.url, "http://127.0.0.1");
@@ -107,26 +135,61 @@ function createHelperServer({ instanceId, monitorUrl, healthState, statusCode, h
 
         if (req.method === "GET" && path === "/api/traces") {
             try {
-                const monitorUrlValidated = monitorUrl;
-                if (!isLoopbackUrl(monitorUrlValidated)) {
+                if (!isLoopbackUrl(monitorUrl)) {
                     sendJson(res, 400, { error: "invalid_monitor_url" });
                     return;
                 }
-                const { response, body } = await fetchTextWithTimeout(monitorApiUrl(monitorUrlValidated, `/api/monitor/traces?limit=${MAX_TRACE_LIST_LIMIT}`));
-                if (!response.ok) {
-                    sendJson(res, 502, { error: "monitor_unavailable", status: response.status });
+                const rows = await fetchHelperTraceRows(monitorUrl);
+                const items = rows.map((row) => {
+                    const trace = compactTrace(row);
+                    // `line` is a sanitized, decision-supporting label built
+                    // only from compactTrace fields (Sprint15 A1).
+                    return { ...trace, line: formatTraceLine(trace) };
+                });
+                sendJson(res, 200, { items, count: items.length });
+            } catch (err) {
+                const code = err instanceof CanvasError ? err.code : "monitor_unavailable";
+                sendJson(res, 502, { error: code, message: err.message });
+            }
+            return;
+        }
+
+        if (req.method === "GET" && path.startsWith("/api/trace-detail/")) {
+            const traceId = decodeURIComponent(path.slice("/api/trace-detail/".length));
+            if (!matchesTraceId(traceId)) {
+                sendJson(res, 400, { error: "invalid_trace_id" });
+                return;
+            }
+            try {
+                if (!isLoopbackUrl(monitorUrl)) {
+                    sendJson(res, 400, { error: "invalid_monitor_url" });
                     return;
                 }
-                const page = body ? parseJsonBody(body) : { items: [] };
-                const items = Array.isArray(page.items)
-                    ? page.items.map((row) => {
-                        const trace = compactTrace(row);
-                        // `line` is a sanitized, decision-supporting label built
-                        // only from compactTrace fields (Sprint15 A1).
-                        return { ...trace, line: formatTraceLine(trace) };
-                    })
-                    : [];
-                sendJson(res, 200, { items, count: items.length });
+                const [rows, spans] = await Promise.all([
+                    fetchHelperTraceRows(monitorUrl),
+                    fetchHelperSpans(monitorUrl, traceId),
+                ]);
+                const traceRow = rows.find((row) => row.trace_id === traceId) ?? null;
+                if (!traceRow && spans.length === 0) {
+                    sendJson(res, 404, { error: "trace_not_found" });
+                    return;
+                }
+
+                const trace = traceRow
+                    ? compactTrace(traceRow)
+                    : {
+                        trace_id: traceId,
+                        status: spans.some(isErrorSpan) ? "error" : "ok",
+                        span_count: spans.length,
+                    };
+                const chatTurns = spans.filter(isChatTurn);
+                const cacheReadTokens = sumField(chatTurns, "cache_read_tokens");
+                const inputTokens = sumField(chatTurns, "input_tokens");
+                const summary = traceDetailSummary({
+                    trace,
+                    cacheHitRate: cacheHitRate(cacheReadTokens, inputTokens),
+                });
+                sendJson(res, 200, summary);
             } catch (err) {
                 const code = err instanceof CanvasError ? err.code : "monitor_unavailable";
                 sendJson(res, 502, { error: code, message: err.message });
