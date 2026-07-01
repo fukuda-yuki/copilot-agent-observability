@@ -364,6 +364,22 @@ export function traceDetailSummary({ trace, cacheHitRate }) {
     };
 }
 
+// --------------- dashboard summary (Sprint15 M4 / child B remainder, D038) ---------------
+
+// Builds the decision-supporting `line` field for a /api/monitor/summary
+// highlight trace (latest_trace / top_token_trace / error_trace). These are
+// raw per-trace DTOs straight from Local Monitor's own /api/monitor/summary
+// response (MonitorHost.ToTraceDto shape): they carry `error_count` but NOT
+// a precomputed `status` string. formatTraceLine reads `status` (via
+// statusLabel), so it must be given a compactTrace-shaped object — passing
+// the raw DTO directly would always read `status` as undefined and render
+// "OK" even for the error trace. Route it through compactTrace first, the
+// same way /api/traces and /api/trace-detail/:traceId already do for their
+// own rows.
+export function summaryTraceLine(trace) {
+    return trace ? formatTraceLine(compactTrace(trace)) : null;
+}
+
 // --------------- raw preview (Sprint15 M5 / child D, D038) ---------------
 
 // Extracts the substring between the FIRST "<pre>" and the LAST "</pre>" in

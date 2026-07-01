@@ -17,6 +17,7 @@ import {
     buildAnalysisPrompt,
     compactTrace,
     traceDetailSummary,
+    summaryTraceLine,
     extractRawPreviewFragment,
     renderRawPreviewHtml,
 } from "./canvas-helpers.mjs";
@@ -223,6 +224,13 @@ test("renderHelperHtml: contains the Local Monitor 概要 dashboard card and fet
     // forbidden here.
     assert.doesNotMatch(html, /\/raw(?!-preview)/);
     assert.doesNotMatch(html, /payload_json/);
+});
+
+test("summaryTraceLine: derives status from error_count, since /api/monitor/summary's highlight traces (MonitorHost.ToTraceDto shape) carry error_count but no precomputed status field", () => {
+    const errorRow = { ...SAMPLE_TRACE_ROW, error_count: 1 };
+    assert.match(summaryTraceLine(errorRow), /^エラーあり \//);
+    assert.match(summaryTraceLine(SAMPLE_TRACE_ROW), /^OK \//);
+    assert.equal(summaryTraceLine(null), null);
 });
 
 test("extractRawPreviewFragment: extracts the encoded payload between the first <pre> and the last </pre>", () => {

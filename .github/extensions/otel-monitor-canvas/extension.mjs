@@ -39,6 +39,7 @@ import {
     sanitizeDto,
     formatTraceLine,
     formatTokens,
+    summaryTraceLine,
     traceDetailSummary,
     extractRawPreviewFragment,
     renderRawPreviewHtml,
@@ -119,14 +120,16 @@ async function fetchHelperSpans(monitorUrl, traceId) {
 
 // Fetch the sanitized dashboard summary (Sprint15 M4 / child B remainder,
 // D038), proxied as-is from GET /api/monitor/summary (already the bounded
-// D037 contract — no reshaping here).
+// D037 contract — no reshaping here). Unlike fetchHelperTraceRows/
+// fetchHelperSpans, this does NOT throw on a non-OK response: an out-of-
+// range `?limit=` is a legitimate client-input 400 from the Local Monitor,
+// and the route passes that status/body straight through rather than
+// masking it as a generic monitor_unavailable 502 (only a genuine network
+// failure — a thrown CanvasError from fetchTextWithTimeout itself — reaches
+// that generic path).
 async function fetchHelperSummary(monitorUrl, limitQuery) {
     const path = limitQuery ? `/api/monitor/summary?${limitQuery}` : "/api/monitor/summary";
-    const { response, body } = await fetchTextWithTimeout(monitorApiUrl(monitorUrl, path));
-    if (!response.ok) {
-        throw new CanvasError("monitor_unavailable", `The Local Monitor returned HTTP ${response.status}.`);
-    }
-    return body ? parseJsonBody(body) : {};
+    return fetchTextWithTimeout(monitorApiUrl(monitorUrl, path));
 }
 
 function createHelperServer({ instanceId, monitorUrl, healthState, statusCode, healthBody, error, token, session }) {
@@ -179,12 +182,32 @@ function createHelperServer({ instanceId, monitorUrl, healthState, statusCode, h
                 const limitQuery = url.searchParams.has("limit")
                     ? `limit=${encodeURIComponent(url.searchParams.get("limit"))}`
                     : "";
-                const summary = await fetchHelperSummary(monitorUrl, limitQuery);
+                const { response, body } = await fetchHelperSummary(monitorUrl, limitQuery);
+                if (!response.ok) {
+                    // Pass the Local Monitor's own status/body through (e.g.
+                    // its 400 for an out-of-range `limit`) instead of masking
+                    // every non-OK response as a generic monitor_unavailable
+                    // 502 — only a thrown network-level failure (caught
+                    // below) gets that generic treatment.
+                    let parsedError = null;
+                    try {
+                        parsedError = body ? JSON.parse(body) : null;
+                    } catch {
+                        parsedError = null;
+                    }
+                    sendJson(res, response.status, parsedError ?? { error: "monitor_unavailable", message: `The Local Monitor returned HTTP ${response.status}.` });
+                    return;
+                }
+                const summary = body ? parseJsonBody(body) : {};
                 // Additive-only enrichment mirroring /api/traces' own `line`
                 // field: every existing D037/D038 field is preserved
                 // unchanged, only a derived, already-sanitized display string
-                // is appended (Sprint15 M4 / D038).
-                const withLine = (trace) => (trace ? { ...trace, line: formatTraceLine(trace) } : null);
+                // is appended (Sprint15 M4 / D038). The highlight traces are
+                // raw MonitorHost.ToTraceDto shapes (no `status` field), so
+                // `summaryTraceLine` routes them through compactTrace first —
+                // calling formatTraceLine on them directly would always read
+                // `status` as undefined and mislabel error traces as "OK".
+                const withLine = (trace) => (trace ? { ...trace, line: summaryTraceLine(trace) } : null);
                 const withTokensFormatted = (rows) => (Array.isArray(rows)
                     ? rows.map((row) => ({ ...row, total_tokens_formatted: formatTokens(row.total_tokens) }))
                     : rows);
