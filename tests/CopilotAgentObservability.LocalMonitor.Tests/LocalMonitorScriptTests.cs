@@ -131,7 +131,8 @@ public class LocalMonitorScriptTests
 
         Assert.Contains("New-ScheduledTaskTrigger -AtLogOn", install);
         Assert.Contains("New-ScheduledTaskPrincipal", install);
-        Assert.Contains("-RunLevel LeastPrivilege", install);
+        Assert.Contains("-RunLevel Limited", install);
+        Assert.DoesNotContain("-RunLevel LeastPrivilege", install);
         Assert.Contains("New-ScheduledTaskSettingsSet", install);
         Assert.Contains("-MultipleInstances IgnoreNew", install);
         Assert.Contains("Register-ScheduledTask", install);
