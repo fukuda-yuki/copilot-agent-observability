@@ -9,6 +9,16 @@ $script:LogDirectory = Join-Path $script:RuntimeRoot 'logs'
 $script:StatePath = Join-Path $script:RuntimeRoot 'local-monitor.state.json'
 $script:PidPath = Join-Path $script:RuntimeRoot 'local-monitor.pid'
 $script:PublishedExeName = 'CopilotAgentObservability.LocalMonitor.exe'
+$script:UserEnvironmentVariables = @(
+    'CAO_COLLECTION_PROFILE',
+    'COPILOT_OTEL_ENABLED',
+    'COPILOT_OTEL_CAPTURE_CONTENT',
+    'COPILOT_OTEL_ENDPOINT',
+    'OTEL_EXPORTER_OTLP_ENDPOINT',
+    'OTEL_EXPORTER_OTLP_PROTOCOL',
+    'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT',
+    'OTEL_RESOURCE_ATTRIBUTES'
+)
 
 function Get-LocalMonitorDefaultInstallRoot {
     return $script:DefaultInstallRoot
@@ -280,4 +290,70 @@ function Get-LocalMonitorTask {
     )
 
     return Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+}
+
+function Set-LocalMonitorUserEnvironmentVariable {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Name,
+
+        [Parameter(Mandatory)]
+        [string] $Value
+    )
+
+    [Environment]::SetEnvironmentVariable($Name, $Value, 'User')
+}
+
+function Clear-LocalMonitorUserEnvironmentVariable {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Name
+    )
+
+    [Environment]::SetEnvironmentVariable($Name, $null, 'User')
+}
+
+function Get-LocalMonitorUserEnvironmentVariable {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Name
+    )
+
+    return [Environment]::GetEnvironmentVariable($Name, 'User')
+}
+
+function Send-LocalMonitorEnvironmentChanged {
+    $signature = @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class LocalMonitorEnvironmentBroadcast
+{
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    public static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd,
+        uint Msg,
+        UIntPtr wParam,
+        string lParam,
+        uint fuFlags,
+        uint uTimeout,
+        out UIntPtr lpdwResult);
+}
+'@
+
+    $isWindowsVariable = Get-Variable -Name IsWindows -ErrorAction SilentlyContinue
+    $isWindowsPlatform = ($PSVersionTable.PSEdition -eq 'Desktop') -or ($null -ne $isWindowsVariable -and $isWindowsVariable.Value)
+    if ($isWindowsPlatform) {
+        Add-Type -TypeDefinition $signature -ErrorAction SilentlyContinue
+        $wmSettingChange = 0x001A # WM_SETTINGCHANGE
+        $result = [UIntPtr]::Zero
+        [void] [LocalMonitorEnvironmentBroadcast]::SendMessageTimeout(
+            [IntPtr] 0xffff,
+            $wmSettingChange,
+            [UIntPtr]::Zero,
+            'Environment',
+            0x0002,
+            5000,
+            [ref] $result)
+    }
 }

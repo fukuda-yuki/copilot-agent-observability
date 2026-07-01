@@ -35,6 +35,17 @@ Optional logon startup:
 .\scripts\set-startup-task.ps1 -Action Enable
 ```
 
+Optional current-user telemetry environment:
+
+```powershell
+.\scripts\install-user-env.ps1
+.\scripts\uninstall-user-env.ps1
+```
+
+This persists raw-local-receiver / monitor routing in the current Windows
+user's environment for newly started VS Code and Copilot CLI processes. Restart
+already-running clients after changing it.
+
 Start immediately without registering startup:
 
 ```powershell
@@ -63,10 +74,16 @@ Remove runtime data only when explicitly intended:
 ```
 
 Point VS Code / Copilot Chat at the monitor with the existing Config CLI source
-of truth:
+of truth for a single shell:
 
 ```powershell
 dotnet run --project src\CopilotAgentObservability.ConfigCli -- profile-vscode-env --profile raw-local-receiver --target monitor
+```
+
+For all newly started processes under the current Windows user, use:
+
+```powershell
+.\scripts\local-monitor\install-user-env.ps1
 ```
 
 Use `-SanitizedOnly` on `start.ps1` or `install-startup-task.ps1` to run the
@@ -92,6 +109,7 @@ must not contain runtime DB, logs, state, raw telemetry, credentials, or PII.
 - Logs: `%LOCALAPPDATA%\CopilotAgentObservability\LocalMonitor\logs\`
 - Task: `CopilotAgentObservability LocalMonitor`
 - Trigger: current user logon
+- User env endpoint: `http://127.0.0.1:4320`
 
 ## Troubleshooting
 

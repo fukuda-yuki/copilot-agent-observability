@@ -110,6 +110,12 @@ Default posture:
   DB, logs, pid/state files, and task-generated local state live under
   `%LOCALAPPDATA%\CopilotAgentObservability\LocalMonitor\` by default and must
   not be committed.
+- Windows user environment install is a separate current-user routing
+  convenience. It writes only HKCU user environment values for loopback
+  raw-local-receiver / monitor routing, never machine-wide environment, and
+  never secrets. It does not weaken the monitor's loopback / same-origin / log
+  boundaries. Existing processes keep their old inherited environment until
+  restarted.
 - Release ZIP distribution is a packaging surface for the same local monitor
   process. The ZIP and its GitHub Actions logs/artifacts may contain the
   published app, scripts, manifest, and notices only; they must not contain raw

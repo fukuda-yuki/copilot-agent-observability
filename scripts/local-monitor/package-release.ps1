@@ -53,7 +53,9 @@ $scriptNames = @(
     'stop.ps1',
     'status.ps1',
     'set-startup-task.ps1',
+    'install-user-env.ps1',
     'install-startup-task.ps1',
+    'uninstall-user-env.ps1',
     'uninstall-startup-task.ps1'
 )
 foreach ($scriptName in $scriptNames) {

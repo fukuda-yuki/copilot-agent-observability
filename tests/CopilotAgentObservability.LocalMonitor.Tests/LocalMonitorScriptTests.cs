@@ -13,7 +13,9 @@ public class LocalMonitorScriptTests
         "stop.ps1",
         "status.ps1",
         "set-startup-task.ps1",
+        "install-user-env.ps1",
         "install-startup-task.ps1",
+        "uninstall-user-env.ps1",
         "uninstall-startup-task.ps1",
     ];
 
@@ -106,6 +108,8 @@ public class LocalMonitorScriptTests
         Assert.Contains("manifest.json", package, StringComparison.Ordinal);
         Assert.Contains("app", package, StringComparison.Ordinal);
         Assert.Contains("scripts", package, StringComparison.Ordinal);
+        Assert.Contains("install-user-env.ps1", package, StringComparison.Ordinal);
+        Assert.Contains("uninstall-user-env.ps1", package, StringComparison.Ordinal);
         Assert.Contains("Compress-Archive", package, StringComparison.Ordinal);
         Assert.Contains("$LASTEXITCODE", package, StringComparison.Ordinal);
         Assert.Contains("dotnet_publish_failed", package, StringComparison.Ordinal);
@@ -158,6 +162,9 @@ public class LocalMonitorScriptTests
         AssertScriptContains("install-startup-task.ps1", "$StartNow");
         AssertScriptContains("install-startup-task.ps1", "$Force");
         AssertScriptContains("install-startup-task.ps1", "$InstallRoot");
+        AssertScriptContains("install-user-env.ps1", "$Force");
+        AssertScriptContains("install-user-env.ps1", "$Url");
+        AssertScriptContains("uninstall-user-env.ps1", "$Force");
         AssertScriptContains("set-startup-task.ps1", "Disable-ScheduledTask");
         AssertScriptContains("set-startup-task.ps1", "Enable-ScheduledTask");
         AssertScriptContains("uninstall-startup-task.ps1", "$StopRunning");
@@ -187,6 +194,41 @@ public class LocalMonitorScriptTests
         Assert.Contains("Remove-LocalMonitorState", uninstall, StringComparison.Ordinal);
         Assert.Contains("$script:RuntimeRoot", uninstall, StringComparison.Ordinal);
         Assert.Contains("data_not_removed", uninstall, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UserEnvironmentScriptsPersistRawLocalMonitorOtelSettingsForCurrentUser()
+    {
+        var install = File.ReadAllText(ScriptPath("install-user-env.ps1"));
+        var uninstall = File.ReadAllText(ScriptPath("uninstall-user-env.ps1"));
+        var common = File.ReadAllText(ScriptPath("common.ps1"));
+
+        Assert.Contains("Set-LocalMonitorUserEnvironmentVariable", common, StringComparison.Ordinal);
+        Assert.Contains("Clear-LocalMonitorUserEnvironmentVariable", common, StringComparison.Ordinal);
+        Assert.Contains("Send-LocalMonitorEnvironmentChanged", common, StringComparison.Ordinal);
+        Assert.Contains("SetEnvironmentVariable($Name, $Value, 'User')", common, StringComparison.Ordinal);
+        Assert.Contains("SetEnvironmentVariable($Name, $null, 'User')", common, StringComparison.Ordinal);
+        Assert.Contains("WM_SETTINGCHANGE", common, StringComparison.Ordinal);
+        Assert.Contains("Environment", common, StringComparison.Ordinal);
+
+        Assert.Contains("CAO_COLLECTION_PROFILE", install, StringComparison.Ordinal);
+        Assert.Contains("raw-local-receiver", install, StringComparison.Ordinal);
+        Assert.Contains("COPILOT_OTEL_ENABLED", install, StringComparison.Ordinal);
+        Assert.Contains("COPILOT_OTEL_CAPTURE_CONTENT", install, StringComparison.Ordinal);
+        Assert.Contains("COPILOT_OTEL_ENDPOINT", install, StringComparison.Ordinal);
+        Assert.Contains("OTEL_EXPORTER_OTLP_ENDPOINT", install, StringComparison.Ordinal);
+        Assert.Contains("OTEL_EXPORTER_OTLP_PROTOCOL", install, StringComparison.Ordinal);
+        Assert.Contains("http/protobuf", install, StringComparison.Ordinal);
+        Assert.Contains("OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT", install, StringComparison.Ordinal);
+        Assert.Contains("OTEL_RESOURCE_ATTRIBUTES", install, StringComparison.Ordinal);
+        Assert.Contains("experiment.id=baseline", install, StringComparison.Ordinal);
+        Assert.DoesNotContain("client.kind", install, StringComparison.Ordinal);
+        Assert.DoesNotContain("setx", install, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("Clear-LocalMonitorUserEnvironmentVariable", uninstall, StringComparison.Ordinal);
+        Assert.Contains("OTEL_EXPORTER_OTLP_ENDPOINT", uninstall, StringComparison.Ordinal);
+        Assert.Contains("Send-LocalMonitorEnvironmentChanged", uninstall, StringComparison.Ordinal);
+        Assert.DoesNotContain("setx", uninstall, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

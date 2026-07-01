@@ -480,6 +480,17 @@ logon startup, or register/enable/disable/unregister the task later. Task
 registration remains current-user only and must not write VS Code, Copilot CLI,
 or Codex routing settings.
 
+Windows users may separately persist the monitor routing environment for the
+current Windows user through `install-user-env.ps1` and remove it with
+`uninstall-user-env.ps1`. This writes user-scope environment variables through
+the Windows user environment API (`HKCU\Environment`), broadcasts an
+environment-change notification, and never uses `setx`. The setting applies
+only to newly started processes; already-running VS Code, terminals, and
+Copilot CLI processes must be restarted. The default endpoint is
+`http://127.0.0.1:4320`, non-loopback URLs are rejected, and the script sets no
+`client.kind` resource attribute because one global user environment is shared
+by VS Code and Copilot CLI.
+
 The startup wrapper must preserve the Local Monitor run boundary:
 
 - only loopback HTTP URLs are accepted (`127.0.0.1`, `localhost`, or `::1`).
@@ -489,14 +500,14 @@ The startup wrapper must preserve the Local Monitor run boundary:
 - wrapper logs and state files do not contain raw monitor content, credentials,
   tokens, PII, or raw OTLP payloads.
 - Task registration scripts do not write VS Code, Copilot CLI, or Codex routing
-  configuration; users continue to use `profile-vscode-env --profile
-  raw-local-receiver --target monitor` for VS Code monitor routing.
+  configuration. Users can either apply per-shell Config CLI output or use the
+  explicit user environment scripts for current-user default routing.
 
 Validation:
 
 - automated tests cover script existence, PowerShell parsing, stable defaults,
-  generated task settings, status output, published-mode command construction,
-  and log-boundary string checks.
+  generated task settings, user environment settings, status output,
+  published-mode command construction, and log-boundary string checks.
 - Windows integration validation should cover start/status/stop, duplicate
   start prevention, non-loopback URL rejection, occupied-port diagnostics, dry-run
   task registration output, actual task registration, logon trigger behavior,
@@ -516,6 +527,8 @@ Release ZIP requirements:
 - publish mode is `win-x64` self-contained folder publish. Initial support does
   not require single-file publish.
 - the ZIP contains `app/`, `scripts/`, `README.md`, `manifest.json`, and notices.
+- the ZIP scripts include `install-user-env.ps1` and `uninstall-user-env.ps1`
+  for explicit current-user environment install / uninstall.
 - the ZIP excludes runtime DB, logs, state, raw OTLP payloads, real user data,
   generated monitor output, credentials, and repository-forbidden data.
 - using the ZIP on a user machine must not require `dotnet run`, `dotnet build`,

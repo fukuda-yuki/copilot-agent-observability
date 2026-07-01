@@ -103,11 +103,25 @@ Logs/state: %LOCALAPPDATA%\CopilotAgentObservability\LocalMonitor\
 ```
 
 Task registration does not edit VS Code or Copilot settings. Use the existing
-Config CLI output to point VS Code at the monitor:
+Config CLI output to point VS Code at the monitor for a single shell:
 
 ```powershell
 dotnet run --project src\CopilotAgentObservability.ConfigCli -- profile-vscode-env --profile raw-local-receiver --target monitor
 ```
+
+To make monitor routing the current Windows user's default for newly started
+VS Code, terminals, and GitHub Copilot CLI processes, use the explicit user
+environment scripts instead:
+
+```powershell
+.\scripts\install-user-env.ps1
+.\scripts\uninstall-user-env.ps1
+```
+
+Repository-local paths are `.\scripts\local-monitor\install-user-env.ps1` and
+`.\scripts\local-monitor\uninstall-user-env.ps1`. These scripts write only
+current-user environment variables, reject non-loopback URLs, do not use `setx`,
+and require process restart for already-running clients.
 
 ## Sanitized-Only Mode
 
@@ -147,7 +161,7 @@ posture.
 | `port_already_in_use` | Stop the other process or pass another loopback URL. |
 | `monitor_start_timeout` | Inspect `%LOCALAPPDATA%\CopilotAgentObservability\LocalMonitor\logs\`. |
 | `/health/live` is reachable but ready is `503` | Run `status.ps1` and inspect readiness status / degraded reasons. |
-| VS Code telemetry does not arrive | Regenerate and apply `profile-vscode-env --profile raw-local-receiver --target monitor`, then start VS Code from that shell. |
+| VS Code telemetry does not arrive | If using user env, restart VS Code after `install-user-env.ps1`. If using shell env, regenerate and apply `profile-vscode-env --profile raw-local-receiver --target monitor`, then start VS Code from that shell. |
 
 ## Manual Validation Evidence
 
