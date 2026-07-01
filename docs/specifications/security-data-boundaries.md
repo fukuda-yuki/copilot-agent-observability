@@ -409,6 +409,51 @@ Sprint15 child B/C/D/E resolution (D037):
   check is delegated to a GitHub Copilot app session, once, covering every
   child together.
 
+Sprint15 continuation — prompt-aware trace selection (D039, design confirmed,
+implementation not yet started):
+
+- **New raw-bearing JSON route, `GET /traces/{traceId}/prompt-label`.** Not
+  part of the `/api/monitor/*` sanitized family (D032's "no `/api/monitor/*`/
+  SSE field" guarantee is unaffected). Follows the same route-boundary pattern
+  D035 already established for `/traces/{traceId}/analysis/...`: registered
+  only inside the `!options.SanitizedOnly` block (route absent → `404` under
+  `--sanitized-only`), `MonitorHost.IsCrossSiteRequest` same-origin check
+  (`403` on cross-site), and `Cache-Control: no-store`. Reuses the existing
+  `MonitorPromptExtractor.ExtractPromptLabel` (120-char truncated,
+  whitespace-collapsed, exception-safe) and
+  `IMonitorProjectionStore.ListRawRecordsByTraceId` exactly as
+  `Index.cshtml.cs`/`Traces.cshtml.cs` already call them — no new extraction
+  logic. Response: `{ "trace_id", "prompt_label" }`, where `prompt_label` may
+  legitimately be `null` (not an error).
+- **Canvas-owned `/api/traces` (helper-page surface, not a Canvas action)
+  fetches this per trace, in parallel, and adds `prompt_label` to its own
+  response.** This is the same "helper-page surface" category M5's
+  raw-preview already established as distinct from the strictly-bounded
+  `invoke_canvas_action` surface — `sanitizeDto()`'s forbidden-key filter
+  (which matches `prompt`) is unaffected because `/api/traces` never passed
+  through it in the first place. Canvas **actions** (`monitor_health`,
+  `list_recent_traces`, `get_trace_summary`, `get_trace_span_tree`,
+  `get_cache_summary`), `session.send()` prompts, logs, and committed
+  artifacts are unchanged by this and never carry `prompt_label`. Under
+  `--sanitized-only`, the new route is absent (`404`), and Canvas falls back
+  to its existing decision-supporting line with no prompt shown, mirroring
+  D032's own fallback for the Local Monitor's own pages.
+- **Rationale for reconsidering "no `/api/monitor/*` field" for this one
+  narrow case**: unlike Local Monitor's own pages (same-origin check only,
+  no secret), every route on the Canvas extension's own server — including
+  this one — is additionally gated by a per-launch random token unknown to
+  any third-party site, which independently blocks the "malicious
+  same-browser website" scenario this whole route-boundary pattern exists to
+  defend against. Combined with reusing D035's already-accepted "JSON
+  raw-bearing route, not `/api/monitor/*`" precedent and the existing 120-char
+  truncation, this is judged a narrow, already-precedented extension, not a
+  new exposure category. See D039 in `docs/decisions.md` for the full
+  discussion and rationale.
+- Implementation (Local Monitor endpoint, Canvas-side consumption, and
+  contract tests) requires an explicit user go-ahead before starting, per the
+  same two-stage (design confirmed → implementation authorized) process
+  D037/D038 already used.
+
 Sprint12 UX redesign (prompt identification + DOM views, boundary controls
 reused):
 
@@ -422,7 +467,11 @@ reused):
   no-store`, and removal under `--sanitized-only` (the label is dropped and a
   shortened TraceId is shown). The prompt label is server-rendered only; the
   sanitized `/api/monitor/*` JSON and the SSE stream are unchanged and still
-  never carry it. No projection schema, API field, or new endpoint is added. The
+  never carry it. No projection schema, API field, or new endpoint is added
+  **for the `/api/monitor/*` family** — updated by D039, which adds a
+  narrowly-scoped new endpoint *outside* that family (see "Sprint15
+  continuation" above); `/api/monitor/*` and SSE themselves remain unchanged
+  and prompt-free. The
   old `/ingestions` page is retired and its ingestion list is folded into the
   dashboard.
 - **DOM Flow Chart / Span Tree (D033).** The Cytoscape.js + dagre vendored graph

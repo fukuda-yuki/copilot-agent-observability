@@ -1097,3 +1097,114 @@ Canvas action は追加しない（ヘルパーページ own route のみ）。
 - `--sanitized-only` を Canvas 利用の前提に戻さない。
 - ライブ検証（GitHub Copilot Canvas runtime）は本決定の実装スコープに含まない。
   実装完了後の別工程として扱う。
+
+## D039: Canvas のトレース選択にプロンプトラベルを表示する（D035 の JSON raw-bearing route パターンを踏襲）
+
+Status: Accepted
+
+### 背景（利用者との議論）
+
+Sprint15 M1（child A）のトレース選択ドロップダウンは、`compactTrace` 由来の
+sanitized な決定支援ラインのみ（状態 / モデル / span 数 / tool 数 / token 数 /
+時刻 / 所要時間 / 短縮 trace id）を表示する。利用者から、どのプロンプトの
+トレースかをドロップダウン上で識別できないか（＝プロンプト自体を選択肢に
+出せないか）という要望があった。
+
+これに対して次の論点整理を行った。
+
+- D020 DR6 の「同一ローカル利用者が自分の raw を loopback 経由で見ること自体は
+  脅威ではない」という前提は維持される。今回の論点はそこではない。
+- AGENTS.md の Local-First Risk Posture が明示的に defend 対象とする
+  "other-origin browser-mediated exfiltration"（同一ブラウザで開いた別サイトが
+  loopback 経由で raw を読み取り外部へ送出するケース）が、本来「JS は raw を
+  取得しない」原則の対象である。
+- ただし Canvas 拡張の own server（helper server）は、既存の全ルートが
+  起動ごとのランダムトークン（`x-canvas-token` / `?t=`）で保護されている。
+  このトークンを知らない第三者サイトの JS は、そもそも `/api/traces` を含む
+  既存の JSON API も呼べない。したがって「JSON 経由で追加のフィールドを返す
+  こと自体」が、Local Monitor 本体（same-origin チェックのみで守る、秘密
+  トークンを持たない）と同じ意味で新たな穴になるとは限らない。
+- 一方、D032 は「プロンプトラベルは server-rendered surface（`/` と
+  `/traces`）でのみ表示し、`/api/monitor/*` と SSE には一切含めない」ことを
+  明示していた。この制約をそのまま緩めるのではなく、既に別の目的で
+  同種の JSON raw-bearing route を確立している **D035**（Local Monitor の
+  raw analysis: `/traces/{traceId}/analysis/runs/{runId}` は
+  `WriteJsonAsync` で raw を含む JSON を返す。same-origin チェック、
+  `Cache-Control: no-store`、`--sanitized-only` で route 自体が不在になる、
+  という 3 点で保護される）と同じパターンに乗せることで、新規の例外を
+  作るのではなく既存パターンの拡張として位置づける。
+
+### 決定事項
+
+- Local Monitor に新規の raw-bearing JSON route
+  `GET /traces/{traceId}/prompt-label` を追加する。`/api/monitor/*` の
+  sanitized family には含めない（D032 の「`/api/monitor/*` と SSE は
+  プロンプトを含めない」を維持する）。
+  - 実装は D035 の raw analysis route 群と同じ `if (!options.SanitizedOnly)`
+    ブロック内に置く（`--sanitized-only` では route 不在＝`404`）。
+  - `MonitorHost.IsCrossSiteRequest` による same-origin チェック（cross-site
+    は `403`）と `Cache-Control: no-store` を、既存の raw-bearing route と
+    同様に必須にする。
+  - 抽出ロジックは新規実装せず、既存の
+    `MonitorPromptExtractor.ExtractPromptLabel(payloadJson, traceId)`
+    （`internal static`、同一アセンブリ内なので可視性変更は不要）と
+    `IMonitorProjectionStore.ListRawRecordsByTraceId(traceId, 1)` を
+    `Index.cshtml.cs` / `Traces.cshtml.cs` と全く同じ呼び出し方で再利用する
+    （120 文字上限・空白正規化・trace 不一致時 `null` は既存実装のまま）。
+  - レスポンス形: `{ "trace_id": "...", "prompt_label": "..." | null }`。
+    `prompt_label` が `null` になるのはエラーではなく「抽出できなかった」
+    正常系（fallback は呼び出し側が担当）。
+  - trace id の形式が不正な場合は `400`。DB busy は既存の `persistence_busy`
+    `503` パターンを踏襲する。
+- Canvas 拡張の own server（`extension.mjs`）の `/api/traces` ルート
+  （Canvas action ではなく helper page 専用ルート。既に `sanitizeDto()` を
+  通していない、M5 の raw-preview と同じ「helper page surface」区分）に、
+  一覧内の各 trace について `GET {monitorUrl}/traces/{traceId}/prompt-label`
+  を server-to-server で fetch した結果を `prompt_label` として追加する。
+  - 一覧は既存どおり最大 `MAX_TRACE_LIST_LIMIT`（50）件に bounded。50 件分の
+    fetch は `Promise.all` で並列化する（loopback 通信のため許容範囲と判断。
+    実測で問題が出た場合はバッチ API を別途検討する）。
+  - `--sanitized-only` 時は route 自体が `404` になるため、Canvas 側は
+    既存の fetch 失敗ハンドリングでそのまま `prompt_label: null` 相当に
+    フォールバックする（特別分岐は追加しない）。
+  - ヘルパーページのドロップダウン表示は、`prompt_label` が取得できた
+    trace については `"${prompt_label} — ${既存の formatTraceLine 相当の行}"`
+    の形式にし、取得できなかった trace は既存の決定支援ラインのみを表示する
+    （情報を削除せず追加するフォールバック設計）。
+
+### 不変
+
+- Canvas **action**（`invoke_canvas_action` 経由の5アクション）は本決定後も
+  一切変更しない。`prompt_label` は helper page 専用ルート（`/api/traces`）
+  にのみ現れ、Canvas action response、`session.send()` に渡すプロンプト、
+  ログ、静的成果物には一切流れない。
+- `sanitizeDto()` の forbidden-key フィルタ（`prompt` を含む正規表現）は
+  今回変更しない。`/api/traces` はもともとこのフィルタを通っていない
+  （helper page 専用ルートのため）ので、フィルタを緩める必要はない。
+- `/api/monitor/*` と SSE は引き続き sanitized metadata のみで、
+  プロンプトを含めない（D032 を維持）。
+- `--sanitized-only` 下では Local Monitor 本体のページ（`/` / `/traces`）と
+  同様、Canvas 側でもプロンプトラベルは表示されない。
+- 新規 endpoint は `prompt_label`（最大120文字、既存 truncation ロジック）
+  のみを返す。full raw payload を返す新規 JSON route は追加しない
+  （D020 の「JSON raw API を安易に増やさない」という慎重姿勢は、この
+  スコープ限定によって維持される）。
+
+### 実装対象（次段階）
+
+- `src/CopilotAgentObservability.LocalMonitor/MonitorHost.cs`:
+  `GET /traces/{traceId}/prompt-label` を追加。
+- `.github/extensions/otel-monitor-canvas/extension.mjs`:
+  `/api/traces` ルートで `prompt_label` を並列 fetch して付加する
+  `fetchHelperPromptLabels`（仮称）を追加。
+- `.github/extensions/otel-monitor-canvas/canvas-helpers.mjs`:
+  ドロップダウン表示ラベルを組み立てる純関数（`formatTraceLine` と
+  `prompt_label` を合成する）を追加し、`node --test` で単体テストする。
+- `tests/CopilotAgentObservability.LocalMonitor.Tests/`:
+  新規 endpoint の same-origin / `--sanitized-only` / 正常系の契約テスト、
+  および `CanvasExtensionContractTests.cs` への追加 fact。
+- `docs/specifications/security-data-boundaries.md`: 本決定の内容を
+  D032/D035 セクション付近に追記する。
+
+本決定は設計の確定であり、コード実装は利用者の明示的な go-ahead を得てから
+着手する（D037→D038 と同じ二段階の手順を踏む）。
